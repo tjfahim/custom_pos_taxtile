@@ -35,8 +35,9 @@ class CustomerController extends Controller
             'full_address' => 'required|string|max:500',
             'phone_number_1' => 'required|string|max:20',
             'phone_number_2' => 'nullable|string|max:20',
+            'delivery_area' => 'nullable|string',
             'note' => 'nullable|string|max:1000',
-            'status' => 'required|in:active,inactive',
+            'status' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -77,6 +78,7 @@ class CustomerController extends Controller
             'full_address' => 'required|string|max:500',
             'phone_number_1' => 'required|string|max:20',
             'phone_number_2' => 'nullable|string|max:20',
+            'delivery_area' => 'nullable|string',
             'note' => 'nullable|string|max:1000',
             'status' => 'required|in:active,inactive',
         ]);

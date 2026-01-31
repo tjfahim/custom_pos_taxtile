@@ -17,6 +17,7 @@ return new class extends Migration
             $table->text('full_address');
             $table->string('phone_number_1');
             $table->string('phone_number_2')->nullable();
+            $table->string('delivery_area')->nullable();
             $table->text('note')->nullable();
             $table->string('status')->default('active');
             $table->timestamps();

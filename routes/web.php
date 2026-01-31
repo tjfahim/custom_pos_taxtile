@@ -38,15 +38,15 @@ Route::patch('customers/{id}/restore', [CustomerController::class, 'restore'])->
 Route::delete('customers/{id}/force-delete', [CustomerController::class, 'forceDelete'])->name('customers.force-delete');
 
 
-Route::prefix('pos')->group(function () {
-    Route::get('/', [PosController::class, 'index'])->name('pos.index');
-    Route::post('/create', [PosController::class, 'store'])->name('pos.store');
-    Route::get('/recent-invoices', [PosController::class, 'recentInvoices'])->name('pos.recent');
-    Route::get('/print/{id}', [PosController::class, 'printInvoice'])->name('pos.print');
+Route::prefix('invoices')->name('invoices.')->group(function () {
+    Route::get('/', [InvoiceController::class, 'index'])->name('index');
+    Route::get('/pos', [InvoiceController::class, 'pos'])->name('pos');
+    Route::post('/pos/store', [InvoiceController::class, 'storePos'])->name('store-pos');
+    
+    Route::get('/{id}/print', [InvoiceController::class, 'print'])->name('print');
+    Route::get('/{id}', [InvoiceController::class, 'show'])->name('show');
+    Route::delete('/{id}', [InvoiceController::class, 'destroy'])->name('destroy');
 });
 
-// Invoice Routes
-Route::resource('invoices', InvoiceController::class)->except(['create', 'store']);
-Route::post('invoices/{id}/add-payment', [InvoiceController::class, 'addPayment'])->name('invoices.add-payment');
 
 });

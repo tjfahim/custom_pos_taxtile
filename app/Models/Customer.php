@@ -14,6 +14,7 @@ class Customer extends Model
         'full_address',
         'phone_number_1',
         'phone_number_2',
+        'delivery_area',
         'note',
         'status',
     ];

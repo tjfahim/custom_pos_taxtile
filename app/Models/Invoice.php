@@ -12,75 +12,81 @@ class Invoice extends Model
 
     protected $fillable = [
         'invoice_number',
+        'store_location',
+        'product_type',
+        'merchant_order_id',
         'customer_id',
+        'recipient_name',
+        'recipient_phone',
+        'recipient_secondary_phone',
+        'recipient_address',
+        'delivery_area',
+        'delivery_type',
+        'delivery_charge',
+        'total_weight',
+        'special_instructions',
         'invoice_date',
+        'subtotal',
         'total',
+        'amount_to_collect',
         'paid_amount',
         'due_amount',
         'payment_status',
-        'notes',
+        'payment_method',
+        'payment_details',
+        'notes'
     ];
 
     protected $casts = [
         'invoice_date' => 'date',
+        'subtotal' => 'decimal:2',
         'total' => 'decimal:2',
+        'delivery_charge' => 'decimal:2',
+        'total_weight' => 'decimal:2',
+        'amount_to_collect' => 'decimal:2',
         'paid_amount' => 'decimal:2',
-        'due_amount' => 'decimal:2',
+        'due_amount' => 'decimal:2'
     ];
+protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($invoice) {
+            if (empty($invoice->invoice_number)) {
+                $invoice->invoice_number = 'INV-' . date('Ymd') . '-' . str_pad(Invoice::withTrashed()->count() + 1, 4, '0', STR_PAD_LEFT);
+            }
+        });
+    }
 
-    /**
-     * Get the customer that owns the invoice.
-     */
     public function customer()
     {
         return $this->belongsTo(Customer::class);
     }
 
-    /**
-     * Get the items for the invoice.
-     */
     public function items()
     {
         return $this->hasMany(InvoiceItem::class);
     }
 
-    /**
-     * Generate invoice number
-     */
-    public static function generateInvoiceNumber()
-    {
-        $prefix = 'INV-';
-        $date = now()->format('Ymd');
-        $lastInvoice = self::where('invoice_number', 'like', $prefix . $date . '%')
-            ->orderBy('invoice_number', 'desc')
-            ->first();
-
-        if ($lastInvoice) {
-            $lastNumber = (int) substr($lastInvoice->invoice_number, -3);
-            $newNumber = str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
-        } else {
-            $newNumber = '001';
-        }
-
-        return $prefix . $date . '-' . $newNumber;
+      public function calculateTotals()
+{
+    $subtotal = $this->items->sum('total_price');
+    $this->subtotal = $subtotal;
+    $this->total = $subtotal + $this->delivery_charge;
+    $this->total_weight = $this->items->sum('weight');
+    
+    // Update due amount
+    $this->due_amount = $this->total - $this->paid_amount;
+    
+    // Update payment status
+    if ($this->due_amount <= 0) {
+        $this->payment_status = 'paid';
+    } elseif ($this->paid_amount > 0) {
+        $this->payment_status = 'partial';
+    } else {
+        $this->payment_status = 'unpaid';
     }
-
-    public function getFormattedDateAttribute()
-    {
-        return $this->invoice_date->format('d M, Y');
-    }
-
-    /**
-     * Get payment status badge class
-     */
-    public function getPaymentStatusBadgeAttribute()
-    {
-        $badges = [
-            'paid' => 'success',
-            'partial' => 'warning',
-            'unpaid' => 'danger',
-        ];
-
-        return $badges[$this->payment_status] ?? 'secondary';
-    }
+    
+    $this->save();
+}
 }

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('item_name');
             $table->text('description')->nullable();
             $table->integer('quantity')->default(1);
+            $table->integer('weight');
             $table->decimal('unit_price', 10, 2);
             $table->decimal('total_price', 10, 2);
             $table->timestamps();
