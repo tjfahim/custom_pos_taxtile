@@ -11,13 +11,13 @@
                     <input type="number" name="paid_amount" 
                            class="form-control" 
                            value="0" min="0" step="0.01" id="paidAmount"
-                           onchange="InvoicePOS.updateDueAmount()">
+                           onchange="InvoiceCalculations.updateDueAmount()">
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="form-group">
                     <label>Payment Method</label>
-                    <select name="payment_method" class="form-control" id="paymentMethod" onchange="InvoicePOS.togglePaymentDetails()">
+                    <select name="payment_method" class="form-control" id="paymentMethod" onchange="InvoicePayments.togglePaymentDetails()">
                         <option value="">No Advance Payment</option>
                         <option value="bkash">Bkash</option>
                         <option value="bank_transfer">Bank Transfer</option>
@@ -31,7 +31,7 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text">Last 4 digits</span>
                         </div>
-                        <input type="text" name="payment_details" class="form-control" 
+                        <input type="text" name="bkash_transaction" class="form-control" 
                                placeholder="Last 4 digits of mobile number" maxlength="4">
                     </div>
                 </div>
@@ -41,7 +41,7 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text">Bank Name</span>
                         </div>
-                        <input type="text" name="payment_details" class="form-control" 
+                        <input type="text" name="bank_transfer_details" class="form-control" 
                                placeholder="Bank name & account details">
                     </div>
                 </div>

@@ -34,6 +34,9 @@ class Invoice extends Model
         'payment_status',
         'payment_method',
         'payment_details',
+        'pathao_city_id',
+        'pathao_zone_id',
+        'pathao_area_id',
         'notes'
     ];
 
@@ -48,15 +51,21 @@ class Invoice extends Model
         'due_amount' => 'decimal:2'
     ];
 protected static function boot()
-    {
-        parent::boot();
-        
-        static::creating(function ($invoice) {
-            if (empty($invoice->invoice_number)) {
-                $invoice->invoice_number = 'INV-' . date('Ymd') . '-' . str_pad(Invoice::withTrashed()->count() + 1, 4, '0', STR_PAD_LEFT);
-            }
-        });
-    }
+{
+    parent::boot();
+    
+    static::creating(function ($invoice) {
+        if (empty($invoice->invoice_number)) {
+            $today = date('Ymd');
+            
+            $countToday = Invoice::withTrashed()
+                ->whereDate('created_at', today())
+                ->count();
+            
+            $invoice->invoice_number = 'INV-' . $today . '-' . str_pad($countToday + 1, 4, '0', STR_PAD_LEFT);
+        }
+    });
+}
 
     public function customer()
     {

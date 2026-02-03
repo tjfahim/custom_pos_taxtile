@@ -67,23 +67,23 @@
                             <td>{{ $item->item_name }}</td>
                             <td>{{ $item->quantity }}</td>
                             <td>{{ $item->weight }}g</td>
-                            <td>${{ number_format($item->unit_price, 2) }}</td>
-                            <td>${{ number_format($item->total_price, 2) }}</td>
+                            <td>৳{{ number_format($item->unit_price, 2) }}</td>
+                            <td>৳{{ number_format($item->total_price, 2) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
                     <tfoot>
                         <tr>
                             <td colspan="4" class="text-right"><strong>Subtotal:</strong></td>
-                            <td>${{ number_format($invoice->subtotal, 2) }}</td>
+                            <td>৳{{ number_format($invoice->subtotal, 2) }}</td>
                         </tr>
                         <tr>
                             <td colspan="4" class="text-right"><strong>Delivery Charge:</strong></td>
-                            <td>${{ number_format($invoice->delivery_charge, 2) }}</td>
+                            <td>৳{{ number_format($invoice->delivery_charge, 2) }}</td>
                         </tr>
                         <tr>
                             <td colspan="4" class="text-right"><strong>Total:</strong></td>
-                            <td>${{ number_format($invoice->total, 2) }}</td>
+                            <td>৳{{ number_format($invoice->total, 2) }}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -91,8 +91,8 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Payment Details</h6>
-                        <p><strong>Paid:</strong> ${{ number_format($invoice->paid_amount, 2) }}</p>
-                        <p><strong>Due:</strong> ${{ number_format($invoice->due_amount, 2) }}</p>
+                        <p><strong>Paid:</strong> ৳{{ number_format($invoice->paid_amount, 2) }}</p>
+                        <p><strong>Due:</strong> ৳{{ number_format($invoice->due_amount, 2) }}</p>
                         @if($invoice->payment_method)
                         <p><strong>Method:</strong> {{ ucfirst($invoice->payment_method) }}</p>
                         @endif

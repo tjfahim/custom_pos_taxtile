@@ -34,20 +34,10 @@
         <i class="fa fa-file-invoice"></i> Invoices
     </a>
 </li>
-<li class="nav-item">
-    <a class="nav-link" href="{{ route('customers.index') }}">
-        <i class="fa fa-users"></i> Customers
-    </a>
-</li>
-                    <li class="menu-item-has-children dropdown">
-                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> <i class="menu-icon fa fa-table"></i>Tables</a>
-                        <ul class="sub-menu children dropdown-menu">
-                            <li><i class="fa fa-table"></i><a href="tables-basic.html">Basic Table</a></li>
-                            <li><i class="fa fa-table"></i><a href="tables-data.html">Data Table</a></li>
-                        </ul>
-                    </li>
+
+                   
                   
                 </ul>
-            </div><!-- /.navbar-collapse -->
+            </div>
         </nav>
     </aside>

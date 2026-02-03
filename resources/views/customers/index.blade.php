@@ -40,7 +40,7 @@
 
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table id="customerTable" class="table table-hover">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -58,7 +58,7 @@
                             @forelse($customers as $c)
                             <tr>
                                 <!-- ID Column -->
-                                <td>#{{ $c->id }}</td>
+                                <td>{{ $c->id }}</td>
 
                                 <!-- Customer Name Column -->
                                 <td>
@@ -203,7 +203,7 @@
                             </div>
                             @empty
                             <tr>
-                                <td colspan="7" class="text-center py-4">
+                                <td colspan="8" class="text-center py-4">
                                     <i class="fa fa-users fa-2x text-muted mb-2"></i>
                                     <p>No customers found</p>
                                     <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm">
@@ -243,8 +243,44 @@
 </style>
 
 <script>
-    $(document).ready(function() {
-        $('[data-toggle="tooltip"]').tooltip();
+$(document).ready(function() {
+    $('#customerTable').DataTable({
+        "order": [[0, "desc"]], // sort by ID descending
+        "columnDefs": [
+            { 
+                "orderable": false, 
+                "targets": [2, 3, 4, 5, 6, 7] // Making non-ID columns non-sortable
+            },
+            {
+                "searchable": false,
+                "targets": [7] // Action column not searchable
+            }
+        ],
+        "pageLength": 10, // rows per page
+        "lengthMenu": [5, 10, 25, 50, 100],
+        "responsive": true,
+        "language": {
+            "emptyTable": "No customers found",
+            "info": "Showing _START_ to _END_ of _TOTAL_ customers",
+            "infoEmpty": "Showing 0 to 0 of 0 customers",
+            "infoFiltered": "(filtered from _MAX_ total customers)",
+            "lengthMenu": "Show _MENU_ customers",
+            "search": "Search:",
+            "zeroRecords": "No matching customers found",
+            "paginate": {
+                "first": "First",
+                "last": "Last",
+                "next": "Next",
+                "previous": "Previous"
+            }
+        },
+        "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+               '<"row"<"col-sm-12"tr>>' +
+               '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
     });
+    
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+});
 </script>
 @endsection

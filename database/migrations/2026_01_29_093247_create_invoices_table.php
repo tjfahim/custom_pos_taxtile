@@ -40,8 +40,9 @@ return new class extends Migration
     $table->decimal('paid_amount', 10, 2)->default(0);
     $table->decimal('due_amount', 10, 2)->default(0);
     $table->string('payment_status')->default('unpaid');
-    
-    // Payment Information
+    $table->integer('pathao_city_id')->nullable();
+    $table->integer('pathao_zone_id')->nullable();
+    $table->integer('pathao_area_id')->nullable();
     $table->string('payment_method')->nullable();
     $table->text('payment_details')->nullable();
     

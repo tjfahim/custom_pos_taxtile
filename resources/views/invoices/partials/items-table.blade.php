@@ -2,9 +2,9 @@
 <div class="card mb-3">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><i class="fa fa-box"></i> Items</h6>
-        <button type="button" class="btn btn-sm btn-primary" onclick="addItemRow()">
-            <i class="fa fa-plus"></i> Add Item
-        </button>
+        <button type="button" class="btn btn-sm btn-primary" onclick="InvoiceItems.addItemRow()">
+    <i class="fa fa-plus"></i> Add Item
+</button>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">

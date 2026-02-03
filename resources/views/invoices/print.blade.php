@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invoice #{{ $invoice->invoice_number }}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
-        
+        /* Modern, clean styling */
         * {
             margin: 0;
             padding: 0;
@@ -14,55 +13,67 @@
         }
         
         body {
-            font-family: 'Poppins', Arial, sans-serif;
-            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
             padding: 20px;
+            color: #333;
+            line-height: 1.4;
         }
         
         .invoice-container {
             width: 100%;
-            max-width: 400px;
+            max-width: 380px;
             margin: 0 auto;
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e5e5e5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             overflow: hidden;
         }
         
+        /* Header */
         .invoice-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             padding: 20px;
             text-align: center;
+            border-bottom: 2px solid #f0f0f0;
         }
         
         .shop-name {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 600;
+            color: #1a1a1a;
             margin-bottom: 5px;
+            letter-spacing: -0.5px;
         }
         
         .shop-address {
-            font-size: 12px;
-            opacity: 0.9;
-            line-height: 1.4;
+            font-size: 11px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 15px;
         }
         
         .invoice-title {
-            margin-top: 15px;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 500;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
         }
         
         .invoice-no {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-top: 5px;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 5px;
         }
         
+        .invoice-date {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* Body */
         .invoice-body {
             padding: 20px;
         }
@@ -72,121 +83,162 @@
         }
         
         .section-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
-            color: #667eea;
-            margin-bottom: 8px;
-            padding-bottom: 5px;
-            border-bottom: 2px solid #f0f0f0;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f0f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
-        .info-row {
-            display: flex;
-            margin-bottom: 8px;
-            font-size: 13px;
+        .info-grid {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 8px;
+            font-size: 12px;
         }
         
         .info-label {
             font-weight: 500;
             color: #666;
-            min-width: 120px;
         }
         
         .info-value {
-            color: #333;
-            flex: 1;
+            color: #1a1a1a;
         }
         
+        /* Items Table */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 12px;
+            margin-top: 5px;
+            font-size: 11px;
+        }
+        
+        .items-table thead {
+            background: #f8f9fa;
         }
         
         .items-table th {
-            background: #f8f9fa;
-            padding: 8px;
+            padding: 8px 6px;
             text-align: left;
             font-weight: 500;
             color: #555;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid #e5e5e5;
         }
         
         .items-table td {
-            padding: 8px;
+            padding: 8px 6px;
             border-bottom: 1px solid #f0f0f0;
         }
         
-        .items-table tr:last-child td {
+        .items-table tbody tr:last-child td {
             border-bottom: none;
         }
         
-        .total-section {
-            background: #f8f9fa;
+        .items-table .text-right {
+            text-align: right;
+        }
+        
+        .items-table .text-center {
+            text-align: center;
+        }
+        
+        /* Totals Section */
+        .totals-container {
+            background: #fafafa;
             padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
+            border-radius: 4px;
+            border: 1px solid #f0f0f0;
         }
         
         .total-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 13px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        
+        .total-row:last-child {
+            margin-bottom: 0;
         }
         
         .grand-total {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            color: #667eea;
-            border-top: 2px solid #dee2e6;
+            color: #1a1a1a;
             padding-top: 8px;
             margin-top: 8px;
+            border-top: 1px solid #e5e5e5;
         }
         
-        .payment-info {
-            margin-top: 20px;
+        /* Payment Section */
+        .payment-container {
+            background: #f8f9fa;
             padding: 15px;
-            background: linear-gradient(to right, #f8f9fa, #e9ecef);
-            border-radius: 8px;
-            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            border: 1px solid #e5e5e5;
+            margin-top: 20px;
+        }
+        
+        .payment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
         }
         
         .payment-status {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .status-paid {
-            background: #d4edda;
-            color: #155724;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
         }
         
         .status-partial {
-            background: #fff3cd;
-            color: #856404;
+            background: #fff8e1;
+            color: #f57c00;
+            border: 1px solid #ffe0b2;
         }
         
         .status-unpaid {
-            background: #f8d7da;
-            color: #721c24;
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
         }
         
-        .thank-you {
+        /* Footer */
+        .invoice-footer {
             text-align: center;
             padding: 20px;
-            color: #666;
-            font-style: italic;
-            font-size: 13px;
-            border-top: 1px dashed #dee2e6;
+            border-top: 1px dashed #e5e5e5;
             margin-top: 20px;
         }
         
+        .thank-you {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .footer-note {
+            font-size: 10px;
+            color: #888;
+            line-height: 1.4;
+        }
+        
+        /* Print Controls - Only visible on screen */
         .print-controls {
             text-align: center;
             margin-top: 20px;
@@ -195,116 +247,123 @@
         
         .btn {
             padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             font-weight: 500;
             cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
+            font-size: 13px;
+            transition: all 0.2s;
             text-decoration: none;
             display: inline-block;
             margin: 5px;
-        }
-        
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
+            background: #f8f9fa;
+            color: #333;
         }
         
         .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background: #e9ecef;
+            border-color: #ccc;
         }
         
+        /* Print-specific styles */
         @media print {
+            @page {
+                margin: 5mm;
+                size: auto;
+            }
+            
             body {
-                background: white;
                 padding: 0;
+                background: white;
+                font-size: 11pt;
             }
             
             .invoice-container {
-                box-shadow: none;
                 max-width: 100%;
-                border-radius: 0;
+                border: none;
+                box-shadow: none;
+                margin: 0;
             }
             
             .print-controls {
-                display: none;
+                display: none !important;
             }
             
-            .thank-you {
-                margin-bottom: 30px;
+            /* Hide browser headers/footers */
+            @page {
+                margin-top: 0;
+                margin-bottom: 0;
+            }
+            
+            body::after,
+            body::before {
+                display: none !important;
+            }
+        }
+        
+        /* Mobile responsiveness */
+        @media screen and (max-width: 400px) {
+            body {
+                padding: 10px;
+            }
+            
+            .invoice-container {
+                max-width: 100%;
+            }
+            
+            .invoice-header,
+            .invoice-body {
+                padding: 15px;
+            }
+            
+            .info-grid {
+                grid-template-columns: 80px 1fr;
             }
         }
     </style>
 </head>
 <body>
     <div class="invoice-container">
-        <!-- Header Section -->
+        <!-- Header -->
         <div class="invoice-header">
             <div class="shop-name">Faisal Textile</div>
             <div class="shop-address">
-                12, Balaka Vhaban, Chadni Chawk Market (Ground Floor), Dhaka 1205<br>
-                Phone: 01883024878
+                20, Balaka Vhaban, Chadni Chawk Market (Ground Floor)<br>
+                Dhaka 1205 • Phone: 01923232543
             </div>
-            <div class="invoice-title">DELIVERY INVOICE</div>
+            <div class="invoice-title">Delivery Invoice</div>
             <div class="invoice-no">#{{ $invoice->invoice_number }}</div>
-            <div style="margin-top: 8px; font-size: 13px;">
-                {{ $invoice->invoice_date->format('d/m/Y h:i A') }}
-            </div>
         </div>
         
-        <!-- Body Section -->
+        <!-- Body -->
         <div class="invoice-body">
             <!-- Recipient Information -->
             <div class="section">
                 <div class="section-title">Recipient Details</div>
-                <div class="info-row">
-                    <span class="info-label">Name:</span>
-                    <span class="info-value">{{ $invoice->recipient_name }}</span>
+                <div class="info-grid">
+                    <div class="info-label">Name:</div>
+                    <div class="info-value">{{ $invoice->recipient_name }}</div>
+                    
+                    <div class="info-label">Phone:</div>
+                    <div class="info-value">{{ $invoice->recipient_phone }}</div>
+                    
+                    @if($invoice->recipient_secondary_phone)
+                    <div class="info-label">Alt Phone:</div>
+                    <div class="info-value">{{ $invoice->recipient_secondary_phone }}</div>
+                    @endif
+                    
+                    <div class="info-label">Address:</div>
+                    <div class="info-value">{{ $invoice->recipient_address }}</div>
+                    
+                    <div class="info-label">Area:</div>
+                    <div class="info-value">{{ $invoice->delivery_area }}</div>
+                    
+                    <div class="info-label">Store:</div>
+                    <div class="info-value">{{ $invoice->store_location }}</div>
+                    
+                    <div class="info-label">Delivery:</div>
+                    <div class="info-value">{{ $invoice->delivery_type }}</div>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Phone:</span>
-                    <span class="info-value">{{ $invoice->recipient_phone }}</span>
-                </div>
-                @if($invoice->recipient_secondary_phone)
-                <div class="info-row">
-                    <span class="info-label">Alt Phone:</span>
-                    <span class="info-value">{{ $invoice->recipient_secondary_phone }}</span>
-                </div>
-                @endif
-                <div class="info-row">
-                    <span class="info-label">Address:</span>
-                    <span class="info-value">{{ $invoice->recipient_address }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Area:</span>
-                    <span class="info-value">{{ $invoice->delivery_area }}</span>
-                </div>
-            </div>
-            
-            <!-- Delivery Information -->
-            <div class="section">
-                <div class="section-title">Delivery Information</div>
-                <div class="info-row">
-                    <span class="info-label">Type:</span>
-                    <span class="info-value">{{ $invoice->delivery_type }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Weight:</span>
-                    <span class="info-value">{{ number_format($invoice->total_weight) }} g</span>
-                </div>
-                @if($invoice->special_instructions)
-                <div class="info-row">
-                    <span class="info-label">Instructions:</span>
-                    <span class="info-value">{{ $invoice->special_instructions }}</span>
-                </div>
-                @endif
             </div>
             
             <!-- Items Table -->
@@ -313,27 +372,27 @@
                 <table class="items-table">
                     <thead>
                         <tr>
-                            <th>Item</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>Total</th>
+                            <th>Description</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-right">Price</th>
+                            <th class="text-right">Total</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($invoice->items as $item)
                         <tr>
                             <td>{{ $item->item_name }}</td>
-                            <td>{{ $item->quantity }}</td>
-                            <td>৳{{ number_format($item->unit_price, 2) }}</td>
-                            <td>৳{{ number_format($item->total_price, 2) }}</td>
+                            <td class="text-center">{{ $item->quantity }}</td>
+                            <td class="text-right">৳{{ number_format($item->unit_price, 2) }}</td>
+                            <td class="text-right">৳{{ number_format($item->total_price, 2) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
             
-            <!-- Totals Section -->
-            <div class="total-section">
+            <!-- Totals -->
+            <div class="totals-container">
                 <div class="total-row">
                     <span>Subtotal:</span>
                     <span>৳{{ number_format($invoice->subtotal, 2) }}</span>
@@ -344,67 +403,86 @@
                 </div>
                 <div class="total-row grand-total">
                     <span>Total Amount:</span>
-                    <span>৳{{ number_format($invoice->total, 2) }}</span>
+                    <span><strong>৳{{ number_format($invoice->total, 2) }}</strong></span>
                 </div>
             </div>
             
             <!-- Payment Information -->
-            <div class="payment-info">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div class="info-row">
-                            <span class="info-label" style="min-width: 80px;">Advance:</span>
-                            <span class="info-value">৳{{ number_format($invoice->paid_amount, 2) }}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label" style="min-width: 80px;">Due:</span>
-                            <span class="info-value" style="font-weight: 600;">৳{{ number_format($invoice->due_amount, 2) }}</span>
-                        </div>
-                        @if($invoice->payment_method)
-                        <div class="info-row">
-                            <span class="info-label" style="min-width: 80px;">Method:</span>
-                            <span class="info-value">{{ ucfirst($invoice->payment_method) }}</span>
-                        </div>
-                        @endif
-                        @if($invoice->payment_details)
-                        <div class="info-row">
-                            <span class="info-label" style="min-width: 80px;">Details:</span>
-                            <span class="info-value">{{ $invoice->payment_details }}</span>
-                        </div>
-                        @endif
+            <div class="payment-container">
+                <div class="payment-header">
+                    <div style="font-size: 13px; font-weight: 600;">Payment Summary</div>
+                    <div class="payment-status status-{{ $invoice->payment_status }}">
+                        {{ strtoupper($invoice->payment_status) }}
                     </div>
-                    <div>
-                        <span class="payment-status status-{{ $invoice->payment_status }}">
-                            {{ strtoupper($invoice->payment_status) }}
-                        </span>
-                    </div>
+                </div>
+                
+                <div class="info-grid" style="grid-template-columns: 90px 1fr;">
+                    <div class="info-label">Advance:</div>
+                    <div class="info-value">৳{{ number_format($invoice->paid_amount, 2) }}</div>
+                    
+                    <div class="info-label">Due:</div>
+                    <div class="info-value" style="font-weight: 600;">৳{{ number_format($invoice->due_amount, 2) }}</div>
+                    
+                    @if($invoice->payment_method)
+                    <div class="info-label">Method:</div>
+                    <div class="info-value">{{ ucfirst($invoice->payment_method) }}</div>
+                    @endif
+                    
+                    @if($invoice->payment_details)
+                    <div class="info-label">Details:</div>
+                    <div class="info-value" style="font-size: 11px;">{{ $invoice->payment_details }}</div>
+                    @endif
                 </div>
             </div>
             
-            <!-- Thank You Message -->
-            <div class="thank-you">
-                <div>Thank you for your business!</div>
-                <div style="margin-top: 5px; font-size: 11px;">
-                    * Please keep this invoice for any queries
+            <!-- Footer -->
+            <div class="invoice-footer">
+                <div class="thank-you">Thank you for your business!</div>
+                <div class="footer-note">
+                    Please keep this invoice for any queries<br>
+                    Invoice generated on {{ now()->format('d/m/Y h:i A') }}
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Print Controls -->
+    <!-- Print Controls - Hidden in print -->
     <div class="print-controls">
-        <button onclick="window.print()" class="btn btn-primary">Print Invoice</button>
-        <a href="{{ route('invoices.pos') }}" class="btn btn-secondary">New Invoice</a>
-        <a href="{{ route('invoices.index') }}" class="btn btn-secondary">Invoice List</a>
+        <button onclick="printInvoice()" class="btn">Print Invoice</button>
+        <a href="{{ route('invoices.pos') }}" class="btn">New Invoice</a>
+        <a href="{{ route('invoices.index') }}" class="btn">Invoice List</a>
     </div>
     
     <script>
-        // Auto print after 1 second
+        // Custom print function for better control
+        function printInvoice() {
+            // Hide print controls before printing
+            document.querySelector('.print-controls').style.display = 'none';
+            
+            // Print the document
+            window.print();
+            
+            // Restore print controls after a delay
+            setTimeout(() => {
+                document.querySelector('.print-controls').style.display = 'block';
+            }, 500);
+        }
+        
+        // Auto-print if URL has autoprint parameter
         window.onload = function() {
-            setTimeout(function() {
-                window.print();
-            }, 1000);
+            const urlParams = new URLSearchParams(window.location.search);
+            const autoPrint = urlParams.get('autoprint');
+            
+            if (autoPrint === '1') {
+                setTimeout(() => {
+                    printInvoice();
+                }, 500);
+            }
         };
+        
+        window.addEventListener('beforeprint', function() {
+            document.title = 'Invoice #{{ $invoice->invoice_number }}';
+        });
     </script>
 </body>
 </html>

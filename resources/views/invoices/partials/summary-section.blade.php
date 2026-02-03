@@ -11,13 +11,13 @@
                 <div class="form-group">
                     <label>Delivery Charge (৳)</label>
                     <input type="number" name="delivery_charge" class="form-control" 
-                           value="60" min="0" step="0.01" id="deliveryCharge">
+                           value="60" min="0" step="0.01" id="deliveryCharge" onchange="InvoiceCalculations.calculateTotals()">
                 </div>
             </div>
         </div>
-          <div class="form-group">
+        <div class="form-group">
             <label>Special Instructions</label>
-            <textarea name="special_instructions" rows="2" class="form-control"></textarea>
+            <textarea name="special_instructions" rows="2" class="form-control" value="">Return korle delivery charge 150 tk niben ( আনুষাঙ্গিক কোনো ইসু থাকলে প্যানেলে মেসেজ দিবেন। নাম্বারে যোগাযোগ করার সময় - সকাল ১১.৩০ থেকে রাত ৯ টার মধ্যে)</textarea>
         </div>
         <div class="form-group">
             <label>Notes</label>
@@ -43,15 +43,13 @@
                         <td><strong>Total:</strong></td>
                         <td class="text-right"><strong id="total">৳0.00</strong></td>
                     </tr>
-                    <tr>
-                        <td>Amount to Collect:</td>
-                        <td class="text-right">
-                            <input type="number" name="amount_to_collect" 
-                                   class="form-control form-control-sm text-right" 
-                                   value="0" min="0" step="0.01" id="amountToCollect"
-                                   onchange="updateDueAmount()">
-                        </td>
+                    
+                    <!-- Advance Payment Row (Hidden by default) -->
+                    <tr id="advancePaymentRow" style="display: none;">
+                        <td>Advance:</td>
+                        <td class="text-right text-success" id="advanceAmount">৳0.00</td>
                     </tr>
+                    
                     <tr class="border-top">
                         <td><strong>Due:</strong></td>
                         <td class="text-right"><strong id="dueAmount">৳0.00</strong></td>

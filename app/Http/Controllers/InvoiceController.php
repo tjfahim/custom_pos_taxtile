@@ -6,7 +6,8 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use Illuminate\Http\Request;
-
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Response;
 class InvoiceController extends Controller
 {
     public function pos()
@@ -14,11 +15,13 @@ class InvoiceController extends Controller
     $customers = Customer::where('status', 'active')->latest()->get();
     return view('invoices.pos', compact('customers'));
 }
-// In InvoiceController.php - update storePos method
+
+
+
+
 public function storePos(Request $request)
 {
     $request->validate([
-        'customer_id' => 'required|exists:customers,id',
         'recipient_name' => 'required|string|max:255',
         'recipient_phone' => 'required|string|max:20',
         'recipient_address' => 'required|string',
@@ -36,9 +39,41 @@ public function storePos(Request $request)
     ]);
 
     try {
+        // Check if customer exists by phone number
+        $customer = Customer::where('phone_number_1', $request->recipient_phone)
+            ->orWhere('phone_number_2', $request->recipient_phone)
+            ->first();
+
+        // If customer doesn't exist, create new one
+        if (!$customer) {
+            $customer = Customer::create([
+                'name' => $request->recipient_name,
+                'full_address' => $request->recipient_address,
+                'phone_number_1' => $request->recipient_phone,
+                'phone_number_2' => $request->recipient_secondary_phone,
+                'delivery_area' => $request->delivery_area,
+                'note' => $request->notes,
+                'status' => 'active',
+            ]);
+        } else {
+            // Update existing customer with new information
+            $customer->update([
+                'name' => $request->recipient_name,
+                'full_address' => $request->recipient_address,
+                'delivery_area' => $request->delivery_area,
+                'note' => $request->notes,
+            ]);
+            
+            // Update secondary phone if provided
+            if ($request->recipient_secondary_phone) {
+                $customer->phone_number_2 = $request->recipient_secondary_phone;
+                $customer->save();
+            }
+        }
+
         // Create invoice
         $invoice = Invoice::create([
-            'customer_id' => $request->customer_id,
+            'customer_id' => $customer->id,
             'recipient_name' => $request->recipient_name,
             'recipient_phone' => $request->recipient_phone,
             'recipient_secondary_phone' => $request->recipient_secondary_phone,
@@ -52,8 +87,11 @@ public function storePos(Request $request)
             'amount_to_collect' => $request->amount_to_collect ?? 0,
             'paid_amount' => $request->paid_amount ?? 0,
             'payment_method' => $request->payment_method,
-            'payment_details' => $request->payment_details,
+            'payment_details' => $request->bkash_transaction ?? $request->bank_transfer_details,
             'notes' => $request->notes,
+            'pathao_city_id' => $request->delivery_city_id,
+            'pathao_zone_id' => $request->delivery_zone_id,
+            'pathao_area_id' => $request->delivery_area_id,
             'invoice_date' => now(),
         ]);
 
@@ -83,6 +121,8 @@ public function storePos(Request $request)
                 'success' => true,
                 'invoice_id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
+                'customer_id' => $customer->id,
+                'customer_name' => $customer->name,
                 'print_url' => route('invoices.print', $invoice->id),
                 'message' => 'Invoice created successfully!'
             ]);
@@ -106,6 +146,9 @@ public function storePos(Request $request)
         return back()->with('error', 'Error creating invoice: ' . $e->getMessage());
     }
 }
+
+
+
     // Print invoice
     public function print($id)
     {
@@ -136,5 +179,137 @@ public function storePos(Request $request)
         return redirect()->route('invoices.index')
             ->with('success', 'Invoice deleted successfully!');
     }
+
+    
+       public function downloadTodayCSV(Request $request)
+    {
+        // Get today's date
+        $today = Carbon::today()->toDateString();
+        
+        // Get all invoices for today
+        $invoices = Invoice::whereDate('invoice_date', $today)
+            ->with('customer', 'items')
+            ->get();
+        
+        // Check if there are any invoices for today
+        if ($invoices->isEmpty()) {
+            return redirect()->back()->with('error', 'No invoices found for today.');
+        }
+        
+        // Prepare CSV content (NO HEADERS - only data)
+        $csvData = [];
+        
+        // Add data rows ONLY
+        foreach ($invoices as $invoice) {
+            // Parse delivery_area field to extract city, zone, area
+            $cityName = '';
+            $zoneName = '';
+            $areaName = '';
+            
+            if (!empty($invoice->delivery_area)) {
+                $parts = array_map('trim', explode(',', $invoice->delivery_area));
+                
+                // Get city (first part)
+                if (isset($parts[0])) {
+                    $cityName = $parts[0];
+                }
+                
+                // Get zone (second part)
+                if (isset($parts[1])) {
+                    $zoneName = $parts[1];
+                }
+                
+                // Get area (third part and beyond, join back)
+                if (count($parts) >= 3) {
+                    $areaParts = array_slice($parts, 2);
+                    $areaName = implode(', ', $areaParts);
+                }
+            }
+            
+            // If we have Pathao IDs, use those instead (higher priority)
+            if ($invoice->pathaoCity) {
+                $cityName = $invoice->pathaoCity->city_name;
+            }
+            if ($invoice->pathaoZone) {
+                $zoneName = $invoice->pathaoZone->zone_name;
+            }
+            if ($invoice->pathaoArea) {
+                $areaName = $invoice->pathaoArea->area_name;
+            }
+            
+            // Clean up any trailing commas from area
+            $areaName = trim($areaName, ', ');
+            
+            // Process each item in the invoice
+            foreach ($invoice->items as $item) {
+                // Calculate item weight (quantity * 0.5)
+                $itemWeight = $item->quantity * 0.5;
+                
+                // Prepare row data (NO HEADERS - only values in correct order)
+                $row = [
+                    'Parcel', // ItemType
+                    $invoice->store_location, // StoreName
+                    '', // MerchantOrderId (empty as requested)
+                    $invoice->recipient_name, // RecipientName(*)
+                    $invoice->recipient_phone, // RecipientPhone(*)
+                    $invoice->recipient_address, // RecipientAddress(*)
+                    $cityName, // RecipientCity(*)
+                    $zoneName, // RecipientZone(*)
+                    $areaName, // RecipientArea
+                    $invoice->due_amount, // AmountToCollect(*)
+                    $item->quantity, // ItemQuantity
+                    $itemWeight, // ItemWeight
+                    $item->description ?: $item->item_name, // ItemDesc
+                    $invoice->special_instructions // SpecialInstruction
+                ];
+                
+                $csvData[] = $row;
+            }
+            
+            // If invoice has no items, add one row with basic info
+            if ($invoice->items->isEmpty()) {
+                $row = [
+                    'Parcel', // ItemType
+                    $invoice->store_location, // StoreName
+                    '', // MerchantOrderId (empty as requested)
+                    $invoice->recipient_name, // RecipientName(*)
+                    $invoice->recipient_phone, // RecipientPhone(*)
+                    $invoice->recipient_address, // RecipientAddress(*)
+                    $cityName, // RecipientCity(*)
+                    $zoneName, // RecipientZone(*)
+                    $areaName, // RecipientArea
+                    $invoice->due_amount, // AmountToCollect(*)
+                    1, // ItemQuantity (default)
+                    0.5, // ItemWeight (default)
+                    'Invoice Items', // ItemDesc
+                    $invoice->special_instructions // SpecialInstruction
+                ];
+                
+                $csvData[] = $row;
+            }
+        }
+        
+        // Generate CSV content (NO HEADERS)
+        $csvContent = '';
+        foreach ($csvData as $row) {
+            $csvContent .= implode(',', array_map(function($value) {
+                // Escape commas and quotes
+                $value = str_replace('"', '""', $value);
+                // Wrap in quotes if contains comma or double quote
+                if (strpos($value, ',') !== false || strpos($value, '"') !== false) {
+                    $value = '"' . $value . '"';
+                }
+                return $value;
+            }, $row)) . "\n";
+        }
+        
+        // Generate filename
+        $filename = 'today_invoices_' . $today . '.csv';
+        
+        // Return CSV download
+        return Response::make($csvContent, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
 }
-// DELETE ALL HTML CODE AFTER THIS LINE!
