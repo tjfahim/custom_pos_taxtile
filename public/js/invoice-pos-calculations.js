@@ -3,11 +3,27 @@ const InvoiceCalculations = {
     
     calculateTotals: function() {
         let subtotal = 0;
+        let totalQuantity = 0;
+        let totalWeightGrams = 0;
         
-        // Calculate subtotal from items
-        $('.total-price-hidden').each(function() {
-            subtotal += parseFloat($(this).val()) || 0;
+        // Calculate subtotal, quantity, and weight from items
+        $('.item-row').each(function() {
+            const quantity = parseFloat($(this).find('.quantity').val()) || 0;
+            const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
+            const weightGrams = parseFloat($(this).find('.item-weight').val()) || 0;
+            const total = quantity * unitPrice;
+            
+            // Update item total display
+            $(this).find('.total-price').text('৳' + total.toFixed(2));
+            $(this).find('.total-price-hidden').val(total);
+            
+            subtotal += total;
+            totalQuantity += quantity;
+            totalWeightGrams += (weightGrams * quantity);
         });
+        
+        // Convert grams to kilograms (divide by 1000)
+        const totalWeightKg = totalWeightGrams / 1000;
         
         // Get delivery charge
         const deliveryCharge = parseFloat($('#deliveryCharge').val()) || 0;
@@ -25,10 +41,21 @@ const InvoiceCalculations = {
         $('#subtotal').text('৳' + subtotal.toFixed(2));
         $('#deliveryAmount').text('৳' + deliveryCharge.toFixed(2));
         $('#total').text('৳' + total.toFixed(2));
+        $('#totalQuantity').text(totalQuantity);
+        
+        // Show/hide total weight row (in kg)
+        const totalWeightRow = $('#totalWeightRow');
+        const totalWeightDisplay = $('#totalWeight');
+        if (totalWeightKg > 0) {
+            totalWeightRow.show();
+            totalWeightDisplay.text(totalWeightKg.toFixed(3) + ' kg'); // 3 decimal places for grams conversion
+        } else {
+            totalWeightRow.hide();
+        }
         
         // Update hidden inputs if they exist
-        $('#subtotalInput').val(subtotal.toFixed(2));
-        $('#totalInput').val(total.toFixed(2));
+        if ($('#subtotalInput').length) $('#subtotalInput').val(subtotal.toFixed(2));
+        if ($('#totalInput').length) $('#totalInput').val(total.toFixed(2));
         
         // Update advance payment display
         this.updateAdvanceDisplay(advancePayment, dueAmount);
@@ -49,7 +76,7 @@ const InvoiceCalculations = {
         
         // Update due amount
         $('#dueAmount').text('৳' + dueAmount.toFixed(2));
-        $('#dueInput').val(dueAmount.toFixed(2));
+        if ($('#dueInput').length) $('#dueInput').val(dueAmount.toFixed(2));
     },
     
     updateDueAmount: function() {
@@ -60,15 +87,16 @@ const InvoiceCalculations = {
         this.updateAdvanceDisplay(advancePayment, dueAmount);
     },
     
-    // Add this function to update amount to collect (if you have this field)
-    updateAmountToCollect: function() {
-        const total = parseFloat($('#total').text().replace('৳', '')) || 0;
-        const amountToCollect = parseFloat($('#amountToCollect').val()) || total;
-        const dueAmount = Math.max(0, total - amountToCollect);
+    // New: Calculate total weight in kg
+    calculateTotalWeight: function() {
+        let totalWeightGrams = 0;
         
-        // If using amountToCollect instead of paidAmount
-        if ($('#amountToCollect').length) {
-            this.updateAdvanceDisplay(amountToCollect, dueAmount);
-        }
+        $('.item-row').each(function() {
+            const quantity = parseFloat($(this).find('.quantity').val()) || 0;
+            const weightGrams = parseFloat($(this).find('.item-weight').val()) || 0;
+            totalWeightGrams += (weightGrams * quantity);
+        });
+        
+        return totalWeightGrams / 1000; // Return in kg
     }
 };

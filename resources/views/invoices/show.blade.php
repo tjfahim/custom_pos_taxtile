@@ -39,6 +39,7 @@
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <p><strong>Name:</strong> {{ $invoice->recipient_name }}</p>
+                        <p><strong>Merchant Order Id:</strong> {{ $invoice->merchant_order_id }}</p>
                         <p><strong>Phone:</strong> {{ $invoice->recipient_phone }}</p>
                         @if($invoice->recipient_secondary_phone)
                         <p><strong>Secondary Phone:</strong> {{ $invoice->recipient_secondary_phone }}</p>

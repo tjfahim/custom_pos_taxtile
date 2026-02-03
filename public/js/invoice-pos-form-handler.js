@@ -14,6 +14,7 @@ const InvoiceFormHandler = {
         $('#customerId').val(customerId);
         $('#selectedCustomer').text(customerName + ' (ID: ' + customerId + ')');
         $('#recipientName').val(customerName);
+        $('#merchant_order_id').val(merchant_order_id);
         $('#recipientPhone').val(customerPhone);
         $('#recipientPhone2').val(customerPhone2);
         $('#recipientAddress').val(customerAddress);

@@ -47,6 +47,7 @@
                                 <th>Customer</th>
                                 <th>Contact</th>
                                 <th>Address</th>
+                                <th>Merchant Id</th>
                                 <th>Area</th>
                                 <th>Status</th>
                                 <th>Notes</th>
@@ -94,16 +95,27 @@
                                 <!-- Address Column -->
                                 <td>
                                     <i class="fa fa-map-marker-alt text-danger mr-2"></i>
-                                    {{ Str::limit($c->full_address) }}
+                                    {{ Str::limit($c->full_address, 30) }}
                                 </td>
+                                
+                                <!-- Merchant ID Column -->
                                 <td>
-                                     @if($c->delivery_area)
-                                    <i class="fa fa-map-marker-alt text-danger mr-2"></i>
-                                    {{ Str::limit($c->delivery_area) }}
+                                    @if($c->merchant_order_id)
+                                        <i class="fa fa-id-card text-info mr-2"></i>
+                                        {{ $c->merchant_order_id }}
                                     @else
-                                    <span class="text-muted">No area</span>
+                                        <span class="text-muted">No ID</span>
                                     @endif
-                                    
+                                </td>
+                                
+                                <!-- Area Column -->
+                                <td>
+                                    @if($c->delivery_area)
+                                        <i class="fa fa-map-marker-alt text-success mr-2"></i>
+                                        {{ Str::limit($c->delivery_area, 25) }}
+                                    @else
+                                        <span class="text-muted">No area</span>
+                                    @endif
                                 </td>
 
                                 <!-- Status Column -->
@@ -117,7 +129,7 @@
                                 <td>
                                     @if($c->note)
                                     <i class="fa fa-sticky-note text-warning mr-1"></i>
-                                    {{ Str::limit($c->note) }}
+                                    {{ Str::limit($c->note, 20) }}
                                     @else
                                     <span class="text-muted">No notes</span>
                                     @endif
@@ -188,6 +200,10 @@
                                             
                                             <p><strong>Address:</strong><br>{{ $c->full_address }}</p>
                                             
+                                            <p><strong>Merchant ID:</strong><br>{{ $c->merchant_order_id ?: 'Not set' }}</p>
+                                            
+                                            <p><strong>Area:</strong><br>{{ $c->delivery_area ?: 'Not set' }}</p>
+                                            
                                             @if($c->note)
                                             <p><strong>Notes:</strong><br>{{ $c->note }}</p>
                                             @endif
@@ -203,7 +219,7 @@
                             </div>
                             @empty
                             <tr>
-                                <td colspan="8" class="text-center py-4">
+                                <td colspan="9" class="text-center py-4"> <!-- Updated to colspan="9" -->
                                     <i class="fa fa-users fa-2x text-muted mb-2"></i>
                                     <p>No customers found</p>
                                     <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm">
@@ -240,6 +256,13 @@
     .table tbody tr:hover {
         background-color: #f5f5f5;
     }
+    
+    /* Ensure table columns have proper spacing */
+    #customerTable th,
+    #customerTable td {
+        vertical-align: middle;
+        padding: 12px 8px;
+    }
 </style>
 
 <script>
@@ -249,11 +272,35 @@ $(document).ready(function() {
         "columnDefs": [
             { 
                 "orderable": false, 
-                "targets": [2, 3, 4, 5, 6, 7] // Making non-ID columns non-sortable
+                "targets": [7, 8] // Notes and Actions columns non-sortable
             },
             {
                 "searchable": false,
-                "targets": [7] // Action column not searchable
+                "targets": [8] // Action column not searchable
+            },
+            {
+                "width": "10%",
+                "targets": [0] // ID column width
+            },
+            {
+                "width": "15%",
+                "targets": [1, 2] // Customer and Contact columns
+            },
+            {
+                "width": "12%",
+                "targets": [3, 5] // Address and Area columns
+            },
+            {
+                "width": "8%",
+                "targets": [4, 6] // Merchant ID and Status columns
+            },
+            {
+                "width": "10%",
+                "targets": [7] // Notes column
+            },
+            {
+                "width": "10%",
+                "targets": [8] // Actions column
             }
         ],
         "pageLength": 10, // rows per page
@@ -276,11 +323,15 @@ $(document).ready(function() {
         },
         "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
                '<"row"<"col-sm-12"tr>>' +
-               '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
+               '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        "drawCallback": function(settings) {
+            // Initialize tooltips after table redraw
+            $('[data-toggle="tooltip"]').tooltip();
+        }
     });
     
     // Initialize tooltips
-    $('[data-toggle="tooltip"]').tooltip();
+    $('[title]').tooltip();
 });
 </script>
 @endsection

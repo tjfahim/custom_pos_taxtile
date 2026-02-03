@@ -355,6 +355,9 @@
                     <div class="info-label">Address:</div>
                     <div class="info-value">{{ $invoice->recipient_address }}</div>
                     
+                    <div class="info-label">Merchant Order Id:</div>
+                    <div class="info-value">{{ $invoice->merchant_order_id }}</div>
+                    
                     <div class="info-label">Area:</div>
                     <div class="info-value">{{ $invoice->delivery_area }}</div>
                     

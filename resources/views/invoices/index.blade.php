@@ -23,6 +23,7 @@
                                 <th>Invoice #</th>
                                 <th>Customer</th>
                                 <th>Recipient</th>
+                                <th>Merchant order id</th>
                                 <th>Date</th>
                                 <th>Total</th>
                                 <th>Status</th>
@@ -35,6 +36,7 @@
                                 <td>{{ $invoice->invoice_number }}</td>
                                 <td>{{ $invoice->customer->name }}</td>
                                 <td>{{ $invoice->recipient_name }}</td>
+                                <td>{{ $invoice->merchant_order_id }}</td>
                                 <td>{{ $invoice->invoice_date->format('M d, Y') }}</td>
                                 <td>৳{{ number_format($invoice->total, 2) }}</td>
                                 <td>

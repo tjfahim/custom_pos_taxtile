@@ -50,6 +50,12 @@
                                         <input type="text" name="recipient_secondary_phone" id="recipientPhone2" class="form-control">
                                     </div>
                                 </div>
+                                 <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Merchant Order Id <span class="text-danger"></span></label>
+                                        <input type="text" name="merchant_order_id" id="merchant_order_id" class="form-control">
+                                    </div>
+                                </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Address <span class="text-danger">*</span></label>
@@ -137,10 +143,9 @@
                             <div class="form-group">
                                 <label>Store Location</label>
                                 <select name="store_location" class="form-control" required>
-                                    <option value="Faisal Textile">Faisal Textile</option>
                                     <option value="Faisal Textile FB">Faisal Textile FB</option>
-                                    <option value="Faisal Textile FB">Faisal Textile Dhanmondi</option>
-                                    <option value="Chawk Bazar">Chawk Bazar</option>
+                                    <option value="Faisal Textile Dhanmondi">Faisal Textile Dhanmondi</option>
+                                    <option value="Faisal Textile">Faisal Textile</option>
                                 </select>
                             </div>
                         </div>

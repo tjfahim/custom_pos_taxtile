@@ -11,18 +11,17 @@ use Illuminate\Support\Facades\Response;
 class InvoiceController extends Controller
 {
     public function pos()
-{
-    $customers = Customer::where('status', 'active')->latest()->get();
-    return view('invoices.pos', compact('customers'));
-}
-
-
+    {
+        $customers = Customer::where('status', 'active')->latest()->get();
+        return view('invoices.pos', compact('customers'));
+    }
 
 
 public function storePos(Request $request)
 {
     $request->validate([
         'recipient_name' => 'required|string|max:255',
+        'merchant_order_id' => 'nullable|string|max:255',
         'recipient_phone' => 'required|string|max:20',
         'recipient_address' => 'required|string',
         'delivery_area' => 'required|string',
@@ -49,6 +48,7 @@ public function storePos(Request $request)
             $customer = Customer::create([
                 'name' => $request->recipient_name,
                 'full_address' => $request->recipient_address,
+                'merchant_order_id' => $request->merchant_order_id,
                 'phone_number_1' => $request->recipient_phone,
                 'phone_number_2' => $request->recipient_secondary_phone,
                 'delivery_area' => $request->delivery_area,
@@ -75,6 +75,7 @@ public function storePos(Request $request)
         $invoice = Invoice::create([
             'customer_id' => $customer->id,
             'recipient_name' => $request->recipient_name,
+            'merchant_order_id' => $request->merchant_order_id,
             'recipient_phone' => $request->recipient_phone,
             'recipient_secondary_phone' => $request->recipient_secondary_phone,
             'recipient_address' => $request->recipient_address,
@@ -181,135 +182,141 @@ public function storePos(Request $request)
     }
 
     
-       public function downloadTodayCSV(Request $request)
-    {
-        // Get today's date
-        $today = Carbon::today()->toDateString();
-        
-        // Get all invoices for today
-        $invoices = Invoice::whereDate('invoice_date', $today)
-            ->with('customer', 'items')
-            ->get();
-        
-        // Check if there are any invoices for today
-        if ($invoices->isEmpty()) {
-            return redirect()->back()->with('error', 'No invoices found for today.');
-        }
-        
-        // Prepare CSV content (NO HEADERS - only data)
-        $csvData = [];
-        
-        // Add data rows ONLY
-        foreach ($invoices as $invoice) {
-            // Parse delivery_area field to extract city, zone, area
-            $cityName = '';
-            $zoneName = '';
-            $areaName = '';
-            
-            if (!empty($invoice->delivery_area)) {
-                $parts = array_map('trim', explode(',', $invoice->delivery_area));
-                
-                // Get city (first part)
-                if (isset($parts[0])) {
-                    $cityName = $parts[0];
-                }
-                
-                // Get zone (second part)
-                if (isset($parts[1])) {
-                    $zoneName = $parts[1];
-                }
-                
-                // Get area (third part and beyond, join back)
-                if (count($parts) >= 3) {
-                    $areaParts = array_slice($parts, 2);
-                    $areaName = implode(', ', $areaParts);
-                }
-            }
-            
-            // If we have Pathao IDs, use those instead (higher priority)
-            if ($invoice->pathaoCity) {
-                $cityName = $invoice->pathaoCity->city_name;
-            }
-            if ($invoice->pathaoZone) {
-                $zoneName = $invoice->pathaoZone->zone_name;
-            }
-            if ($invoice->pathaoArea) {
-                $areaName = $invoice->pathaoArea->area_name;
-            }
-            
-            // Clean up any trailing commas from area
-            $areaName = trim($areaName, ', ');
-            
-            // Process each item in the invoice
-            foreach ($invoice->items as $item) {
-                // Calculate item weight (quantity * 0.5)
-                $itemWeight = $item->quantity * 0.5;
-                
-                // Prepare row data (NO HEADERS - only values in correct order)
-                $row = [
-                    'Parcel', // ItemType
-                    $invoice->store_location, // StoreName
-                    '', // MerchantOrderId (empty as requested)
-                    $invoice->recipient_name, // RecipientName(*)
-                    $invoice->recipient_phone, // RecipientPhone(*)
-                    $invoice->recipient_address, // RecipientAddress(*)
-                    $cityName, // RecipientCity(*)
-                    $zoneName, // RecipientZone(*)
-                    $areaName, // RecipientArea
-                    $invoice->due_amount, // AmountToCollect(*)
-                    $item->quantity, // ItemQuantity
-                    $itemWeight, // ItemWeight
-                    $item->description ?: $item->item_name, // ItemDesc
-                    $invoice->special_instructions // SpecialInstruction
-                ];
-                
-                $csvData[] = $row;
-            }
-            
-            // If invoice has no items, add one row with basic info
-            if ($invoice->items->isEmpty()) {
-                $row = [
-                    'Parcel', // ItemType
-                    $invoice->store_location, // StoreName
-                    '', // MerchantOrderId (empty as requested)
-                    $invoice->recipient_name, // RecipientName(*)
-                    $invoice->recipient_phone, // RecipientPhone(*)
-                    $invoice->recipient_address, // RecipientAddress(*)
-                    $cityName, // RecipientCity(*)
-                    $zoneName, // RecipientZone(*)
-                    $areaName, // RecipientArea
-                    $invoice->due_amount, // AmountToCollect(*)
-                    1, // ItemQuantity (default)
-                    0.5, // ItemWeight (default)
-                    'Invoice Items', // ItemDesc
-                    $invoice->special_instructions // SpecialInstruction
-                ];
-                
-                $csvData[] = $row;
-            }
-        }
-        
-        // Generate CSV content (NO HEADERS)
-        $csvContent = '';
-        foreach ($csvData as $row) {
-            $csvContent .= implode(',', array_map(function($value) {
-                // Escape commas and quotes
-                $value = str_replace('"', '""', $value);
-                // Wrap in quotes if contains comma or double quote
-                if (strpos($value, ',') !== false || strpos($value, '"') !== false) {
-                    $value = '"' . $value . '"';
-                }
-                return $value;
-            }, $row)) . "\n";
-        }
-        
-        // Generate filename
-        $filename = 'today_invoices_' . $today . '.csv';
-        
-        // Return CSV download
-        return Response::make($csvContent, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
+      public function downloadTodayCSV(Request $request)
+{
+    // Get today's date
+    $today = Carbon::today()->toDateString();
+    
+    // Get all invoices for today
+    $invoices = Invoice::whereDate('invoice_date', $today)
+        ->with('customer', 'items')
+        ->get();
+    
+    // Check if there are any invoices for today
+    if ($invoices->isEmpty()) {
+        return redirect()->back()->with('error', 'No invoices found for today.');
     }
+    
+   
+    
+ 
+    
+    foreach ($invoices as $invoice) {
+        // Parse delivery_area field to extract city, zone, area
+        $cityName = '';
+        $zoneName = '';
+        $areaName = '';
+        
+        if (!empty($invoice->delivery_area)) {
+            $parts = array_map('trim', explode(',', $invoice->delivery_area));
+            
+            // Get city (first part)
+            if (isset($parts[0])) {
+                $cityName = $parts[0];
+            }
+            
+            // Get zone (second part)
+            if (isset($parts[1])) {
+                $zoneName = $parts[1];
+            }
+            
+            // Get area (third part and beyond, join back)
+            if (count($parts) >= 3) {
+                $areaParts = array_slice($parts, 2);
+                $areaName = implode(', ', $areaParts);
+            }
+        }
+        
+        // If we have Pathao IDs, use those instead (higher priority)
+        if ($invoice->pathaoCity) {
+            $cityName = $invoice->pathaoCity->city_name;
+        }
+        if ($invoice->pathaoZone) {
+            $zoneName = $invoice->pathaoZone->zone_name;
+        }
+        if ($invoice->pathaoArea) {
+            $areaName = $invoice->pathaoArea->area_name;
+        }
+        
+        // Clean up any trailing commas from area
+        $areaName = trim($areaName, ', ');
+        
+        // Calculate TOTAL quantity and weight for ALL items in this invoice
+        $totalQuantity = $invoice->items->sum('quantity');
+        $totalWeight = $totalQuantity * 0.5; // Each item has 0.5 weight
+        
+        // Get item descriptions - combine all item names/descriptions
+        $itemDescriptions = [];
+        foreach ($invoice->items as $item) {
+            $desc = $item->description ?: $item->item_name;
+            if ($desc) {
+                $itemDescriptions[] = $desc;
+            }
+        }
+        
+        // Combine item descriptions (use first item's description or default)
+        $combinedItemDesc = !empty($itemDescriptions) 
+            ? implode(', ', $itemDescriptions)
+            : 'Invoice Items';
+        
+        // If there are multiple items, you might want to truncate or format differently
+        if (count($itemDescriptions) > 1) {
+            // Option 1: Show first item + "and X more"
+            $combinedItemDesc = $itemDescriptions[0] . ' and ' . (count($itemDescriptions) - 1) . ' more items';
+            
+            // Option 2: Show count of items
+            // $combinedItemDesc = count($itemDescriptions) . ' items';
+            
+            // Option 3: Keep all items combined (might be too long)
+            // $combinedItemDesc = implode(', ', $itemDescriptions);
+        }
+        
+        // Prepare ONE row per invoice
+        $row = [
+            'Parcel', // ItemType
+            $invoice->store_location, // StoreName
+            $invoice->merchant_order_id ?: '', // MerchantOrderId
+            $invoice->recipient_name, // RecipientName(*)
+            $invoice->recipient_phone, // RecipientPhone(*)
+            $invoice->recipient_address, // RecipientAddress(*)
+            $cityName, // RecipientCity(*)
+            $zoneName, // RecipientZone(*)
+            $areaName, // RecipientArea
+            $invoice->due_amount, // AmountToCollect(*)
+            $totalQuantity, // TOTAL ItemQuantity
+            $totalWeight, // TOTAL ItemWeight
+            $combinedItemDesc, // Combined ItemDesc
+            $invoice->special_instructions // SpecialInstruction
+        ];
+        
+        $csvData[] = $row;
+    }
+    
+    // Generate CSV content with UTF-8 BOM for Excel compatibility
+    $csvContent = "\xEF\xBB\xBF"; // UTF-8 BOM
+    
+    foreach ($csvData as $row) {
+        $csvContent .= implode(',', array_map(function($value) {
+            // Escape commas and quotes
+            $value = str_replace('"', '""', $value);
+            // Wrap in quotes if contains comma or double quote
+            if (strpos($value, ',') !== false || strpos($value, '"') !== false) {
+                $value = '"' . $value . '"';
+            }
+            return $value;
+        }, $row)) . "\n";
+    }
+    
+    // Generate filename
+    $filename = 'today_invoices_' . $today . '.csv';
+    
+    // Return CSV download with UTF-8 charset
+    return Response::make($csvContent, 200, [
+        'Content-Type' => 'text/csv; charset=utf-8',
+        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        'Pragma' => 'no-cache',
+        'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+        'Expires' => '0'
+    ]);
+}
 }

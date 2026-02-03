@@ -11,7 +11,7 @@ class CustomerAutoManager {
         $('#recipientPhone').on('input', this.debounce(this.handlePhoneInput.bind(this), 800));
         
         // Listen for form field changes to update customer
-        $('#recipientName, #recipientAddress, #recipientPhone2, #deliveryArea').on('input change', () => {
+        $('#recipientName, #merchant_order_id, #recipientAddress, #recipientPhone2, #deliveryArea').on('input change', () => {
             this.flagCustomerUpdate();
         });
         
@@ -124,6 +124,9 @@ class CustomerAutoManager {
             // Check if fields are empty before auto-filling
             if (!$('#recipientName').val().trim()) {
                 $('#recipientName').val(customer.name);
+            }
+            if (!$('#merchant_order_id').val().trim()) {
+                $('#merchant_order_id').val(customer.merchant_order_id);
             }
             
             if (!$('#recipientAddress').val().trim()) {
