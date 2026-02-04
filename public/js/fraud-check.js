@@ -3,11 +3,15 @@ class FraudChecker {
     constructor() {
         this.currentPhone = null;
         this.currentData = null;
+        this.hasInvoiceToday = false;
         this.init();
     }
 
     init() {
         $('#recipientPhone').on('input', this.debounce(this.handlePhoneInput.bind(this), 800));
+        
+        // Add validation to form submission
+        $('#posForm').on('submit', this.validateForm.bind(this));
     }
 
     debounce(func, wait) {
@@ -21,27 +25,95 @@ class FraudChecker {
     handlePhoneInput() {
         const phone = $('#recipientPhone').val().trim().replace(/\D/g, '');
         this.currentPhone = phone;
+        this.hasInvoiceToday = false; // Reset flag
         
         if (!/^01[3-9]\d{8}$/.test(phone)) {
             this.clearFraudDisplay();
             return;
         }
-        this.checkPhoneFraud(phone);
+        
+        // First check if this phone has an invoice today
+        this.checkTodayInvoice(phone);
+    }
+
+    async checkTodayInvoice(phone) {
+        this.showLoading('Checking for today\'s orders...');
+        
+        try {
+            // Check if phone has invoice today
+            const todayRes = await fetch(`/check-phone-today/${phone}`);
+            const todayData = await todayRes.json();
+            
+            if (todayData.error) throw new Error(todayData.error);
+            
+            this.hasInvoiceToday = todayData.has_invoice_today;
+            
+            if (this.hasInvoiceToday) {
+                // Show warning about today's invoice
+                this.displayTodayInvoiceWarning(todayData);
+                
+                // Still check fraud history
+                this.checkPhoneFraud(phone);
+            } else {
+                // No invoice today, proceed with fraud check
+                this.checkPhoneFraud(phone);
+            }
+        } catch (error) {
+            console.error('Today invoice check error:', error);
+            // Still try fraud check if today check fails
+            this.checkPhoneFraud(phone);
+        } finally {
+            this.hideLoading();
+        }
     }
 
     async checkPhoneFraud(phone) {
-        this.showLoading();
+        this.showLoading('Checking fraud history...');
+        
         try {
             const res = await fetch(`/admin/check-phone/${phone}`);
             const data = await res.json();
+            
             if (data.error) throw new Error(data.error);
+            
             this.currentData = data;
             this.displayFraudResults(this.currentData);
         } catch (error) {
             console.error('Fraud check error:', error);
+            this.showError('Error loading fraud data');
         } finally {
             this.hideLoading();
         }
+    }
+
+    displayTodayInvoiceWarning(todayData) {
+        let container = $('#todayInvoiceWarning');
+        if (!container.length) {
+            container = $(`
+                <div id="todayInvoiceWarning" class="mt-2 alert alert-danger alert-dismissible fade show">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    <div id="todayWarningContent"></div>
+                </div>
+            `).insertAfter($('#recipientPhone').closest('.form-group'));
+        }
+        
+        const html = `
+            <div class="d-flex align-items-center">
+                <i class="fa fa-ban mr-2"></i>
+                <div>
+                    <strong>BLOCKED:</strong> This phone number has already placed an order today.
+                    
+                    ${todayData.last_invoice ? 
+                        `<small class="d-block text-muted mt-1">Last order: ${todayData.last_invoice}</small>` : 
+                        ''}
+                    <small class="d-block text-danger mt-1">
+                        <i class="fa fa-exclamation-circle"></i> Cannot create another invoice with this phone today.
+                    </small>
+                </div>
+            </div>
+        `;
+        
+        $('#todayWarningContent').html(html);
     }
 
     displayFraudResults(data) {
@@ -53,6 +125,7 @@ class FraudChecker {
                 </div>
             `).insertAfter($('#recipientPhone').closest('.form-group'));
         }
+        
         $('#fraudCheckResults').html(this.resultsHtml(data));
     }
 
@@ -63,10 +136,22 @@ class FraudChecker {
         const rate = total > 0 ? Math.round((delivered / total) * 100) : 0;
         const riskColor = rate >= 90 ? 'success' : rate >= 70 ? 'warning' : 'danger';
         
-        let html = `
+        let html = '';
+        
+        // Show high-risk warning if fraud rate is low
+        if (rate < 70 && total > 0) {
+            html += `
+                <div class="alert alert-warning alert-sm p-2 mb-2">
+                    <i class="fa fa-exclamation-triangle mr-1"></i>
+                    <strong>High Risk:</strong> ${rate}% success rate. Proceed with caution.
+                </div>
+            `;
+        }
+        
+        html += `
             <div class="row">
                 <div class="col-12 mb-1">
-                    <span class="text-muted">Fraud Check:</span>
+                    <span class="text-muted">Fraud History:</span>
                     <span class="badge badge-${riskColor} ml-1">${rate}%</span>
                     <small class="text-muted ml-2">${total} orders</small>
                 </div>
@@ -117,21 +202,66 @@ class FraudChecker {
 
     clearFraudDisplay() {
         $('#fraudCheckContainer').remove();
+        $('#todayInvoiceWarning').remove();
         this.currentData = null;
+        this.hasInvoiceToday = false;
     }
 
-    showLoading() {
-        if (!$('#fraudCheckLoading').length) {
-            $(`<small id="fraudCheckLoading" class="text-primary ml-2">
-                <i class="fa fa-spinner fa-spin fa-xs"></i>
-            </small>`).insertAfter($('#recipientPhone'));
+    validateForm(e) {
+        if (this.hasInvoiceToday) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Show alert
+            alert('This phone number has already placed an order today. Cannot create another invoice.');
+            
+            // Focus on phone field
+            $('#recipientPhone').focus().select();
+            return false;
         }
+        return true;
+    }
+
+    // Add method to check before form submission
+    canSubmitForm() {
+        if (this.hasInvoiceToday) {
+            return {
+                canSubmit: false,
+                message: 'This phone number has already placed an order today. Cannot create another invoice.'
+            };
+        }
+        return { canSubmit: true };
+    }
+
+    showLoading(message = 'Loading...') {
+        this.hideLoading(); // Remove existing loading
+        
+        $(`<small id="fraudCheckLoading" class="text-primary ml-2">
+            <i class="fa fa-spinner fa-spin fa-xs"></i> ${message}
+        </small>`).insertAfter($('#recipientPhone'));
     }
 
     hideLoading() {
         $('#fraudCheckLoading').remove();
     }
+
+    showError(message) {
+        this.hideLoading();
+        
+        let container = $('#fraudCheckError');
+        if (!container.length) {
+            container = $(`
+                <div id="fraudCheckError" class="mt-2 alert alert-danger alert-dismissible fade show">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    <small>${message}</small>
+                </div>
+            `).insertAfter($('#recipientPhone').closest('.form-group'));
+        }
+    }
 }
 
 // Initialize
-$(document).ready(() => new FraudChecker());
+let fraudChecker = null;
+$(document).ready(() => {
+    fraudChecker = new FraudChecker();
+});

@@ -319,4 +319,51 @@ public function storePos(Request $request)
         'Expires' => '0'
     ]);
 }
+
+public function checkPhoneToday($phone)
+{
+    try {
+        // Clean phone number
+        $cleanPhone = preg_replace('/\D/', '', $phone);
+        
+        // Get today's date
+        $today = Carbon::today()->toDateString();
+        
+        // Check if phone has any invoices today
+        $invoicesToday = Invoice::whereDate('invoice_date', $today)
+            ->where(function($query) use ($cleanPhone) {
+                $query->where('recipient_phone', 'like', '%' . $cleanPhone . '%')
+                      ->orWhere('recipient_secondary_phone', 'like', '%' . $cleanPhone . '%');
+            })
+            ->with('customer')
+            ->get();
+        
+        $hasInvoiceToday = $invoicesToday->count() > 0;
+        
+        return response()->json([
+            'success' => true,
+            'has_invoice_today' => $hasInvoiceToday,
+            'invoice_count' => $invoicesToday->count(),
+            'invoices' => $invoicesToday->map(function($invoice) {
+                return [
+                    'invoice_number' => $invoice->invoice_number,
+                    'recipient_name' => $invoice->recipient_name,
+                    'amount' => $invoice->due_amount,
+                    'created_at' => $invoice->created_at->format('h:i A'),
+                ];
+            }),
+            'last_invoice' => $invoicesToday->count() > 0 
+                ? $invoicesToday->first()->invoice_number . ' at ' . $invoicesToday->first()->created_at->format('h:i A')
+                : null,
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Check phone today error: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'error' => 'Error checking today\'s invoices'
+        ], 500);
+    }
+}
 }

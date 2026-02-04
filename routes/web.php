@@ -87,3 +87,6 @@ Route::get('/check-customer-by-phone/{phone}', [PathaoController::class, 'checkC
 
 Route::get('/invoices/download-today-csv', [InvoiceController::class, 'downloadTodayCSV'])
     ->name('invoices.download-today-csv');
+
+    Route::get('/check-phone-today/{phone}', [InvoiceController::class, 'checkPhoneToday'])
+    ->name('admin.check.phone.today');

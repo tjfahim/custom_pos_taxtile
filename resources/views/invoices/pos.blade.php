@@ -32,18 +32,19 @@
         </div>
   
                             <div class="row">
+                                    <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Recipient Phone <span class="text-danger">*</span></label>
+                                        <input type="text" name="recipient_phone" id="recipientPhone" class="form-control" required>
+                                    </div>
+                                </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label>Recipient Name <span class="text-danger">*</span></label>
                                         <input type="text" name="recipient_name" id="recipientName" class="form-control" required>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Recipient Phone <span class="text-danger">*</span></label>
-                                        <input type="text" name="recipient_phone" id="recipientPhone" class="form-control" required>
-                                    </div>
-                                </div>
+                            
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label>Secondary Phone</label>
@@ -186,175 +187,7 @@
 @include('invoices.partials.print-modal')
 
 
-<style>
-    .customer-row:hover { background-color: #f8f9fa; cursor: pointer; }
-    #itemsTable input { border: 1px solid #dee2e6; }
-    #itemsTable input:focus { background: #fff; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
-    .summary-card { border: 2px solid #007bff; }
-    .item-row:hover { background-color: #f8f9ff; }
-    .loading-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 9999;
-        justify-content: center;
-        align-items: center;
-    }
-    .loading-spinner {
-        color: white;
-        font-size: 24px;
-    }
-
-    .fraud-check-alert {
-        border-left: 4px solid;
-        animation: fadeIn 0.5s ease-in;
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .courier-card {
-        transition: transform 0.3s ease;
-    }
-    .courier-card:hover {
-        transform: translateY(-5px);
-    }
-    #advancePaymentRow td {
-        color: #28a745 !important;
-        font-weight: bold;
-    }
-    .text-success {
-        color: #28a745 !important;
-    }
-    .customer-row.bg-success {
-        background-color: #d4edda !important;
-    }
-    .customer-update-flag {
-        color: #856404;
-        background-color: #fff3cd;
-        border: 1px solid #ffeaa7;
-        padding: 5px;
-        border-radius: 4px;
-        font-size: 12px;
-        margin-top: 5px;
-    }
-      .select2-container--bootstrap4 .select2-selection--single {
-        height: calc(2.25rem + 2px);
-        padding: .375rem .75rem;
-        font-size: 1rem;
-        line-height: 1.5;
-        border: 1px solid #ced4da;
-        border-radius: .25rem;
-    }
-    
-    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
-        padding-left: 0;
-        color: #495057;
-    }
-    
-    .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
-        height: calc(2.25rem + 2px);
-    }
-    
-    .select2-container--bootstrap4 .select2-dropdown {
-        border-color: #ced4da;
-        border-radius: .25rem;
-    }
-    
-    .select2-container--bootstrap4 .select2-search--dropdown .select2-search__field {
-        border: 1px solid #ced4da;
-        border-radius: .25rem;
-        padding: .375rem .75rem;
-    }
-    
-    .select2-results__option {
-        padding: 8px 12px;
-    }
-    
-    .select2-results__option--highlighted {
-        background-color: #007bff;
-        color: white;
-    }
-    
-    /* Ensure dropdown appears above modal */
-    .select2-container {
-        z-index: 1060 !important;
-    }
-    
-    .modal-open .select2-container {
-        z-index: 1061 !important;
-    }
-    .form-reset-success {
-    background-color: #d4edda;
-    color: #155724;
-    padding: 10px;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    border-left: 4px solid #28a745;
-    animation: slideIn 0.5s ease;
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Print modal styling */
-#iframe-container {
-    position: relative;
-    min-height: 500px;
-}
-
-#iframe-container.loading::after {
-    content: 'Loading invoice for printing...';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 18px;
-    color: #666;
-}
-.loading-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.7);
-    z-index: 9999;
-    justify-content: center;
-    align-items: center;
-}
-
-.loading-spinner {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-    color: #333;
-    font-size: 18px;
-}
-
-.loading-spinner i {
-    margin-bottom: 15px;
-}
-
-.form-reset-success {
-    animation: slideIn 0.5s ease;
-    margin-bottom: 20px;
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-</style>
+<link href="{{ asset('css/pos-invoice.css') }}" rel="stylesheet">
 
 <!-- Load all JavaScript modules in correct order -->
 <script src="{{ asset('js/invoice-pos-items.js') }}"></script>
