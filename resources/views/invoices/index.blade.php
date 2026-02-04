@@ -57,7 +57,7 @@
                                            class="btn btn-sm btn-secondary mr-1" title="View">
                                             <i class="fa fa-eye"></i>
                                         </a>
-                                        {{-- <form action="{{ route('invoices.destroy', $invoice->id) }}" 
+                                        <form action="{{ route('invoices.destroy', $invoice->id) }}" 
                                               method="POST" class="d-inline">
                                             @csrf
                                             @method('DELETE')
@@ -66,7 +66,7 @@
                                                     title="Delete">
                                                 <i class="fa fa-trash"></i>
                                             </button>
-                                        </form> --}}
+                                        </form>
                                     </div>
                                 </td>
                             </tr>

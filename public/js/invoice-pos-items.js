@@ -9,7 +9,7 @@ const InvoiceItems = {
                 <td>
                     <input type="text" name="items[${this.itemCount}][item_name]" 
                            class="form-control form-control-sm item-name" 
-                           placeholder="Item name" required>
+                           placeholder="Item name" value="Three Piece" required>
                 </td>
                 <td>
                     <input type="text" name="items[${this.itemCount}][description]" 
