@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 class InvoiceController extends Controller
 {
@@ -160,7 +161,7 @@ public function storePos(Request $request)
     // Index page with print only
     public function index()
     {
-        $invoices = Invoice::with('customer')->latest()->paginate(20);
+        $invoices = Invoice::with('customer')->latest()->get();
         return view('invoices.index', compact('invoices'));
     }
 
@@ -171,6 +172,66 @@ public function storePos(Request $request)
         return view('invoices.show', compact('invoice'));
     }
 
+    public function edit($id)
+{
+    $invoice = Invoice::with(['customer', 'items'])->findOrFail($id);
+    return view('invoices.edit', compact('invoice'));
+}
+
+// Update invoice items and delivery charge
+public function update(Request $request, $id)
+{
+    $invoice = Invoice::with('items')->findOrFail($id);
+    
+    $request->validate([
+        'delivery_charge' => 'required|numeric|min:0',
+        'items' => 'required|array|min:1',
+        'items.*.id' => 'required|exists:invoice_items,id',
+        'items.*.item_name' => 'required|string',
+        'items.*.quantity' => 'required|integer|min:1',
+        'items.*.unit_price' => 'required|numeric|min:0',
+    ]);
+    
+    try {
+        DB::beginTransaction();
+        
+        // Update delivery charge
+        $invoice->update([
+            'delivery_charge' => $request->delivery_charge,
+            'notes' => $request->notes ?? $invoice->notes,
+        ]);
+        
+        // Update existing items
+        foreach ($request->items as $itemData) {
+            $item = InvoiceItem::findOrFail($itemData['id']);
+            
+            // Calculate new total price
+            $totalPrice = $itemData['quantity'] * $itemData['unit_price'];
+            
+            $item->update([
+                'item_name' => $itemData['item_name'],
+                'quantity' => $itemData['quantity'],
+                'unit_price' => $itemData['unit_price'],
+                'total_price' => $totalPrice,
+            ]);
+        }
+        
+        // Recalculate invoice totals
+        $invoice->calculateTotals();
+        
+        DB::commit();
+        
+        return redirect()->route('invoices.show', $invoice->id)
+            ->with('success', 'Invoice updated successfully!');
+            
+    } catch (\Exception $e) {
+        DB::rollBack();
+        \Log::error('Invoice update error: ' . $e->getMessage());
+        
+        return back()->withInput()
+            ->with('error', 'Error updating invoice: ' . $e->getMessage());
+    }
+}
     // Delete invoice
     public function destroy($id)
     {

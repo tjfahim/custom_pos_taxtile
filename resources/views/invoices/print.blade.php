@@ -53,7 +53,7 @@
             margin-bottom: 3px;
         }
         .invoice-date { 
-            font-size: 9px; 
+            font-size: 11px; 
             color: #333;
         }
         
@@ -61,11 +61,11 @@
         .invoice-body { padding: 12px 15px; width: 100%; }
         
         /* Recipient Details - compact */
-        .recipient-section { margin-bottom: 10px; font-size: 10px; }
+        .recipient-section { margin-bottom: 10px; font-size: 12px; }
         .recipient-title { 
             font-weight: bold; 
             margin-bottom: 6px; 
-            font-size: 10px;
+            font-size: 12px;
             color: #333;
         }
         .recipient-grid { 
@@ -78,26 +78,32 @@
             min-width: 60px;
             color: #555;
         }
+        /* Increased phone number font size */
+        .phone-number {
+            font-size: 14px; /* Increased from 12px to 14px */
+            font-weight: 600;
+            color: #333;
+        }
         
         /* Items Table - compact */
         .items-table { 
             width: 100%; 
             border-collapse: collapse; 
-            font-size: 10px; 
+            font-size: 12px; 
             margin: 10px 0;
             table-layout: fixed;
         }
         .items-table thead { background: #e6f7ff; }
         .items-table th { 
             padding: 6px 4px; 
-            font-weight: bold; 
+            font-weight: ; 
             border: 1px solid #b3e0ff; 
-            font-size: 10px;
+            font-size: 14px;
         }
         .items-table td { 
             padding: 6px 4px; 
             border: 1px solid #e5e5e5; 
-            font-size: 10px;
+            font-size: 12px;
         }
         .items-table th:nth-child(1) { width: 50%; }
         .items-table th:nth-child(2) { width: 10%; }
@@ -117,24 +123,37 @@
             width: 45%; 
             border: 1px solid #e5e5e5; 
             padding: 8px;
-            font-size: 10px;
+            font-size: 14px;
             background: #f9f9f9;
         }
         .summary-title { 
-            font-size: 10px; 
+            font-size: 12px; 
             font-weight: bold; 
             margin-bottom: 6px;
             color: #333;
         }
-        .summary-table { width: 100%; font-size: 10px; }
+        .summary-table { width: 100%; font-size: 14px; }
         .summary-table td { padding: 4px 0; }
         .summary-table .label { font-weight: 500; color: #555; }
         .summary-table .value { text-align: right; font-weight: 600; }
-        .total-row { font-weight: 700; }
-        .due-row { 
+        
+        /* Specific styles for summary items */
+        .total-qty-row { 
             font-weight: 700; 
-            color: #d32f2f; 
-            /* Removed background color as requested */
+            font-size: 14px; /* Larger font for total quantity */
+            color: #333;
+        }
+        .total-row { 
+            font-weight: 700; 
+            font-size: 14px; /* Larger font for total */
+        }
+        .due-row { 
+            font-weight: 800; /* Bolder */
+            font-size: 16px; /* Larger font for due amount */
+            color: #d32f2f;
+            border-top: 1px solid #e5e5e5;
+            padding-top: 6px;
+            margin-top: 4px;
         }
         
         /* Print button - visible on screen */
@@ -200,6 +219,13 @@
             /* Hide URL and page numbers */
             @page :footer { display: none; }
             @page :header { display: none; }
+            
+            /* Ensure due amount stands out in print */
+            .due-row {
+                font-size: 16px !important;
+                font-weight: 800 !important;
+                color: #d32f2f !important;
+            }
         }
         
         /* Mobile */
@@ -233,7 +259,8 @@
                 <div class="recipient-title">RECIPIENT DETAILS</div>
                 <div class="recipient-grid">
                     <div><span class="recipient-label">Name:</span> {{ $invoice->recipient_name }}</div>
-                    <div><span class="recipient-label">Phone:</span> {{ $invoice->recipient_phone }}</div>
+                    <!-- Increased phone number size -->
+                    <div><span class="recipient-label">Phone:</span> <span class="phone-number">{{ $invoice->recipient_phone }}</span></div>
                     <div><span class="recipient-label">Address:</span> {{ $invoice->recipient_address }}</div>
                     <div><span class="recipient-label">Merchant ID:</span> {{ $invoice->merchant_order_id ?: 'N/A' }}</div>
                     <div><span class="recipient-label">Store:</span> {{ $invoice->store_location }}</div>
@@ -252,7 +279,13 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $totalQuantity = 0;
+                    @endphp
                     @foreach($invoice->items as $item)
+                    @php
+                        $totalQuantity += $item->quantity;
+                    @endphp
                     <tr>
                         <td>{{ $item->item_name }}</td>
                         <td class="text-center">{{ $item->quantity }}</td>
@@ -268,11 +301,17 @@
                 <div class="summary-section">
                     <div class="summary-title">PAYMENT SUMMARY</div>
                     <table class="summary-table">
+                        <!-- Added total quantity row with larger font -->
+                        <tr class="total-qty-row">
+                            <td class="label">Total Qty:</td>
+                            <td class="value">{{ $totalQuantity }}</td>
+                        </tr>
                         <tr><td class="label">Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 2) }}</td></tr>
                         <tr><td class="label">Delivery:</td><td class="value">৳{{ number_format($invoice->delivery_charge, 2) }}</td></tr>
                         <tr class="total-row"><td class="label">Total:</td><td class="value">৳{{ number_format($invoice->total, 2) }}</td></tr>
                         <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 2) }}</td></tr>
-                        <tr class="due-row"><td class="label">Due:</td><td class="value">৳{{ number_format($invoice->due_amount, 2) }}</td></tr>
+                        <!-- Due amount with larger and bolder font -->
+                        <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 2) }}</td></tr>
                         @if($invoice->payment_method)
                         <tr><td class="label">Method:</td><td class="value">{{ ucfirst($invoice->payment_method) }}</td></tr>
                         @endif
@@ -322,7 +361,6 @@
             // Remove print-specific class
             document.body.classList.remove('printing');
             
-            // Restore print button
             document.querySelector('.print-controls').style.display = 'block';
         });
     </script>

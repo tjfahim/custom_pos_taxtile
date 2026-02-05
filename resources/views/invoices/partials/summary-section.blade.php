@@ -11,7 +11,7 @@
                 <div class="form-group">
                     <label>Delivery Charge (৳)</label>
                     <input type="number" name="delivery_charge" class="form-control" 
-                           value="60" min="0" step="0.01" id="deliveryCharge" onchange="InvoiceCalculations.calculateTotals()">
+                           value="150" min="0" step="0.01" id="deliveryCharge" onchange="InvoiceCalculations.calculateTotals()">
                 </div>
             </div>
         </div>

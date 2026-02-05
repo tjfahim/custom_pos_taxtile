@@ -266,7 +266,7 @@ const InvoiceFormHandler = {
         $('#bankDetails').hide();
         
         // Reset store location to first option
-        $('select[name="store_location"]').val('Faisal Textile');
+        $('select[name="store_location"]').val('Faisal Textile FB');
         
         // Reset delivery type to default
         $('select[name="delivery_type"]').val('Parcel');

@@ -48,17 +48,11 @@ Route::prefix('invoices')->name('invoices.')->group(function () {
     Route::get('/{id}/print', [InvoiceController::class, 'print'])->name('print');
     Route::get('/{id}', [InvoiceController::class, 'show'])->name('show');
     Route::delete('/{id}', [InvoiceController::class, 'destroy'])->name('destroy');
+    
 });
 
-    Route::get('/test', function(){
-        $new = new PathaoUserSuccessRateRequest([
-            'phone' => '+8801798651200'
-        ]);
-    $GET_CITIES =PathaoCourier::GET_CITIES();    
-    $GET_ZONES =PathaoCourier::GET_ZONES(1);    
-    $GET_AREAS =PathaoCourier::GET_AREAS(298);    
-    return $GET_AREAS;
-    });
+  Route::get('/invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
+Route::put('/invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
 
 
     Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');

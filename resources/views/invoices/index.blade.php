@@ -22,7 +22,7 @@
                             <tr>
                                 <th>Invoice #</th>
                                 <th>Customer</th>
-                                <th>Recipient</th>
+                                <th>Phone</th>
                                 <th>Merchant order id</th>
                                 <th>Date</th>
                                 <th>Total</th>
@@ -35,7 +35,7 @@
                             <tr>
                                 <td>{{ $invoice->invoice_number }}</td>
                                 <td>{{ $invoice->customer->name }}</td>
-                                <td>{{ $invoice->recipient_name }}</td>
+                                <td>{{ $invoice->customer->phone_number_1 }}</td>
                                 <td>{{ $invoice->merchant_order_id }}</td>
                                 <td>{{ $invoice->invoice_date->format('M d, Y') }}</td>
                                 <td>৳{{ number_format($invoice->total, 2) }}</td>
@@ -57,6 +57,9 @@
                                            class="btn btn-sm btn-secondary mr-1" title="View">
                                             <i class="fa fa-eye"></i>
                                         </a>
+                                         <a href="{{ route('invoices.edit', $invoice->id) }}" class="btn btn-warning btn-sm mr-2">
+                        <i class="fa fa-edit"></i> Edit
+                    </a>
                                         <form action="{{ route('invoices.destroy', $invoice->id) }}" 
                                               method="POST" class="d-inline">
                                             @csrf

@@ -34,7 +34,7 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
-            if ($user->role === 2 && $user->status === 1) {
+            if ($user->role == 2 && $user->status == 1) {
                 return redirect()->route('admin.dashboard');
             }else{
                 return Redirect::back()->with('error', 'Your Account is Deactivate');
