@@ -5,6 +5,7 @@ use App\Http\Controllers\PathaoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\ReportController;
 use Enan\PathaoCourier\Facades\PathaoCourier;
 use Enan\PathaoCourier\Requests\PathaoUserSuccessRateRequest;
 use Illuminate\Support\Facades\Route;
@@ -53,7 +54,7 @@ Route::prefix('invoices')->name('invoices.')->group(function () {
 
   Route::get('/invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
 Route::put('/invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
-
+Route::patch('/invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.update-status');
 
     Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');
 Route::get('/pathao/cities', [PathaoController::class, 'getCities'])->name('pathao.cities');
@@ -74,9 +75,15 @@ Route::get('/pathao/getUserSuccessRateByPhone', [PathaoController::class, 'getUs
 Route::post('/check-phone', [PathaoController::class, 'checkPhone'])->name('checkPhone');
 Route::get('/check-phone/{phone?}', [PathaoController::class, 'checkPhone'])->name('checkPhone.get');
 // In your routes/api.php or web.php
+Route::get('/check-phone-last-days/{phone}', [InvoiceController::class, 'checkPhoneLastDays'])
+    ->name('check.phone.last.days');
 
 Route::get('/check-customer-by-phone/{phone}', [PathaoController::class, 'checkCustomerByPhone'])
     ->name('check.customer.phone');
+
+
+
+
 });
 
 Route::get('/invoices/download-today-csv', [InvoiceController::class, 'downloadTodayCSV'])
@@ -84,3 +91,5 @@ Route::get('/invoices/download-today-csv', [InvoiceController::class, 'downloadT
 
     Route::get('/check-phone-today/{phone}', [InvoiceController::class, 'checkPhoneToday'])
     ->name('admin.check.phone.today');
+
+

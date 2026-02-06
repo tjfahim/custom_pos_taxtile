@@ -14,6 +14,7 @@
 <script src="{{ asset('admin/vendors/jqvmap/dist/jquery.vmap.min.js') }}"></script>
 <script src="{{ asset('admin/vendors/jqvmap/examples/js/jquery.vmap.sampledata.js') }}"></script>
 <script src="{{ asset('admin/vendors/jqvmap/dist/maps/jquery.vmap.world.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
     (function($) {

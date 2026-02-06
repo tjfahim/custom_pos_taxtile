@@ -78,17 +78,17 @@
                                         <input type="text" class="form-control-plaintext" 
                                                value="{{ $invoice->invoice_date->format('M d, Y') }}" readonly>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Payment Status</label>
-                                        <div>
-                                            <span class="badge badge-{{ 
-                                                $invoice->payment_status == 'paid' ? 'success' : 
-                                                ($invoice->payment_status == 'partial' ? 'warning' : 'danger') 
-                                            }}">
-                                                {{ ucfirst($invoice->payment_status) }}
-                                            </span>
-                                        </div>
+                                     <div class="form-group">
+                                        <label for="merchant_order_id">Merchant order id</label>
+                                        <input type="text" class="form-control @error('merchant_order_id') is-invalid @enderror" 
+                                               id="merchant_order_id" name="merchant_order_id" 
+                                               value="{{ old('merchant_order_id', $invoice->merchant_order_id) }}" 
+                                               >
+                                        @error('merchant_order_id')
+                                            <span class="invalid-feedback">{{ $message }}</span>
+                                        @enderror
                                     </div>
+                                   
                                 </div>
                             </div>
                         </div>

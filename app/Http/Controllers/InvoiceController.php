@@ -179,6 +179,7 @@ public function storePos(Request $request)
     $invoice = Invoice::with(['customer', 'items'])->findOrFail($id);
     return view('invoices.edit', compact('invoice'));
 }
+
 public function update(Request $request, $id)
 {
     $invoice = Invoice::with('items')->findOrFail($id);
@@ -214,6 +215,7 @@ public function update(Request $request, $id)
         $invoice->update([
             'delivery_charge' => $request->delivery_charge,
             'status' => $request->status, // Add status update
+            'merchant_order_id' => $request->merchant_order_id, 
             'notes' => $request->notes ?? $invoice->notes,
         ]);
         
@@ -277,10 +279,10 @@ public function update(Request $request, $id)
             'total' => $total,
         ]);
         
-        // Also update amount_due if needed
+        // Also update due_amount if needed
         if ($invoice->payment_status !== 'paid') {
             $amountDue = $total - $invoice->paid_amount;
-            $invoice->update(['amount_due' => $amountDue]);
+            $invoice->update(['due_amount' => $amountDue]);
         }
         
         DB::commit();
@@ -508,6 +510,111 @@ public function checkPhoneToday($phone)
             'success' => false,
             'error' => 'Error checking today\'s invoices'
         ], 500);
+    }
+}
+
+
+public function updateStatus(Request $request, $id)
+{
+    try {
+        $invoice = Invoice::findOrFail($id);
+        
+        // Validate status
+        $request->validate([
+            'status' => 'required|in:confirmed,pending,cancelled',
+        ]);
+        
+        // Only allow status change for pending invoices
+        if ($invoice->status === 'pending' && $request->status === 'confirmed') {
+            $invoice->update([
+                'status' => 'confirmed',
+                'confirmed_at' => now(),
+            ]);
+            
+            // You can add any additional logic here (like sending notifications)
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice status updated to confirmed successfully!',
+                'data' => [
+                    'status' => $invoice->status,
+                    'status_text' => ucfirst($invoice->status),
+                ]
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Status update not allowed',
+        ], 400);
+        
+    } catch (\Exception $e) {
+        \Log::error('Invoice status update error: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update invoice status: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function checkPhoneLastDays($phone)
+{
+    try {
+        $phone = preg_replace('/\D/', '', $phone);
+        
+        if (!preg_match('/^01[3-9]\d{8}$/', $phone)) {
+            return response()->json(['error' => 'Invalid phone number'], 400);
+        }
+        
+        $days = request()->get('days', 3);
+        
+        // Get today's date
+        $today = now()->format('Y-m-d');
+        $yesterday = now()->subDay()->format('Y-m-d');
+        $dayBefore = now()->subDays(2)->format('Y-m-d');
+        
+        // Check invoices for each day
+        $todayInvoices = Invoice::whereHas('customer', function($q) use ($phone) {
+                $q->where('phone_number_1', $phone)
+                  ->orWhere('phone_number_2', $phone);
+            })
+            ->whereDate('invoice_date', $today)
+            ->get(['id', 'invoice_number', 'total', 'status']);
+        
+        $yesterdayInvoices = Invoice::whereHas('customer', function($q) use ($phone) {
+                $q->where('phone_number_1', $phone)
+                  ->orWhere('phone_number_2', $phone);
+            })
+            ->whereDate('invoice_date', $yesterday)
+            ->get(['id', 'invoice_number', 'total', 'status']);
+        
+        $dayBeforeInvoices = Invoice::whereHas('customer', function($q) use ($phone) {
+                $q->where('phone_number_1', $phone)
+                  ->orWhere('phone_number_2', $phone);
+            })
+            ->whereDate('invoice_date', $dayBefore)
+            ->get(['id', 'invoice_number', 'total', 'status']);
+        
+        return response()->json([
+            'today' => $todayInvoices->count() > 0,
+            'today_count' => $todayInvoices->count(),
+            'today_invoices' => $todayInvoices,
+            
+            'yesterday' => $yesterdayInvoices->count() > 0,
+            'yesterday_count' => $yesterdayInvoices->count(),
+            'yesterday_invoices' => $yesterdayInvoices,
+            
+            'day_before' => $dayBeforeInvoices->count() > 0,
+            'day_before_count' => $dayBeforeInvoices->count(),
+            'day_before_invoices' => $dayBeforeInvoices,
+            
+            'total_last_3_days' => $todayInvoices->count() + $yesterdayInvoices->count() + $dayBeforeInvoices->count(),
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Check phone last days error: ' . $e->getMessage());
+        return response()->json(['error' => 'Server error occurred'], 500);
     }
 }
 }

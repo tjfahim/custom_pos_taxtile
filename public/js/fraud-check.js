@@ -3,7 +3,7 @@ class FraudChecker {
     constructor() {
         this.currentPhone = null;
         this.currentData = null;
-        this.hasInvoiceToday = false;
+        this.daysHistory = { today: false, yesterday: false, dayBefore: false };
         this.init();
     }
 
@@ -25,42 +25,46 @@ class FraudChecker {
     handlePhoneInput() {
         const phone = $('#recipientPhone').val().trim().replace(/\D/g, '');
         this.currentPhone = phone;
-        this.hasInvoiceToday = false; // Reset flag
+        this.daysHistory = { today: false, yesterday: false, dayBefore: false }; // Reset
         
         if (!/^01[3-9]\d{8}$/.test(phone)) {
             this.clearFraudDisplay();
             return;
         }
         
-        // First check if this phone has an invoice today
-        this.checkTodayInvoice(phone);
+        // Check last 3 days invoices
+        this.checkLastThreeDays(phone);
     }
 
-    async checkTodayInvoice(phone) {
-        this.showLoading('Checking for today\'s orders...');
+    async checkLastThreeDays(phone) {
+        this.showLoading('Checking recent orders...');
         
         try {
-            // Check if phone has invoice today
-            const todayRes = await fetch(`/check-phone-today/${phone}`);
-            const todayData = await todayRes.json();
+            // Check invoices for last 3 days
+            const res = await fetch(`/admin/check-phone-last-days/${phone}?days=3`);
+            const data = await res.json();
             
-            if (todayData.error) throw new Error(todayData.error);
+            if (data.error) throw new Error(data.error);
             
-            this.hasInvoiceToday = todayData.has_invoice_today;
+            // Update days history
+            this.daysHistory = {
+                today: data.today || false,
+                yesterday: data.yesterday || false,
+                dayBefore: data.day_before || false
+            };
             
-            if (this.hasInvoiceToday) {
-                // Show warning about today's invoice
-                this.displayTodayInvoiceWarning(todayData);
-                
-                // Still check fraud history
-                this.checkPhoneFraud(phone);
+            // Display 3-day warning if any days have invoices
+            if (data.today || data.yesterday || data.day_before) {
+                this.displayThreeDaysWarning(data);
             } else {
-                // No invoice today, proceed with fraud check
-                this.checkPhoneFraud(phone);
+                $('#threeDaysWarning').remove();
             }
+            
+            // Still check fraud history
+            this.checkPhoneFraud(phone);
         } catch (error) {
-            console.error('Today invoice check error:', error);
-            // Still try fraud check if today check fails
+            console.error('3-day check error:', error);
+            // Still try fraud check if 3-day check fails
             this.checkPhoneFraud(phone);
         } finally {
             this.hideLoading();
@@ -80,40 +84,115 @@ class FraudChecker {
             this.displayFraudResults(this.currentData);
         } catch (error) {
             console.error('Fraud check error:', error);
-            this.showError('Error loading fraud data');
+           
         } finally {
             this.hideLoading();
         }
     }
 
-    displayTodayInvoiceWarning(todayData) {
-        let container = $('#todayInvoiceWarning');
+    displayThreeDaysWarning(data) {
+        let container = $('#threeDaysWarning');
         if (!container.length) {
             container = $(`
-                <div id="todayInvoiceWarning" class="mt-2 alert alert-danger alert-dismissible fade show">
+                <div id="threeDaysWarning" class="mt-2 alert alert-dismissible fade show">
                     <button type="button" class="close" data-dismiss="alert">&times;</button>
-                    <div id="todayWarningContent"></div>
+                    <div id="threeDaysContent" class="d-flex align-items-center"></div>
                 </div>
             `).insertAfter($('#recipientPhone').closest('.form-group'));
         }
         
+        // Determine overall alert level
+        let alertLevel = 'info';
+        let alertIcon = 'info-circle';
+        
+        if (data.today) {
+            alertLevel = 'danger';
+            alertIcon = 'ban';
+        } else if (data.yesterday) {
+            alertLevel = 'warning';
+            alertIcon = 'exclamation-triangle';
+        } else if (data.day_before) {
+            alertLevel = 'info';
+            alertIcon = 'clock';
+        }
+        
+        // Update alert class
+        container.removeClass('alert-danger alert-warning alert-info alert-success')
+                .addClass(`alert-${alertLevel}`);
+        
         const html = `
-            <div class="d-flex align-items-center">
-                <i class="fa fa-ban mr-2"></i>
-                <div>
-                    <strong>BLOCKED:</strong> This phone number has already placed an order today.
-                    
-                    ${todayData.last_invoice ? 
-                        `<small class="d-block text-muted mt-1">Last order: ${todayData.last_invoice}</small>` : 
-                        ''}
-                    <small class="d-block text-danger mt-1">
-                        <i class="fa fa-exclamation-circle"></i> Cannot create another invoice with this phone today.
-                    </small>
+            <i class="fa fa-${alertIcon} mr-2 fa-lg"></i>
+            <div class="flex-grow-1">
+                <strong>Recent Orders Found:</strong>
+                <div class="d-flex mt-1">
+                    ${this.getDayBadge('Today', data.today_count || 0, data.today, data.today_invoices)}
+                    ${this.getDayBadge('Yesterday', data.yesterday_count || 0, data.yesterday, data.yesterday_invoices)}
+                    ${this.getDayBadge('2 Days Ago', data.day_before_count || 0, data.day_before, data.day_before_invoices)}
                 </div>
+                ${this.getWarningMessage(data)}
             </div>
         `;
         
-        $('#todayWarningContent').html(html);
+        $('#threeDaysContent').html(html);
+    }
+
+    getDayBadge(day, count, hasInvoice, invoices = []) {
+        let badgeColor = 'secondary';
+        let badgeIcon = '';
+        
+        if (hasInvoice) {
+            if (day === 'Today') {
+                badgeColor = 'danger';
+                badgeIcon = '<i class="fa fa-ban mr-1"></i>';
+            } else if (day === 'Yesterday') {
+                badgeColor = 'warning';
+                badgeIcon = '<i class="fa fa-exclamation-triangle mr-1"></i>';
+            } else {
+                badgeColor = 'info';
+                badgeIcon = '<i class="fa fa-clock mr-1"></i>';
+            }
+        }
+        
+        let tooltip = '';
+        if (invoices && invoices.length > 0) {
+            const invoiceList = invoices.map(inv => `#${inv.invoice_number} (${inv.total})`).join(', ');
+            tooltip = `title="Invoices: ${invoiceList}" data-toggle="tooltip"`;
+        }
+        
+        return `
+            <div class="mr-3" ${tooltip}>
+                <div class="badge badge-${badgeColor} badge-pill mb-1">
+                    ${badgeIcon}${day}
+                </div>
+                <div class="text-center">
+                    <small class="text-muted">${count} order${count !== 1 ? 's' : ''}</small>
+                </div>
+            </div>
+        `;
+    }
+
+    getWarningMessage(data) {
+        if (data.today) {
+            return `
+                <small class="d-block text-danger mt-1">
+                    <i class="fa fa-times-circle"></i> Cannot create another invoice today.
+                    ${data.today_count > 1 ? 'Multiple orders today!' : ''}
+                </small>
+            `;
+        } else if (data.yesterday) {
+            return `
+                <small class="d-block text-warning mt-1">
+                    <i class="fa fa-exclamation-circle"></i> Ordered yesterday - verify carefully.
+                </small>
+            `;
+        } else if (data.day_before) {
+            return `
+                <small class="d-block text-info mt-1">
+                    <i class="fa fa-info-circle"></i> Ordered 2 days ago - usual pattern.
+                </small>
+            `;
+        }
+        return '';
     }
 
     displayFraudResults(data) {
@@ -124,9 +203,18 @@ class FraudChecker {
                     <div id="fraudCheckResults" class="small"></div>
                 </div>
             `).insertAfter($('#recipientPhone').closest('.form-group'));
+            
+            // Move it after the 3-day warning if it exists
+            const warning = $('#threeDaysWarning');
+            if (warning.length) {
+                container.insertAfter(warning);
+            }
         }
         
         $('#fraudCheckResults').html(this.resultsHtml(data));
+        
+        // Initialize tooltips
+        $('[data-toggle="tooltip"]').tooltip();
     }
 
     resultsHtml(data) {
@@ -151,9 +239,9 @@ class FraudChecker {
         html += `
             <div class="row">
                 <div class="col-12 mb-1">
-                    <span class="text-muted">Fraud History:</span>
+                    <span class="text-muted">Overall Success Rate:</span>
                     <span class="badge badge-${riskColor} ml-1">${rate}%</span>
-                    <small class="text-muted ml-2">${total} orders</small>
+                    <small class="text-muted ml-2">${total} total orders</small>
                 </div>
             </div>
             <div class="row">
@@ -202,13 +290,13 @@ class FraudChecker {
 
     clearFraudDisplay() {
         $('#fraudCheckContainer').remove();
-        $('#todayInvoiceWarning').remove();
+        $('#threeDaysWarning').remove();
         this.currentData = null;
-        this.hasInvoiceToday = false;
+        this.daysHistory = { today: false, yesterday: false, dayBefore: false };
     }
 
     validateForm(e) {
-        if (this.hasInvoiceToday) {
+        if (this.daysHistory.today) {
             e.preventDefault();
             e.stopPropagation();
             
@@ -224,10 +312,22 @@ class FraudChecker {
 
     // Add method to check before form submission
     canSubmitForm() {
-        if (this.hasInvoiceToday) {
+        if (this.daysHistory.today) {
             return {
                 canSubmit: false,
                 message: 'This phone number has already placed an order today. Cannot create another invoice.'
+            };
+        } else if (this.daysHistory.yesterday) {
+            return {
+                canSubmit: true,
+                message: 'Warning: This phone ordered yesterday. Please verify carefully.',
+                warning: true
+            };
+        } else if (this.daysHistory.dayBefore) {
+            return {
+                canSubmit: true,
+                message: 'Note: This phone ordered 2 days ago.',
+                info: true
             };
         }
         return { canSubmit: true };
