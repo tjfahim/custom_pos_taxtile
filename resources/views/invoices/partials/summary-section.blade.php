@@ -15,6 +15,13 @@
                 </div>
             </div>
         </div>
+            <div class="form-group mb-3">
+                <label>Status</label>
+                <select name="status" class="form-control" id="invoiceStatus">
+                    <option value="confirmed" selected>Confirmed</option>
+                    <option value="pending">Pending</option>
+                </select>
+            </div>
         <div class="form-group">
             <label>Special Instructions</label>
             <textarea name="special_instructions" rows="2" class="form-control" value="">Return korle delivery charge 150 tk niben ( আনুষাঙ্গিক কোনো ইসু থাকলে প্যানেলে মেসেজ দিবেন। নাম্বারে যোগাযোগ করার সময় - সকাল ১১.৩০ থেকে রাত ৯ টার মধ্যে)</textarea>

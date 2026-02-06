@@ -41,10 +41,10 @@
                                 <td>৳{{ number_format($invoice->total, 2) }}</td>
                                 <td>
                                     <span class="badge badge-{{ 
-                                        $invoice->payment_status == 'paid' ? 'success' : 
-                                        ($invoice->payment_status == 'partial' ? 'warning' : 'danger') 
+                                        $invoice->status == 'confirmed' ? 'success' : 
+                                        ($invoice->status == 'pending' ? 'warning' : 'danger') 
                                     }}">
-                                        {{ ucfirst($invoice->payment_status) }}
+                                        {{ ucfirst($invoice->status) }}
                                     </span>
                                 </td>
                                 <td>

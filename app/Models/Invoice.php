@@ -28,6 +28,7 @@ class Invoice extends Model
         'invoice_date',
         'subtotal',
         'total',
+        'status',
         'amount_to_collect',
         'paid_amount',
         'due_amount',

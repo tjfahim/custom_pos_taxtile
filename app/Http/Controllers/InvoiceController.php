@@ -30,6 +30,7 @@ public function storePos(Request $request)
         'store_location' => 'required|string',
         'delivery_charge' => 'nullable|numeric|min:0',
         'amount_to_collect' => 'nullable|numeric|min:0',
+         'status' => 'required|string',
         'paid_amount' => 'nullable|numeric|min:0',
         'items' => 'required|array|min:1',
         'items.*.item_name' => 'required|string',
@@ -94,6 +95,7 @@ public function storePos(Request $request)
             'pathao_city_id' => $request->delivery_city_id,
             'pathao_zone_id' => $request->delivery_zone_id,
             'pathao_area_id' => $request->delivery_area_id,
+            'status' => $request->status,
             'invoice_date' => now(),
         ]);
 
@@ -177,61 +179,123 @@ public function storePos(Request $request)
     $invoice = Invoice::with(['customer', 'items'])->findOrFail($id);
     return view('invoices.edit', compact('invoice'));
 }
-
-// Update invoice items and delivery charge
 public function update(Request $request, $id)
 {
     $invoice = Invoice::with('items')->findOrFail($id);
     
-    $request->validate([
+    // Manual validation to handle dynamic array indices
+    $validated = $request->validate([
         'delivery_charge' => 'required|numeric|min:0',
-        'items' => 'required|array|min:1',
-        'items.*.id' => 'required|exists:invoice_items,id',
-        'items.*.item_name' => 'required|string',
-        'items.*.quantity' => 'required|integer|min:1',
-        'items.*.unit_price' => 'required|numeric|min:0',
+        'status' => 'required|string|in:confirmed,pending,cancelled', // Add status validation
     ]);
+    
+    // Validate items manually to handle dynamic keys
+    $items = $request->items;
+    if (empty($items) || !is_array($items)) {
+        return back()->with('error', 'At least one item is required.');
+    }
+    
+    foreach ($items as $key => $item) {
+        if (empty($item['item_name'])) {
+            return back()->with('error', "Item name is required for all items.");
+        }
+        if (empty($item['quantity']) || $item['quantity'] < 1) {
+            return back()->with('error', "Valid quantity (minimum 1) is required for all items.");
+        }
+        if (empty($item['unit_price']) || $item['unit_price'] < 0) {
+            return back()->with('error', "Valid unit price is required for all items.");
+        }
+    }
     
     try {
         DB::beginTransaction();
         
-        // Update delivery charge
+        // First, update the invoice with delivery charge and status
         $invoice->update([
             'delivery_charge' => $request->delivery_charge,
+            'status' => $request->status, // Add status update
             'notes' => $request->notes ?? $invoice->notes,
         ]);
         
-        // Update existing items
-        foreach ($request->items as $itemData) {
-            $item = InvoiceItem::findOrFail($itemData['id']);
+        $existingIds = $invoice->items->pluck('id')->toArray();
+        $updatedIds = [];
+        
+        // Reset totals before recalculating
+        $subtotal = 0;
+        
+        // Process items - use foreach with $item to avoid array index issues
+        foreach ($items as $itemData) {
+            $itemId = $itemData['id'] ?? null;
             
-            // Calculate new total price
+            // Calculate weight: 0.5kg per item
+            $weight = ($itemData['quantity'] * 500); // 500g = 0.5kg per item
             $totalPrice = $itemData['quantity'] * $itemData['unit_price'];
             
-            $item->update([
-                'item_name' => $itemData['item_name'],
-                'quantity' => $itemData['quantity'],
-                'unit_price' => $itemData['unit_price'],
-                'total_price' => $totalPrice,
-            ]);
+            // Add to subtotal
+            $subtotal += $totalPrice;
+            
+            if ($itemId && str_starts_with($itemId, 'new_')) {
+                // Create new item
+                $item = InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    'item_name' => $itemData['item_name'],
+                    'quantity' => $itemData['quantity'],
+                    'unit_price' => $itemData['unit_price'],
+                    'total_price' => $totalPrice,
+                    'weight' => $weight,
+                ]);
+                $updatedIds[] = $item->id;
+            } elseif ($itemId && is_numeric($itemId)) {
+                // Update existing item
+                $item = InvoiceItem::find($itemId);
+                if ($item && $item->invoice_id == $invoice->id) {
+                    $item->update([
+                        'item_name' => $itemData['item_name'],
+                        'quantity' => $itemData['quantity'],
+                        'unit_price' => $itemData['unit_price'],
+                        'total_price' => $totalPrice,
+                        'weight' => $weight,
+                    ]);
+                    $updatedIds[] = $item->id;
+                }
+            }
         }
         
-        // Recalculate invoice totals
-        $invoice->calculateTotals();
+        // Delete items that were removed
+        $itemsToDelete = array_diff($existingIds, $updatedIds);
+        if (!empty($itemsToDelete)) {
+            InvoiceItem::whereIn('id', $itemsToDelete)->delete();
+        }
+        
+        // Manually update invoice totals to ensure they're correct
+        $deliveryCharge = $request->delivery_charge;
+        $total = $subtotal + $deliveryCharge;
+        
+        // Update invoice totals directly
+        $invoice->update([
+            'subtotal' => $subtotal,
+            'total' => $total,
+        ]);
+        
+        // Also update amount_due if needed
+        if ($invoice->payment_status !== 'paid') {
+            $amountDue = $total - $invoice->paid_amount;
+            $invoice->update(['amount_due' => $amountDue]);
+        }
         
         DB::commit();
         
-        return redirect()->route('invoices.show', $invoice->id)
-            ->with('success', 'Invoice updated successfully!');
+        return back()->with('success', 'Invoice updated successfully!');
             
     } catch (\Exception $e) {
         DB::rollBack();
         \Log::error('Invoice update error: ' . $e->getMessage());
         
         return back()->withInput()
-            ->with('error', 'Error updating invoice: ' . $e->getMessage());
+            ->with('error', 'Failed to update invoice: ' . $e->getMessage());
     }
 }
+
     // Delete invoice
     public function destroy($id)
     {
@@ -241,28 +305,48 @@ public function update(Request $request, $id)
         return redirect()->route('invoices.index')
             ->with('success', 'Invoice deleted successfully!');
     }
-
-    
-      public function downloadTodayCSV(Request $request)
+public function downloadTodayCSV(Request $request)
 {
     // Get today's date
     $today = Carbon::today()->toDateString();
     
-    // Get all invoices for today
+    // Get only CONFIRMED invoices for today
     $invoices = Invoice::whereDate('invoice_date', $today)
+        ->where('status', 'confirmed')
         ->with('customer', 'items')
         ->get();
     
-    // Check if there are any invoices for today
+    // Check if there are any confirmed invoices for today
     if ($invoices->isEmpty()) {
-        return redirect()->back()->with('error', 'No invoices found for today.');
+        return redirect()->back()->with('error', 'No confirmed invoices found for today.');
     }
     
-   
+    // Prepare CSV headers
+    $headers = [
+        'ItemType',
+        'StoreName',
+        'MerchantOrderId',
+        'RecipientName(*)',
+        'RecipientPhone(*)',
+        'RecipientAddress(*)',
+        'RecipientCity(*)',
+        'RecipientZone(*)',
+        'RecipientArea',
+        'AmountToCollect(*)',
+        'ItemQuantity',
+        'ItemWeight',
+        'ItemDesc',
+        'SpecialInstruction'
+    ];
     
- 
+    $csvData = [$headers];
     
     foreach ($invoices as $invoice) {
+        // Only process confirmed invoices
+        if ($invoice->status !== 'confirmed') {
+            continue;
+        }
+        
         // Parse delivery_area field to extract city, zone, area
         $cityName = '';
         $zoneName = '';
@@ -306,30 +390,29 @@ public function update(Request $request, $id)
         $totalQuantity = $invoice->items->sum('quantity');
         $totalWeight = $totalQuantity * 0.5; // Each item has 0.5 weight
         
-        // Get item descriptions - combine all item names/descriptions
-        $itemDescriptions = [];
+        // Get item names only (NO descriptions)
+        $itemNames = [];
         foreach ($invoice->items as $item) {
-            $desc = $item->description ?: $item->item_name;
-            if ($desc) {
-                $itemDescriptions[] = $desc;
+            // Use item_name only, not description
+            if ($item->item_name) {
+                $itemNames[] = $item->item_name;
             }
         }
         
-        // Combine item descriptions (use first item's description or default)
-        $combinedItemDesc = !empty($itemDescriptions) 
-            ? implode(', ', $itemDescriptions)
-            : 'Invoice Items';
-        
-        // If there are multiple items, you might want to truncate or format differently
-        if (count($itemDescriptions) > 1) {
-            // Option 1: Show first item + "and X more"
-            $combinedItemDesc = $itemDescriptions[0] . ' and ' . (count($itemDescriptions) - 1) . ' more items';
-            
-            // Option 2: Show count of items
-            // $combinedItemDesc = count($itemDescriptions) . ' items';
-            
-            // Option 3: Keep all items combined (might be too long)
-            // $combinedItemDesc = implode(', ', $itemDescriptions);
+        // Combine item names (without descriptions)
+        $itemDesc = '';
+        if (!empty($itemNames)) {
+            if (count($itemNames) === 1) {
+                // Single item: just show the name
+                $itemDesc = $itemNames[0];
+            } else {
+                // Multiple items: show count and first item
+                $itemDesc = $itemNames[0] . ' and ' . (count($itemNames) - 1) . ' more items';
+                // Alternative: just show count
+                // $itemDesc = count($itemNames) . ' items';
+            }
+        } else {
+            $itemDesc = 'Items';
         }
         
         // Prepare ONE row per invoice
@@ -346,7 +429,7 @@ public function update(Request $request, $id)
             $invoice->due_amount, // AmountToCollect(*)
             $totalQuantity, // TOTAL ItemQuantity
             $totalWeight, // TOTAL ItemWeight
-            $combinedItemDesc, // Combined ItemDesc
+            $itemDesc, // ItemDesc (only names, no descriptions)
             $invoice->special_instructions // SpecialInstruction
         ];
         

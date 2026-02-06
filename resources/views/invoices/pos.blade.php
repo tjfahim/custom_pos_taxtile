@@ -51,12 +51,21 @@
                                         <input type="text" name="recipient_secondary_phone" id="recipientPhone2" class="form-control">
                                     </div>
                                 </div>
-                                 <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Merchant Order Id <span class="text-danger"></span></label>
-                                        <input type="text" name="merchant_order_id" id="merchant_order_id" class="form-control">
-                                    </div>
-                                </div>
+                              <div class="col-md-4">
+    <div class="form-group">
+        <label>Merchant Order ID <span class="text-danger"></span></label>
+        <div class="input-group">
+            <input type="text" name="merchant_order_id" id="merchant_order_id" class="form-control" 
+                   placeholder="Auto-generated 4-digit ID">
+            <div class="input-group-append">
+                <button type="button" class="btn btn-outline-secondary" id="refreshMerchantId" 
+                        title="Refresh 4-digit ID">
+                    <i class="fa fa-circle-o-notch"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Address <span class="text-danger">*</span></label>
