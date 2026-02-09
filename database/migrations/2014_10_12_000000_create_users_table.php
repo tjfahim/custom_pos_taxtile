@@ -15,10 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->unsignedTinyInteger('role')->default(1)->comment('1 for user, 2 for admin');;
+            $table->unsignedTinyInteger('role')->default(1)->comment('1 for admin');;
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->boolean('status');
+            $table->boolean('status')->default(true);
             $table->rememberToken();
             $table->timestamps();
         });

@@ -244,7 +244,7 @@ const InvoiceFormHandler = {
         }
         
         // Reset specific fields to default values
-        $('#deliveryCharge').val(60);
+        $('#deliveryCharge').val(150);
         $('#paidAmount').val(0);
         $('#paymentMethod').val('');
         $('#selectedCustomer').text('No customer selected').removeClass('text-success text-warning');

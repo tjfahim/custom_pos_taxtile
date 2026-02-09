@@ -51,23 +51,44 @@ class Invoice extends Model
         'paid_amount' => 'decimal:2',
         'due_amount' => 'decimal:2'
     ];
-protected static function boot()
-{
-    parent::boot();
     
-    static::creating(function ($invoice) {
-        if (empty($invoice->invoice_number)) {
-            $today = date('Ymd');
-            
-            $countToday = Invoice::withTrashed()
-                ->whereDate('created_at', today())
-                ->count();
-            
-            $invoice->invoice_number = 'INV-' . $today . '-' . str_pad($countToday + 1, 4, '0', STR_PAD_LEFT);
-        }
-    });
-}
-
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($invoice) {
+            if (empty($invoice->invoice_number)) {
+                $invoice->invoice_number = self::generateUniqueInvoiceNumber($invoice->status);
+            }
+        });
+    }
+    
+    public static function generateInvoiceNumber($status = 'confirmed')
+    {
+        $today = date('Ymd');
+        
+        // Get the maximum invoice number suffix for today
+        $maxSuffix = self::withTrashed()
+            ->where('invoice_number', 'like', 'INV-' . $today . '-%')
+            ->max(\DB::raw('CAST(SUBSTRING(invoice_number, 14) AS UNSIGNED)'));
+        
+        // Start from 1 if no invoices exist for today
+        $nextSuffix = $maxSuffix ? $maxSuffix + 1 : 1;
+        
+        return 'INV-' . $today . '-' . str_pad($nextSuffix, 4, '0', STR_PAD_LEFT);
+    }
+    
+    public static function generateUniqueInvoiceNumber($status = 'confirmed')
+    {
+        do {
+            $invoiceNumber = self::generateInvoiceNumber($status);
+            // Check if this invoice number already exists
+            $exists = self::withTrashed()->where('invoice_number', $invoiceNumber)->exists();
+        } while ($exists);
+        
+        return $invoiceNumber;
+    }
+    
     public function customer()
     {
         return $this->belongsTo(Customer::class);
@@ -78,25 +99,34 @@ protected static function boot()
         return $this->hasMany(InvoiceItem::class);
     }
 
-      public function calculateTotals()
-{
-    $subtotal = $this->items->sum('total_price');
-    $this->subtotal = $subtotal;
-    $this->total = $subtotal + $this->delivery_charge;
-    $this->total_weight = $this->items->sum('weight');
-    
-    // Update due amount
-    $this->due_amount = $this->total - $this->paid_amount;
-    
-    // Update payment status
-    if ($this->due_amount <= 0) {
-        $this->payment_status = 'paid';
-    } elseif ($this->paid_amount > 0) {
-        $this->payment_status = 'partial';
-    } else {
-        $this->payment_status = 'unpaid';
+    public function calculateTotals()
+    {
+        $subtotal = $this->items->sum('total_price');
+        $this->subtotal = $subtotal;
+        $this->total = $subtotal + $this->delivery_charge;
+        $this->total_weight = $this->items->sum('weight');
+        
+        // Update due amount
+        $this->due_amount = $this->total - $this->paid_amount;
+        
+        // Update payment status
+        if ($this->due_amount <= 0) {
+            $this->payment_status = 'paid';
+        } elseif ($this->paid_amount > 0) {
+            $this->payment_status = 'partial';
+        } else {
+            $this->payment_status = 'unpaid';
+        }
+        
+        $this->save();
     }
     
-    $this->save();
-}
+    // Helper method to get the suffix number from invoice number
+    public static function extractSuffix($invoiceNumber)
+    {
+        if (preg_match('/INV-\d{8}-(\d+)/', $invoiceNumber, $matches)) {
+            return (int) $matches[1];
+        }
+        return 0;
+    }
 }

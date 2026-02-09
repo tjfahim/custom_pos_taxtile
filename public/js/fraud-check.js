@@ -1,8 +1,9 @@
-// fraud-check-simple.js
+// fraud-check-simple.js - Add customer status check
 class FraudChecker {
     constructor() {
         this.currentPhone = null;
         this.currentData = null;
+        this.customerStatus = null; // Add customer status tracking
         this.daysHistory = { today: false, yesterday: false, dayBefore: false };
         this.init();
     }
@@ -25,6 +26,7 @@ class FraudChecker {
     handlePhoneInput() {
         const phone = $('#recipientPhone').val().trim().replace(/\D/g, '');
         this.currentPhone = phone;
+        this.customerStatus = null; // Reset customer status
         this.daysHistory = { today: false, yesterday: false, dayBefore: false }; // Reset
         
         if (!/^01[3-9]\d{8}$/.test(phone)) {
@@ -32,8 +34,37 @@ class FraudChecker {
             return;
         }
         
-        // Check last 3 days invoices
-        this.checkLastThreeDays(phone);
+        // Check customer status first
+        this.checkCustomerStatus(phone);
+    }
+
+    async checkCustomerStatus(phone) {
+        this.showLoading('Checking customer status...');
+        
+        try {
+            const res = await fetch(`/check-customer-status/${phone}`);
+            const data = await res.json();
+            
+            if (data.error) throw new Error(data.error);
+            
+            this.customerStatus = data;
+            
+            // Display customer status warning if inactive
+            if (data.status === 'inactive' || data.status === 'blocked') {
+                this.displayCustomerStatusWarning(data);
+            } else {
+                $('#customerStatusWarning').remove();
+            }
+            
+            // Then check last 3 days invoices
+            this.checkLastThreeDays(phone);
+        } catch (error) {
+            console.error('Customer status check error:', error);
+            // Continue with other checks even if status check fails
+            this.checkLastThreeDays(phone);
+        } finally {
+            this.hideLoading();
+        }
     }
 
     async checkLastThreeDays(phone) {
@@ -41,7 +72,7 @@ class FraudChecker {
         
         try {
             // Check invoices for last 3 days
-            const res = await fetch(`/admin/check-phone-last-days/${phone}?days=3`);
+            const res = await fetch(`/check-phone-last-days/${phone}?days=3`);
             const data = await res.json();
             
             if (data.error) throw new Error(data.error);
@@ -75,7 +106,7 @@ class FraudChecker {
         this.showLoading('Checking fraud history...');
         
         try {
-            const res = await fetch(`/admin/check-phone/${phone}`);
+            const res = await fetch(`/check-phone-today/${phone}`);
             const data = await res.json();
             
             if (data.error) throw new Error(data.error);
@@ -90,6 +121,60 @@ class FraudChecker {
         }
     }
 
+    displayCustomerStatusWarning(data) {
+        let container = $('#customerStatusWarning');
+        if (!container.length) {
+            container = $(`
+                <div id="customerStatusWarning" class="mt-2 alert alert-dismissible fade show bg-danger">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    <div id="customerStatusContent" class="d-flex align-items-center"></div>
+                </div>
+            `).insertAfter($('#recipientPhone').closest('.form-group'));
+        }
+        
+        // Determine alert level based on status
+        let alertLevel = 'danger';
+        let alertIcon = 'ban';
+        let statusText = 'Blocked';
+        
+        if (data.status === 'inactive') {
+            alertLevel = 'warning';
+            alertIcon = 'exclamation-triangle';
+            statusText = 'Inactive';
+        }
+        
+        // Update alert class
+        container.removeClass('alert-danger alert-warning alert-info alert-success')
+                .addClass(`alert-${alertLevel}`);
+        
+        let notesHtml = '';
+        if (data.note) {
+            notesHtml = `
+                <div class="mt-1">
+                    <strong>Notes:</strong>
+                    <small class="d-block text-muted">${data.note}</small>
+                </div>
+            `;
+        }
+        
+        const html = `
+            <i class="fa fa-${alertIcon} mr-2 fa-lg"></i>
+            <div class="flex-grow-1 ">
+                <strong>***** Customer ${statusText}:</strong>
+                <div class="mt-1">
+                    <span class="badge badge-${alertLevel}">${data.name || 'Unknown Customer'}</span>
+                    <small class="text-muted ml-2">ID: ${data.id}</small>
+                </div>
+                ${notesHtml}
+                <small class="d-block text-${alertLevel} mt-1">
+                    <i class="fa fa-exclamation-circle"></i> This customer is ${data.status} by our system.
+                </small>
+            </div>
+        `;
+        
+        $('#customerStatusContent').html(html);
+    }
+
     displayThreeDaysWarning(data) {
         let container = $('#threeDaysWarning');
         if (!container.length) {
@@ -99,6 +184,12 @@ class FraudChecker {
                     <div id="threeDaysContent" class="d-flex align-items-center"></div>
                 </div>
             `).insertAfter($('#recipientPhone').closest('.form-group'));
+            
+            // Move it after customer status warning if it exists
+            const statusWarning = $('#customerStatusWarning');
+            if (statusWarning.length) {
+                container.insertAfter(statusWarning);
+            }
         }
         
         // Determine overall alert level
@@ -204,10 +295,10 @@ class FraudChecker {
                 </div>
             `).insertAfter($('#recipientPhone').closest('.form-group'));
             
-            // Move it after the 3-day warning if it exists
-            const warning = $('#threeDaysWarning');
-            if (warning.length) {
-                container.insertAfter(warning);
+            // Move it after the last warning if it exists
+            const lastWarning = $('#threeDaysWarning').length ? $('#threeDaysWarning') : $('#customerStatusWarning');
+            if (lastWarning.length) {
+                container.insertAfter(lastWarning);
             }
         }
         
@@ -289,13 +380,41 @@ class FraudChecker {
     }
 
     clearFraudDisplay() {
+        $('#customerStatusWarning').remove();
         $('#fraudCheckContainer').remove();
         $('#threeDaysWarning').remove();
         this.currentData = null;
+        this.customerStatus = null;
         this.daysHistory = { today: false, yesterday: false, dayBefore: false };
     }
 
     validateForm(e) {
+        // Check if customer is blocked/inactive
+        if (this.customerStatus && (this.customerStatus.status === 'inactive' || this.customerStatus.status === 'blocked')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const statusText = this.customerStatus.status === 'blocked' ? 'BLOCKED' : 'INACTIVE';
+            const alertMessage = this.customerStatus.status === 'blocked' 
+                ? 'This customer is BLOCKED by our system. Cannot create invoice.'
+                : 'This customer is marked as INACTIVE. Proceed with caution.';
+            
+            if (this.customerStatus.status === 'blocked') {
+                // Show alert for blocked customers
+                alert(`CUSTOMER ${statusText}\n\n${alertMessage}\n\nNotes: ${this.customerStatus.notes || 'No notes available'}`);
+                $('#recipientPhone').focus().select();
+                return false;
+            } else {
+                // For inactive customers, ask for confirmation
+                const proceed = confirm(`CUSTOMER ${statusText}\n\n${alertMessage}\n\nNotes: ${this.customerStatus.notes || 'No notes available'}\n\nDo you want to proceed?`);
+                if (!proceed) {
+                    $('#recipientPhone').focus().select();
+                    return false;
+                }
+            }
+        }
+        
+        // Check for today's orders
         if (this.daysHistory.today) {
             e.preventDefault();
             e.stopPropagation();
@@ -307,11 +426,31 @@ class FraudChecker {
             $('#recipientPhone').focus().select();
             return false;
         }
+        
         return true;
     }
 
     // Add method to check before form submission
     canSubmitForm() {
+        // Check customer status first
+        if (this.customerStatus) {
+            if (this.customerStatus.status === 'blocked') {
+                return {
+                    canSubmit: false,
+                    message: 'This customer is BLOCKED by our system. Cannot create invoice.',
+                    blocked: true
+                };
+            } else if (this.customerStatus.status === 'inactive') {
+                return {
+                    canSubmit: true,
+                    message: 'Warning: This customer is marked as INACTIVE.',
+                    warning: true,
+                    notes: this.customerStatus.notes
+                };
+            }
+        }
+        
+        // Then check days history
         if (this.daysHistory.today) {
             return {
                 canSubmit: false,
@@ -330,6 +469,7 @@ class FraudChecker {
                 info: true
             };
         }
+        
         return { canSubmit: true };
     }
 

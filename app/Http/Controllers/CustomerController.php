@@ -48,7 +48,7 @@ class CustomerController extends Controller
 
         Customer::create($request->all());
 
-        return redirect()->route('customers.index')
+        return redirect()->route('admin.customers.index')
             ->with('success', 'Customer created successfully.');
     }
 
@@ -91,7 +91,7 @@ class CustomerController extends Controller
 
         $customer->update($request->all());
 
-        return redirect()->route('customers.index')
+        return redirect()->route('admin.customers.index')
             ->with('success', 'Customer updated successfully.');
     }
 
@@ -102,7 +102,7 @@ class CustomerController extends Controller
     {
         $customer->delete();
 
-        return redirect()->route('customers.index')
+        return redirect()->route('admin.customers.index')
             ->with('success', 'Customer deleted successfully.');
     }
 
@@ -114,7 +114,7 @@ class CustomerController extends Controller
         $customer = Customer::withTrashed()->findOrFail($id);
         $customer->forceDelete();
 
-        return redirect()->route('customers.trashed')
+        return redirect()->route('admin.customers.trashed')
             ->with('success', 'Customer permanently deleted.');
     }
 
@@ -126,7 +126,7 @@ class CustomerController extends Controller
         $customer = Customer::withTrashed()->findOrFail($id);
         $customer->restore();
 
-        return redirect()->route('customers.trashed')
+        return redirect()->route('admin.customers.trashed')
             ->with('success', 'Customer restored successfully.');
     }
 

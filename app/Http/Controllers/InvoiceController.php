@@ -97,6 +97,7 @@ public function storePos(Request $request)
             'pathao_area_id' => $request->delivery_area_id,
             'status' => $request->status,
             'invoice_date' => now(),
+            'created_by' => auth()->id(),
         ]);
 
         // Add invoice items
@@ -127,12 +128,12 @@ public function storePos(Request $request)
                 'invoice_number' => $invoice->invoice_number,
                 'customer_id' => $customer->id,
                 'customer_name' => $customer->name,
-                'print_url' => route('invoices.print', $invoice->id),
+                'print_url' => route('admin.invoices.print', $invoice->id),
                 'message' => 'Invoice created successfully!'
             ]);
         }
 
-        return redirect()->route('invoices.print', $invoice->id)
+        return redirect()->route('admin.invoices.print', $invoice->id)
             ->with('success', 'Invoice created successfully!');
             
     } catch (\Exception $e) {
@@ -187,7 +188,7 @@ public function update(Request $request, $id)
     // Manual validation to handle dynamic array indices
     $validated = $request->validate([
         'delivery_charge' => 'required|numeric|min:0',
-        'status' => 'required|string|in:confirmed,pending,cancelled', // Add status validation
+        'status' => 'required|string|in:confirmed,pending,cancelled', 
     ]);
     
     // Validate items manually to handle dynamic keys
@@ -304,7 +305,7 @@ public function update(Request $request, $id)
         $invoice = Invoice::findOrFail($id);
         $invoice->delete();
         
-        return redirect()->route('invoices.index')
+        return redirect()->route('admin.invoices.index')
             ->with('success', 'Invoice deleted successfully!');
     }
 public function downloadTodayCSV(Request $request)
@@ -312,39 +313,29 @@ public function downloadTodayCSV(Request $request)
     // Get today's date
     $today = Carbon::today()->toDateString();
     
-    // Get only CONFIRMED invoices for today
-    $invoices = Invoice::whereDate('invoice_date', $today)
+    // Get only CONFIRMED invoices for today with sorting by invoice number
+    $invoices = Invoice::whereDate('updated_at', $today)
         ->where('status', 'confirmed')
         ->with('customer', 'items')
+        ->orderBy('invoice_number', 'asc') // Add this line for sorting
         ->get();
+    
+    // Alternative if you don't have invoice_number field but invoice code in another format:
+    // $invoices = Invoice::whereDate('updated_at', $today)
+    //     ->where('status', 'confirmed')
+    //     ->with('customer', 'items')
+    //     ->orderBy('id', 'asc') // If invoice_number is not available, sort by ID
+    //     ->get();
     
     // Check if there are any confirmed invoices for today
     if ($invoices->isEmpty()) {
         return redirect()->back()->with('error', 'No confirmed invoices found for today.');
     }
     
-    // Prepare CSV headers
-    $headers = [
-        'ItemType',
-        'StoreName',
-        'MerchantOrderId',
-        'RecipientName(*)',
-        'RecipientPhone(*)',
-        'RecipientAddress(*)',
-        'RecipientCity(*)',
-        'RecipientZone(*)',
-        'RecipientArea',
-        'AmountToCollect(*)',
-        'ItemQuantity',
-        'ItemWeight',
-        'ItemDesc',
-        'SpecialInstruction'
-    ];
-    
-    $csvData = [$headers];
+  
     
     foreach ($invoices as $invoice) {
-        // Only process confirmed invoices
+        // Only process confirmed invoices (additional safety check)
         if ($invoice->status !== 'confirmed') {
             continue;
         }
@@ -390,12 +381,11 @@ public function downloadTodayCSV(Request $request)
         
         // Calculate TOTAL quantity and weight for ALL items in this invoice
         $totalQuantity = $invoice->items->sum('quantity');
-        $totalWeight = $totalQuantity * 0.5; // Each item has 0.5 weight
+        $totalWeight = $totalQuantity * 0.5;
         
         // Get item names only (NO descriptions)
         $itemNames = [];
         foreach ($invoice->items as $item) {
-            // Use item_name only, not description
             if ($item->item_name) {
                 $itemNames[] = $item->item_name;
             }
@@ -404,65 +394,60 @@ public function downloadTodayCSV(Request $request)
         // Combine item names (without descriptions)
         $itemDesc = '';
         if (!empty($itemNames)) {
-            if (count($itemNames) === 1) {
-                // Single item: just show the name
+            if (count($itemNames) == 1) {
                 $itemDesc = $itemNames[0];
             } else {
-                // Multiple items: show count and first item
-                $itemDesc = $itemNames[0] . ' and ' . (count($itemNames) - 1) . ' more items';
-                // Alternative: just show count
-                // $itemDesc = count($itemNames) . ' items';
+                $itemDesc = $itemNames[0];
             }
         } else {
             $itemDesc = 'Items';
         }
         
+        // Clean fields that might contain newlines
+        $cleanAddress = str_replace(["\r", "\n"], ', ', $invoice->recipient_address);
+        $cleanAddress = trim(preg_replace('/\s+/', ' ', $cleanAddress));
+        
+        $cleanInstructions = str_replace(["\r", "\n"], ', ', $invoice->special_instructions);
+        $cleanInstructions = trim(preg_replace('/\s+/', ' ', $cleanInstructions));
+        
         // Prepare ONE row per invoice
         $row = [
-            'Parcel', // ItemType
-            $invoice->store_location, // StoreName
-            $invoice->merchant_order_id ?: '', // MerchantOrderId
-            $invoice->recipient_name, // RecipientName(*)
-            $invoice->recipient_phone, // RecipientPhone(*)
-            $invoice->recipient_address, // RecipientAddress(*)
-            $cityName, // RecipientCity(*)
-            $zoneName, // RecipientZone(*)
-            $areaName, // RecipientArea
-            $invoice->due_amount, // AmountToCollect(*)
-            $totalQuantity, // TOTAL ItemQuantity
-            $totalWeight, // TOTAL ItemWeight
-            $itemDesc, // ItemDesc (only names, no descriptions)
-            $invoice->special_instructions // SpecialInstruction
+            'Parcel',
+            $invoice->store_location,
+            $invoice->merchant_order_id ?: '',
+            $invoice->recipient_name,
+            $invoice->recipient_phone,
+            $cleanAddress,
+            $cityName,
+            $zoneName,
+            $areaName,
+            $invoice->due_amount,
+            $totalQuantity,
+            $totalWeight,
+            $itemDesc,
+            $cleanInstructions
         ];
         
         $csvData[] = $row;
     }
     
-    // Generate CSV content with UTF-8 BOM for Excel compatibility
-    $csvContent = "\xEF\xBB\xBF"; // UTF-8 BOM
-    
-    foreach ($csvData as $row) {
-        $csvContent .= implode(',', array_map(function($value) {
-            // Escape commas and quotes
-            $value = str_replace('"', '""', $value);
-            // Wrap in quotes if contains comma or double quote
-            if (strpos($value, ',') !== false || strpos($value, '"') !== false) {
-                $value = '"' . $value . '"';
-            }
-            return $value;
-        }, $row)) . "\n";
-    }
-    
-    // Generate filename
+    // Generate CSV using fputcsv for proper formatting
     $filename = 'today_invoices_' . $today . '.csv';
     
-    // Return CSV download with UTF-8 charset
-    return Response::make($csvContent, 200, [
+    return response()->streamDownload(function() use ($csvData) {
+        $handle = fopen('php://output', 'w');
+        
+        // Add UTF-8 BOM for Excel
+        fwrite($handle, "\xEF\xBB\xBF");
+        
+        foreach ($csvData as $row) {
+            fputcsv($handle, $row);
+        }
+        
+        fclose($handle);
+    }, $filename, [
         'Content-Type' => 'text/csv; charset=utf-8',
         'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        'Pragma' => 'no-cache',
-        'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-        'Expires' => '0'
     ]);
 }
 
@@ -513,50 +498,6 @@ public function checkPhoneToday($phone)
     }
 }
 
-
-public function updateStatus(Request $request, $id)
-{
-    try {
-        $invoice = Invoice::findOrFail($id);
-        
-        // Validate status
-        $request->validate([
-            'status' => 'required|in:confirmed,pending,cancelled',
-        ]);
-        
-        // Only allow status change for pending invoices
-        if ($invoice->status === 'pending' && $request->status === 'confirmed') {
-            $invoice->update([
-                'status' => 'confirmed',
-                'confirmed_at' => now(),
-            ]);
-            
-            // You can add any additional logic here (like sending notifications)
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Invoice status updated to confirmed successfully!',
-                'data' => [
-                    'status' => $invoice->status,
-                    'status_text' => ucfirst($invoice->status),
-                ]
-            ]);
-        }
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Status update not allowed',
-        ], 400);
-        
-    } catch (\Exception $e) {
-        \Log::error('Invoice status update error: ' . $e->getMessage());
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to update invoice status: ' . $e->getMessage(),
-        ], 500);
-    }
-}
 
 public function checkPhoneLastDays($phone)
 {
@@ -615,6 +556,172 @@ public function checkPhoneLastDays($phone)
     } catch (\Exception $e) {
         \Log::error('Check phone last days error: ' . $e->getMessage());
         return response()->json(['error' => 'Server error occurred'], 500);
+    }
+}
+
+
+
+public function updateStatus(Request $request, $id)
+{
+    try {
+        $invoice = Invoice::findOrFail($id);
+        
+        // Validate status
+        $request->validate([
+            'status' => 'required|in:confirmed,pending,cancelled',
+        ]);
+        
+        $oldStatus = $invoice->status;
+        $newStatus = $request->status;
+        
+        // Handle pending → confirmed
+        if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
+            $updateData = [
+                'status' => 'confirmed',
+                'confirmed_at' => now(),
+            ];
+            
+            // Only assign new invoice number if not already assigned
+            if (!$invoice->invoice_number) {
+                // Generate invoice number using the model's method
+                $updateData['invoice_number'] = Invoice::generateUniqueInvoiceNumber();
+                $updateData['invoice_date'] = now();
+            }
+            // If invoice has a number but was created earlier, regenerate with today's date
+            else if ($invoice->invoice_number && 
+                     $invoice->created_at && 
+                     !$invoice->created_at->isToday()) {
+                // Keep the original invoice number in notes or archive it
+                $originalNumber = $invoice->invoice_number;
+                $updateData['invoice_number'] = Invoice::generateUniqueInvoiceNumber();
+                $updateData['invoice_date'] = now();
+                $updateData['notes'] = $invoice->notes . "\nOriginal invoice number: " . $originalNumber . " (converted on " . now()->format('Y-m-d H:i:s') . ")";
+            }
+            
+            $invoice->update($updateData);
+            
+            // Refresh the invoice to get updated data
+            $invoice->refresh();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice confirmed successfully!',
+                'data' => [
+                    'status' => $invoice->status, // Use $invoice->status, not fresh() as we just refreshed
+                    'status_text' => ucfirst($invoice->status),
+                    'invoice_number' => $invoice->invoice_number,
+                    'invoice_date' => $invoice->invoice_date ? $invoice->invoice_date->format('d M Y') : null,
+                    // Add payment_status to ensure it doesn't change
+                    'payment_status' => $invoice->payment_status,
+                ]
+            ]);
+        }
+        // Handle confirmed → pending
+        elseif ($oldStatus === 'confirmed' && $newStatus === 'pending') {
+            $invoice->update([
+                'status' => 'pending',
+                'confirmed_at' => null,
+            ]);
+            
+            $invoice->refresh();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice status changed back to pending.',
+                'data' => [
+                    'status' => $invoice->status,
+                    'status_text' => ucfirst($invoice->status),
+                    'payment_status' => $invoice->payment_status,
+                ]
+            ]);
+        }
+        // Handle other status changes (like to cancelled)
+        elseif ($newStatus === 'cancelled' || $newStatus === 'pending') {
+            $invoice->update([
+                'status' => $newStatus,
+            ]);
+            
+            $invoice->refresh();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice status updated successfully.',
+                'data' => [
+                    'status' => $invoice->status,
+                    'status_text' => ucfirst($invoice->status),
+                    'payment_status' => $invoice->payment_status,
+                ]
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Status update not allowed',
+        ], 400);
+        
+    } catch (\Exception $e) {
+        \Log::error('Invoice status update error: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update invoice status: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+public function checkCustomerStatus($phone)
+{
+    try {
+        // Clean the phone number
+        $cleanPhone = preg_replace('/\D/', '', $phone);
+        
+        // Simple validation
+        if (strlen($cleanPhone) < 11) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Invalid phone number length'
+            ]);
+        }
+        
+        // Try to find customer - using the actual column names from your model
+        $customer = Customer::where('phone_number_1', $cleanPhone)
+            ->orWhere('phone_number_2', $cleanPhone)
+            ->first();
+        
+        if (!$customer) {
+            return response()->json([
+                'found' => false,
+                'message' => 'No customer found with this phone number'
+            ]);
+        }
+        
+        // Determine status
+        $status = $customer->status ?? 'active';
+        $isBlocked = false;
+        
+        // Check status
+        if (in_array(strtolower($status), ['inactive', 'blocked'])) {
+            $isBlocked = true;
+        }
+        
+        return response()->json([
+            'found' => true,
+            'id' => $customer->id,
+            'name' => $customer->name,
+            'phone' => $customer->phone_number_1,
+            'status' => $status,
+            'is_blocked' => $isBlocked,
+            'note' => $customer->note, // Singular 'note' as per your model
+            'created_at' => optional($customer->created_at)->format('Y-m-d'),
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Check customer status error: ' . $e->getMessage());
+        
+        return response()->json([
+            'error' => 'Server error occurred',
+            'message' => $e->getMessage(),
+            'found' => false
+        ], 500);
     }
 }
 }

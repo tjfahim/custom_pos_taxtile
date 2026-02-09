@@ -10,7 +10,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form id="posForm" action="{{ route('invoices.store-pos') }}" method="POST">
+                <form id="posForm" action="{{ route('admin.invoices.store-pos') }}" method="POST">
                     @csrf
                     
                     <!-- Customer Section -->

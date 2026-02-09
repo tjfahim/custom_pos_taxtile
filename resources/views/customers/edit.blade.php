@@ -13,7 +13,7 @@
                 </span>
             </div>
             <div class="card-body">
-                <form action="{{ route('customers.update', $customer) }}" method="POST">
+                <form action="{{ route('admin.customers.update', $customer) }}" method="POST">
                     @csrf
                     @method('PUT')
                     
@@ -113,7 +113,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fa fa-save"></i> Update Customer
                         </button>
-                        <a href="{{ route('customers.index') }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.customers.index') }}" class="btn btn-secondary">
                             Cancel
                         </a>
                         <button type="button" class="btn btn-danger" 
@@ -123,7 +123,7 @@
                     </div>
                 </form>
 
-                <form id="delete-form" action="{{ route('customers.destroy', $customer) }}" method="POST" style="display: none;">
+                <form id="delete-form" action="{{ route('admin.customers.destroy', $customer) }}" method="POST" style="display: none;">
                     @csrf
                     @method('DELETE')
                 </form>

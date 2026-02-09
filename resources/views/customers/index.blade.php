@@ -33,9 +33,13 @@
                     <i class="fa fa-users mr-2"></i>
                     Customer List
                 </h5>
-                <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm">
+                @can('create customers')
+                    
+              
+                <a href="{{ route('admin.customers.create') }}" class="btn btn-primary btn-sm">
                     <i class="fa fa-plus"></i> Add Customer
                 </a>
+                  @endcan
             </div>
 
             <div class="card-body">
@@ -139,21 +143,24 @@
                                 <td>
                                     <div class="btn-group" role="group">
                                         <!-- View Button -->
+                                             @can('view customers')
                                         <button type="button" class="btn btn-sm btn-info mr-1" 
                                                 data-toggle="modal" data-target="#viewModal{{ $c->id }}"
                                                 title="View">
                                             <i class="fa fa-eye"></i>
                                         </button>
-                                        
+                                                 @endcan
+                                          @can('edit customers')
                                         <!-- Edit Button -->
-                                        <a href="{{ route('customers.edit', $c->id) }}" 
+                                        <a href="{{ route('admin.customers.edit', $c->id) }}" 
                                            class="btn btn-sm btn-warning mr-1"
                                            title="Edit">
                                             <i class="fa fa-edit"></i>
                                         </a>
-                                        
+                                                 @endcan
+                                          @can('delete customers')
                                         <!-- Delete Button -->
-                                        <form action="{{ route('customers.destroy', $c->id) }}" method="POST" class="d-inline">
+                                        <form action="{{ route('admin.customers.destroy', $c->id) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" 
@@ -163,6 +170,7 @@
                                                 <i class="fa fa-trash"></i>
                                             </button>
                                         </form>
+                                                 @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -210,7 +218,7 @@
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                                            <a href="{{ route('customers.edit', $c->id) }}" class="btn btn-primary">
+                                            <a href="{{ route('admin.customers.edit', $c->id) }}" class="btn btn-primary">
                                                 Edit
                                             </a>
                                         </div>
@@ -222,7 +230,7 @@
                                 <td colspan="9" class="text-center py-4"> <!-- Updated to colspan="9" -->
                                     <i class="fa fa-users fa-2x text-muted mb-2"></i>
                                     <p>No customers found</p>
-                                    <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm">
+                                    <a href="{{ route('admin.customers.create') }}" class="btn btn-primary btn-sm">
                                         Add First Customer
                                     </a>
                                 </td>

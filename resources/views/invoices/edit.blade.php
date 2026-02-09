@@ -9,10 +9,10 @@
                     <i class="fa fa-edit"></i> Edit Invoice #{{ $invoice->invoice_number }}
                 </h5>
                 <div>
-                    <a href="{{ route('invoices.print', $invoice->id) }}" class="btn btn-info btn-sm mr-2">
+                    <a href="{{ route('admin.invoices.print', $invoice->id) }}" class="btn btn-info btn-sm mr-2">
                         <i class="fa fa-print"></i> Print
                     </a>
-                    <a href="{{ route('invoices.show', $invoice->id) }}" class="btn btn-secondary btn-sm">
+                    <a href="{{ route('admin.invoices.show', $invoice->id) }}" class="btn btn-secondary btn-sm">
                         <i class="fa fa-arrow-left"></i> Back
                     </a>
                 </div>
@@ -49,7 +49,7 @@
                     </div>
                 @endif
                 
-                <form action="{{ route('invoices.update', $invoice->id) }}" method="POST" id="editInvoiceForm">
+                <form action="{{ route('admin.invoices.update', $invoice->id) }}" method="POST" id="editInvoiceForm">
                     @csrf
                     @method('PUT')
                     
@@ -67,28 +67,31 @@
                                                value="{{ $invoice->customer->name }}" readonly>
                                     </div>
                                     <div class="form-group">
-                                        <label>Phone</label>
-                                        <input type="text" class="form-control-plaintext" 
-                                               value="{{ $invoice->customer->phone_number_1 }}" readonly>
+                                        <label for="phone">Phone Number</label>
+                                        <input type="text" class="form-control @error('phone') is-invalid @enderror" 
+                                               id="recipientPhone" name="phone" 
+                                               value="{{ old('phone', $invoice->customer->phone_number_1) }}">
+                                        @error('phone')
+                                            <span class="invalid-feedback">{{ $message }}</span>
+                                        @enderror
                                     </div>
                                 </div>
+                                
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Invoice Date</label>
                                         <input type="text" class="form-control-plaintext" 
                                                value="{{ $invoice->invoice_date->format('M d, Y') }}" readonly>
                                     </div>
-                                     <div class="form-group">
-                                        <label for="merchant_order_id">Merchant order id</label>
-                                        <input type="text" class="form-control @error('merchant_order_id') is-invalid @enderror" 
-                                               id="merchant_order_id" name="merchant_order_id" 
-                                               value="{{ old('merchant_order_id', $invoice->merchant_order_id) }}" 
-                                               >
-                                        @error('merchant_order_id')
+                                    <div class="form-group">
+                                        <label for="address">Address</label>
+                                        <textarea class="form-control @error('recipient_address') is-invalid @enderror" 
+                                                  id="recipient_address" name="recipient_address" rows="3">{{ old('recipient_address', $invoice->recipient_address) }}</textarea>
+                                        @error('recipient_address')
                                             <span class="invalid-feedback">{{ $message }}</span>
                                         @enderror
                                     </div>
-                                   
+                                    
                                 </div>
                             </div>
                         </div>
@@ -101,7 +104,7 @@
                         </div>
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="form-group">
                                         <label for="delivery_charge">Delivery Charge (৳)</label>
                                         <input type="number" step="0.01" class="form-control @error('delivery_charge') is-invalid @enderror" 
@@ -113,7 +116,7 @@
                                         @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="form-group">
                                         <label for="status">Invoice Status</label>
                                         <select class="form-control @error('status') is-invalid @enderror" 
@@ -133,7 +136,18 @@
                                         @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="merchant_order_id">Merchant Order ID</label>
+                                        <input type="text" class="form-control @error('merchant_order_id') is-invalid @enderror" 
+                                               id="merchant_order_id" name="merchant_order_id" 
+                                               value="{{ old('merchant_order_id', $invoice->merchant_order_id) }}">
+                                        @error('merchant_order_id')
+                                            <span class="invalid-feedback">{{ $message }}</span>
+                                        @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
                                     <div class="form-group">
                                         <label for="notes">Notes</label>
                                         <textarea class="form-control" id="notes" name="notes" rows="2">{{ old('notes', $invoice->notes) }}</textarea>
@@ -157,7 +171,7 @@
                                     <thead class="thead-light">
                                         <tr>
                                             <th width="5%">#</th>
-                                            <th width="30%">Item Name</th>
+                                            <th width="25%">Item Name</th>
                                             <th width="10%">Quantity</th>
                                             <th width="15%">Unit Price (৳)</th>
                                             <th width="15%">Weight (kg)</th>
@@ -262,7 +276,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fa fa-save"></i> Update Invoice
                         </button>
-                        <a href="{{ route('invoices.show', $invoice->id) }}" class="btn btn-secondary">Cancel</a>
+                        <a href="{{ route('admin.invoices.show', $invoice->id) }}" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
             </div>
@@ -270,203 +284,20 @@
     </div>
 </div>
 
+<!-- Include CSS -->
+<link rel="stylesheet" href="{{ asset('css/invoices-edit.css') }}">
+
+<!-- Include JavaScript -->
+<script src="{{ asset('js/invoices-edit.js') }}"></script>
+<script src="{{ asset('js/fraud-check.js') }}"></script>
+<!-- Pass data to JavaScript -->
 <script>
-$(document).ready(function() {
-    let itemCounter = {{ $itemCount }};
-    let newItemCounter = 0;
-    
-    // Calculate weight in kg (0.5kg per item = 500g per item)
-    function calculateWeight(quantity) {
-        return quantity * 500; // Returns weight in grams
-    }
-    
-    // Format weight for display
-    function formatWeight(weightInGrams) {
-        return (weightInGrams / 1000).toFixed(2) + ' kg';
-    }
-    
-    // Calculate totals
-    function calculateTotals() {
-        let subtotal = 0;
-        let totalQuantity = 0;
-        let totalWeight = 0;
-        
-        $('#itemsTableBody tr').each(function() {
-            const qty = parseFloat($(this).find('.quantity').val()) || 0;
-            const price = parseFloat($(this).find('.unit-price').val()) || 0;
-            const total = qty * price;
-            const weight = calculateWeight(qty);
-            
-            $(this).find('.total-price').val('৳' + total.toFixed(2));
-            $(this).find('.item-total').val(total);
-            $(this).find('.weight-display').val(formatWeight(weight));
-            $(this).find('.item-weight').val(weight);
-            
-            subtotal += total;
-            totalQuantity += qty;
-            totalWeight += weight;
-        });
-        
-        const delivery = parseFloat($('#delivery_charge').val()) || 0;
-        const grandTotal = subtotal + delivery;
-        
-        $('#total-quantity').text(totalQuantity);
-        $('#total-weight').text(formatWeight(totalWeight));
-        $('#subtotal').text(subtotal.toFixed(2));
-        $('#delivery-display').text(delivery.toFixed(2));
-        $('#grand-total').text(grandTotal.toFixed(2));
-    }
-    
-    // Initialize
-    calculateTotals();
-    
-    // Listen for changes
-    $(document).on('input', '.quantity, .unit-price, #delivery_charge', calculateTotals);
-    
-    // Add new item
-    $('#addItemBtn').click(function() {
-        const newIndex = 'new_' + newItemCounter;
-        const row = `
-            <tr data-item-id="${newIndex}" data-is-existing="false">
-                <td class="serial"></td>
-                <td>
-                    <input type="hidden" name="items[${newIndex}][id]" value="${newIndex}">
-                    <input type="text" class="form-control" name="items[${newIndex}][item_name]" value="Three Piece" required>
-                </td>
-                <td>
-                    <input type="number" class="form-control quantity" name="items[${newIndex}][quantity]" value="1" required min="1">
-                </td>
-                <td>
-                    <input type="number" step="0.01" class="form-control unit-price" name="items[${newIndex}][unit_price]" value="0" required min="0">
-                </td>
-                <td>
-                    <input type="text" class="form-control weight-display" value="0.50 kg" readonly>
-                    <input type="hidden" class="item-weight" name="items[${newIndex}][weight]" value="500">
-                </td>
-                <td>
-                    <input type="text" class="form-control total-price" value="৳0.00" readonly>
-                    <input type="hidden" class="item-total" value="0">
-                </td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-danger btn-sm delete-item">
-                        <i class="fa fa-trash"></i>
-                    </button>
-                </td>
-            </tr>`;
-        
-        $('#itemsTableBody').append(row);
-        newItemCounter++;
-        updateSerialNumbers();
-        calculateTotals();
-    });
-    
-    // Delete item
-    $(document).on('click', '.delete-item', function() {
-        if ($('#itemsTableBody tr').length > 1) {
-            $(this).closest('tr').remove();
-            updateSerialNumbers();
-            calculateTotals();
-        }
-    });
-    
-    // Update serial numbers
-    function updateSerialNumbers() {
-        $('#itemsTableBody tr .serial').each(function(i) {
-            $(this).text(i + 1);
-        });
-    }
-    
-    // Auto-select on focus
-    $(document).on('focus', 'input', function() {
-        $(this).select();
-    });
-    
-    // Style status dropdown based on selection
-    function updateStatusStyle() {
-        const status = $('#status').val();
-        $('#status').removeClass('status-confirmed status-pending status-cancelled');
-        
-        if (status === 'confirmed') {
-            $('#status').addClass('status-confirmed');
-        } else if (status === 'pending') {
-            $('#status').addClass('status-pending');
-        } else if (status === 'cancelled') {
-            $('#status').addClass('status-cancelled');
-        }
-    }
-    
-    // Initialize status style
-    updateStatusStyle();
-    
-    // Update style on change
-    $('#status').on('change', updateStatusStyle);
-});
+    window.invoiceData = {
+        itemCount: {{ $itemCount }},
+        deliveryCharge: {{ $invoice->delivery_charge }},
+        status: "{{ $invoice->status }}",
+        subtotal: {{ $invoice->subtotal }},
+        total: {{ $invoice->total }}
+    };
 </script>
-
-<style>
-.form-control-plaintext {
-    background-color: #f8f9fa;
-    padding: 0.375rem 0.75rem;
-    border: 1px solid #e9ecef;
-    border-radius: 0.25rem;
-}
-.total-price, .weight-display {
-    background-color: #f8f9fa;
-    font-weight: 600;
-}
-.total-price {
-    color: #28a745;
-}
-.weight-display {
-    color: #007bff;
-}
-.table-primary {
-    background-color: #e3f2fd;
-}
-#grand-total {
-    font-size: 1.2em;
-    color: #28a745;
-}
-
-/* Status dropdown styling */
-#status {
-    border: 2px solid #dee2e6;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-#status.status-confirmed {
-    border-color: #28a745;
-    background-color: rgba(40, 167, 69, 0.1);
-}
-#status.status-pending {
-    border-color: #ffc107;
-    background-color: rgba(255, 193, 7, 0.1);
-}
-#status.status-cancelled {
-    border-color: #dc3545;
-    background-color: rgba(220, 53, 69, 0.1);
-}
-#status option[value="confirmed"] {
-    background-color: #d4edda;
-    color: #155724;
-    font-weight: bold;
-}
-#status option[value="pending"] {
-    background-color: #fff3cd;
-    color: #856404;
-}
-#status option[value="cancelled"] {
-    background-color: #f8d7da;
-    color: #721c24;
-}
-
-@media (max-width: 768px) {
-    #itemsTable {
-        font-size: 13px;
-    }
-    #itemsTable th, #itemsTable td {
-        padding: 0.5rem;
-    }
-}
-</style>
 @endsection

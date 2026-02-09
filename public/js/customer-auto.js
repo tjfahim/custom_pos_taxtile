@@ -68,8 +68,6 @@ class CustomerAutoManager {
         // Reset manual entry flag since we're auto-generating
         this.isManualMerchantEntry = false;
         
-        // Optional: Show brief notification
-        this.showBriefMessage('Generated 4-digit ID: ' + fourDigitId, 'info');
     }
     
     refresh4DigitMerchantId() {

@@ -10,7 +10,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form action="{{ route('customers.store') }}" method="POST">
+                <form action="{{ route('admin.customers.store') }}" method="POST">
                     @csrf
                     
                     <div class="row">
@@ -110,7 +110,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fa fa-save"></i> Save Customer
                         </button>
-                        <a href="{{ route('customers.index') }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.customers.index') }}" class="btn btn-secondary">
                             Cancel
                         </a>
                     </div>

@@ -31,7 +31,7 @@ const InvoiceItems = {
                 <td>
                     <input type="number" name="items[${this.itemCount}][unit_price]" 
                            class="form-control form-control-sm unit-price text-right" 
-                           value="0" min="0" step="0.01" required 
+                           value="" min="0" step="0.01" required 
                            onchange="InvoiceItems.updateItemTotal(${this.itemCount})">
                 </td>
                 <td>

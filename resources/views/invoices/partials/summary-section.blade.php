@@ -10,10 +10,14 @@
             <div class="card-body">
                 <div class="form-group">
                     <label>Delivery Charge (৳)</label>
-                    <input type="number" name="delivery_charge" class="form-control" 
-                           value="150" min="0" step="0.01" id="deliveryCharge" onchange="InvoiceCalculations.calculateTotals()">
+         
+                           <input type="number" name="delivery_charge" class="form-control" 
+       value="150" min="0" step="0.01" id="deliveryCharge" 
+       onchange="updateSpecialInstructions(); InvoiceCalculations.calculateTotals()"
+       oninput="updateSpecialInstructions()">
                 </div>
             </div>
+           
         </div>
             <div class="form-group mb-3">
                 <label>Status</label>
@@ -77,3 +81,19 @@
     </div>
 </div>
 </div>
+
+<script>
+function updateSpecialInstructions() {
+    const deliveryCharge = document.getElementById('deliveryCharge').value;
+    const specialInstructions = document.querySelector('textarea[name="special_instructions"]');
+    
+    // Update the text with the new delivery charge
+    const newText = `Return korle delivery charge ${deliveryCharge} tk niben ( আনুষাঙ্গিক কোনো ইসু থাকলে প্যানেলে মেসেজ দিবেন। নাম্বারে যোগাযোগ করার সময় - সকাল ১১.৩০ থেকে রাত ৯ টার মধ্যে)`;
+    
+    // Update the textarea value
+    specialInstructions.value = newText;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', updateSpecialInstructions);
+</script>

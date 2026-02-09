@@ -1,0 +1,322 @@
+/* invoices-edit.css - Styles for invoice edit page */
+
+/* Form control styles */
+.form-control-plaintext {
+    background-color: #f8f9fa;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-control-plaintext:focus {
+    outline: none;
+}
+
+/* Total price and weight display styles */
+.total-price, .weight-display {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    cursor: default;
+}
+
+.total-price {
+    color: #28a745;
+    font-weight: 700;
+}
+
+.weight-display {
+    color: #007bff;
+}
+
+/* Table primary row */
+.table-primary {
+    background-color: #e3f2fd;
+}
+
+/* Grand total styling */
+#grand-total {
+    font-size: 1.2em;
+    color: #28a745;
+    font-weight: 700;
+}
+
+/* Status dropdown styling */
+#status {
+    border: 2px solid #dee2e6;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+#status.status-confirmed {
+    border-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #155724;
+}
+
+#status.status-pending {
+    border-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #856404;
+}
+
+#status.status-cancelled {
+    border-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #721c24;
+}
+
+#status option[value="confirmed"] {
+    background-color: #d4edda;
+    color: #155724;
+    font-weight: bold;
+}
+
+#status option[value="pending"] {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+#status option[value="cancelled"] {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Table foot styling */
+tfoot tr {
+    background-color: #f8f9fa;
+}
+
+tfoot td {
+    border-top: 2px solid #dee2e6 !important;
+}
+
+/* Button styling */
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #004085;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,123,255,0.25);
+}
+
+/* Card header styling */
+.card-header.bg-light {
+    background-color: #f8f9fa !important;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Form group spacing */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+/* Error message styling */
+.invalid-feedback {
+    display: block;
+    font-size: 0.875em;
+    margin-top: 0.25rem;
+}
+
+.invalid-feedback.small {
+    font-size: 0.8em;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Alert styling */
+.alert {
+    border-radius: 0.25rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Table row hover effect */
+#itemsTableBody tr:hover {
+    background-color: #f5f5f5;
+    transition: background-color 0.2s ease;
+}
+
+/* Action button in table */
+.text-center .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.2rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    #itemsTable {
+        font-size: 14px;
+    }
+    
+    #itemsTable th, 
+    #itemsTable td {
+        padding: 0.5rem;
+    }
+    
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .card-header .d-flex {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+    }
+    
+    .card-header h5 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-group label {
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 576px) {
+    #itemsTable {
+        font-size: 12px;
+    }
+    
+    #itemsTable th, 
+    #itemsTable td {
+        padding: 0.25rem;
+    }
+    
+    .table-responsive {
+        border: none;
+    }
+    
+    .form-control {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .form-control-plaintext {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Animation for adding/removing items */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#itemsTableBody tr {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+}
+
+#itemsTableBody tr.deleting {
+    animation: fadeOut 0.3s ease-out;
+}
+
+/* Focus styles */
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+/* Card spacing */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+    border: 1px solid rgba(0,0,0,0.125);
+}
+
+.card + .card {
+    margin-top: 1.5rem;
+}
+
+/* Textarea styling */
+textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Serial number column */
+.serial {
+    font-weight: 600;
+    text-align: center;
+    color: #6c757d;
+}
+
+/* Footer totals styling */
+tfoot span {
+    font-weight: 700;
+}
+
+/* Loading state for submit button */
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
