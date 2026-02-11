@@ -90,7 +90,7 @@ public function storePos(Request $request)
             'amount_to_collect' => $request->amount_to_collect ?? 0,
             'paid_amount' => $request->paid_amount ?? 0,
             'payment_method' => $request->payment_method,
-            'payment_details' => $request->bkash_transaction ?? $request->bank_transfer_details,
+            'payment_details' => $this->getPaymentDetails($request),
             'notes' => $request->notes,
             'pathao_city_id' => $request->delivery_city_id,
             'pathao_zone_id' => $request->delivery_zone_id,
@@ -152,7 +152,19 @@ public function storePos(Request $request)
     }
 }
 
-
+private function getPaymentDetails($request)
+{
+    switch ($request->payment_method) {
+        case 'bkash':
+            return $request->bkash_transaction; // Store full transaction ID for merchant bkash
+        case 'bkash_personal':
+            return $request->bkash_personal_transaction; // Store last 4 digits for personal bkash
+        case 'bank_transfer':
+            return $request->bank_transfer_details; // Store bank details
+        default:
+            return null;
+    }
+}
 
     // Print invoice
     public function print($id)

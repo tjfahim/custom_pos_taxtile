@@ -10,9 +10,135 @@ class FraudChecker {
 
     init() {
         $('#recipientPhone').on('input', this.debounce(this.handlePhoneInput.bind(this), 800));
-        
+         // Add phone number validation on input
+        $('#recipientPhone').on('keypress', this.validatePhoneKeyPress.bind(this));
+        $('#recipientPhone').on('input', this.validatePhoneFormat.bind(this));
         // Add validation to form submission
         $('#posForm').on('submit', this.validateForm.bind(this));
+    }
+   // Allow only digits (0-9)
+    validatePhoneKeyPress(e) {
+        const charCode = e.which ? e.which : e.keyCode;
+        // Allow only digits (0-9)
+        if (charCode < 48 || charCode > 57) {
+            e.preventDefault();
+            this.showBriefMessage('Only digits allowed', 'warning');
+            return false;
+        }
+        return true;
+    }
+     // Validate phone format and length
+    validatePhoneFormat() {
+        const phone = $('#recipientPhone').val();
+        
+        // Remove any non-digit characters
+        const digitsOnly = phone.replace(/\D/g, '');
+        
+        // Update input with digits only
+        if (phone !== digitsOnly) {
+            $('#recipientPhone').val(digitsOnly);
+        }
+        
+        // Check length
+        if (digitsOnly.length > 11) {
+            // Trim to 11 digits
+            const trimmed = digitsOnly.substring(0, 11);
+            $('#recipientPhone').val(trimmed);
+            this.showBriefMessage('Maximum 11 digits allowed', 'warning');
+        }
+        
+        // Show length counter
+        this.updatePhoneLengthCounter(digitsOnly.length);
+    }
+
+    updatePhoneLengthCounter(length) {
+        // Remove existing counter
+        $('#phoneLengthCounter').remove();
+        
+        // Add counter after phone input
+        const counter = $(`
+            <small id="phoneLengthCounter" class="form-text ${length === 11 ? 'text-success' : 'text-muted'}">
+                ${length}/11 digits
+                ${length === 11 ? ' ✓ Valid' : length > 0 ? ' - Need 11 digits' : ''}
+            </small>
+        `).insertAfter($('#recipientPhone'));
+    }
+
+    handlePhoneInput() {
+        const phone = $('#recipientPhone').val().trim().replace(/\D/g, '');
+        this.currentPhone = phone;
+        this.customerStatus = null; // Reset customer status
+        this.daysHistory = { today: false, yesterday: false, dayBefore: false }; // Reset
+        
+        // Clear warnings if phone is empty
+        if (!phone) {
+            this.clearFraudDisplay();
+            this.updatePhoneLengthCounter(0);
+            return;
+        }
+        
+        // Check if exactly 11 digits and valid Bangladeshi format
+        if (phone.length === 11) {
+            if (/^01[3-9]\d{8}$/.test(phone)) {
+                this.checkCustomerStatus(phone);
+            } else {
+                this.showMessage('Invalid Bangladeshi mobile number format', 'warning');
+                this.clearFraudDisplay();
+            }
+        } else if (phone.length > 0) {
+            // Show message if not 11 digits
+            this.showBriefMessage(`Need ${11 - phone.length} more digits`, 'info');
+            this.clearFraudDisplay();
+        }
+    }
+
+    showBriefMessage(message, type = 'info') {
+        // Create a temporary notification
+        const notification = $(`
+            <div class="alert ${type === 'info' ? 'alert-info' : 'alert-warning'} 
+                 alert-dismissible fade show phone-validation-notification" 
+                 style="position: fixed; top: 70px; right: 20px; z-index: 9999; max-width: 300px;">
+                <i class="fa fa-info-circle"></i> ${message}
+            </div>
+        `);
+        
+        // Remove any existing notifications
+        $('.phone-validation-notification').remove();
+        
+        $('body').append(notification);
+        
+        // Auto-remove after 1.5 seconds
+        setTimeout(() => {
+            notification.alert('close');
+        }, 1500);
+    }
+
+    showMessage(message, type = 'info') {
+        // Remove existing message
+        $('#phoneValidationMessage').remove();
+        
+        const alertClasses = {
+            'success': 'alert-success',
+            'warning': 'alert-warning',
+            'danger': 'alert-danger',
+            'info': 'alert-info'
+        };
+        
+        const alertClass = alertClasses[type] || 'alert-info';
+        
+        const messageDiv = $(`
+            <div id="phoneValidationMessage" class="alert ${alertClass} alert-dismissible fade show mt-2">
+                <i class="fa fa-info-circle"></i> ${message}
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+            </div>
+        `);
+        
+        // Insert after phone input group
+        messageDiv.insertAfter($('#recipientPhone').closest('.form-group'));
+        
+        setTimeout(() => {
+            $('#phoneValidationMessage').alert('close');
+        }, 3000);
     }
 
     debounce(func, wait) {
@@ -23,21 +149,7 @@ class FraudChecker {
         };
     }
 
-    handlePhoneInput() {
-        const phone = $('#recipientPhone').val().trim().replace(/\D/g, '');
-        this.currentPhone = phone;
-        this.customerStatus = null; // Reset customer status
-        this.daysHistory = { today: false, yesterday: false, dayBefore: false }; // Reset
-        
-        if (!/^01[3-9]\d{8}$/.test(phone)) {
-            this.clearFraudDisplay();
-            return;
-        }
-        
-        // Check customer status first
-        this.checkCustomerStatus(phone);
-    }
-
+   
     async checkCustomerStatus(phone) {
         this.showLoading('Checking customer status...');
         
@@ -389,6 +501,30 @@ class FraudChecker {
     }
 
     validateForm(e) {
+        const phone = $('#recipientPhone').val().trim().replace(/\D/g, '');
+           if (!phone) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert('Please enter a phone number');
+            $('#recipientPhone').focus();
+            return false;
+        }
+        
+        if (phone.length !== 11) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert('Phone number must be exactly 11 digits');
+            $('#recipientPhone').focus().select();
+            return false;
+        }
+        
+        if (!/^01[3-9]\d{8}$/.test(phone)) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert('Please enter a valid Bangladeshi mobile number (01XXXXXXXXX)');
+            $('#recipientPhone').focus().select();
+            return false;
+        }
         // Check if customer is blocked/inactive
         if (this.customerStatus && (this.customerStatus.status === 'inactive' || this.customerStatus.status === 'blocked')) {
             e.preventDefault();

@@ -287,7 +287,7 @@
                         $totalQuantity += $item->quantity;
                     @endphp
                     <tr>
-                        <td>{{ $item->item_name }}</td>
+                   <td>{{ $item->item_name }} {{ $item->description ? '(' . $item->description . ')' : '' }}</td>
                         <td class="text-center">{{ $item->quantity }}</td>
                         <td class="text-right">৳{{ number_format($item->unit_price, 2) }}</td>
                         <td class="text-right">৳{{ number_format($item->total_price, 2) }}</td>

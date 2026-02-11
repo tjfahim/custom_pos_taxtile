@@ -180,7 +180,7 @@ public function checkCustomerByPhone($phone)
         // Check if customer exists
         $customer = Customer::where('phone_number_1', $cleanPhone)
             ->orWhere('phone_number_2', $cleanPhone)
-            ->first(['id', 'name', 'phone_number_1', 'phone_number_2', 'full_address', 'delivery_area', 'created_at']);
+            ->first(['id', 'name', 'phone_number_1', 'phone_number_2','merchant_order_id', 'full_address', 'delivery_area', 'created_at']);
         
         if ($customer) {
             return response()->json([

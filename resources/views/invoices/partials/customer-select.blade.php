@@ -17,6 +17,7 @@
                                 <th>ID</th>
                                 <th>Name</th>
                                 <th>Phone</th>
+                                <th>Merchant ID</th>
                                 <th>Address</th>
                                 <th>Action</th>
                             </tr>
@@ -28,11 +29,13 @@
                                 data-customer-name="{{ $customer->name }}"
                                 data-customer-phone="{{ $customer->phone_number_1 }}"
                                 data-customer-phone2="{{ $customer->phone_number_2 }}"
+                                data-customer-merchant-id="{{ $customer->merchant_order_id ?? '' }}"
                                 data-customer-address="{{ $customer->full_address }}"
                                 data-customer-area="{{ $customer->delivery_area }}">
                                 <td>{{ $customer->id }}</td>
                                 <td>{{ $customer->name }}</td>
                                 <td>{{ $customer->phone_number_1 }}</td>
+                                <td>{{ $customer->merchant_order_id ?? 'N/A' }}</td>
                                 <td>{{ Str::limit($customer->full_address, 30) }}</td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-primary select-customer">
