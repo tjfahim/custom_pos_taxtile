@@ -6,8 +6,8 @@
                 <i class="fa fa-bars"></i>
             </button>
             <div class="p-2">
-                <h4 class="text-white mb-0">Custom POS</h4>
-                <small class="text-white-50">Inventory</small>
+                <h4 class="text-white mb-0">Faisal Textile</h4>
+                <small class="text-white-50">POS</small>
             </div>
         </div>
 
@@ -44,6 +44,15 @@
                         <span>Invoices</span>
                     </a>
                 </li>
+                <!-- Invoices -->
+                  @can('view reports')
+<li class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+    <a href="{{ route('admin.reports') }}">
+        <i class="menu-icon 	fa fa-newspaper-o"></i>
+        <span>Reports</span>
+    </a>
+</li>
+@endcan
                 
                 <!-- Admin Only Section -->
                 @hasrole('admin')
@@ -75,13 +84,11 @@
                 
                 <li>
                     <a href="{{ route('logout') }}"
-                       onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                       >
                         <i class="menu-icon 	fa fa-power-off"></i>
                         <span>Logout</span>
                     </a>
-                    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
-                        @csrf
-                    </form>
+                  
                 </li>
             </ul>
         </div>

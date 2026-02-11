@@ -9,12 +9,15 @@
                     <i class="fa fa-file-invoice"></i> Invoices
                 </h5>
                 <div>
+                         
                     <a href="{{ route('admin.invoices.download-today-csv') }}" class="btn btn-info btn-sm mr-2">
                         <i class="fa fa-download"></i> Today's CSV
                     </a>
+   @endcan
                     <a href="{{ route('admin.invoices.pos') }}" class="btn btn-primary btn-sm">
                         <i class="fa fa-plus"></i> Create Invoice
                     </a>
+                 
                 </div>
             </div>
             

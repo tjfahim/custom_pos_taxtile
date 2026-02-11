@@ -58,16 +58,19 @@
             </div>
 
             <div class="col-sm-5">
-                <div class="user-area dropdown float-right">
-                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <img class="user-avatar rounded-circle" src="{{ asset('admin/images/admin.jpg') }}" alt="User Avatar">
-                    </a>
+    <div class="user-area dropdown float-right d-flex align-items-center">
+        <span class="mr-3">{{ Auth::user()->name }}</span>
+        <a href="#" class="dropdown-toggle d-flex align-items-center" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <img class="user-avatar rounded-circle" src="{{ asset('admin/images/admin.jpg') }}" alt="User Avatar">
+        </a>
 
-                    <div class="user-menu dropdown-menu">
-                        <a class="nav-link" href="{{ route('logout') }}"><i class="fa fa-power-off"></i> Logout</a>
-                    </div>
-                </div>
-            </div>
+        <div class="user-menu dropdown-menu dropdown-menu-right">
+            <a class="dropdown-item" href="{{ route('logout') }}">
+                <i class="fa fa-power-off"></i> Logout
+            </a>
+        </div>
+    </div>
+</div>
         </div>
 
     </header>

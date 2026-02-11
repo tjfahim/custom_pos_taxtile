@@ -86,6 +86,11 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::get('/reports/invoices', [ReportController::class, 'invoiceReport'])->name('reports.invoices');
     Route::get('/reports/invoices-data', [ReportController::class, 'getInvoiceData'])->name('reports.invoices.data');
     Route::get('/reports/invoices-export', [ReportController::class, 'exportInvoices'])->name('reports.invoices.export');
+
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+    Route::post('/reports/generate', [ReportController::class, 'generate'])->name('reports.generate');
+    Route::post('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.export-csv');
+    Route::post('/reports/print', [ReportController::class, 'print'])->name('reports.print');
 });
 
 // Admin-only routes (User & Role Management)
@@ -100,4 +105,6 @@ Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
 Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');
 Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
 Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+
+
 });
