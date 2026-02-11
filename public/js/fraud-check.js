@@ -106,7 +106,7 @@ class FraudChecker {
         this.showLoading('Checking fraud history...');
         
         try {
-            const res = await fetch(`/check-phone-today/${phone}`);
+            const res = await fetch(`/check-phone-fraud/${phone}`);
             const data = await res.json();
             
             if (data.error) throw new Error(data.error);

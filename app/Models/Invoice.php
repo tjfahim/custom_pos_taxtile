@@ -38,7 +38,8 @@ class Invoice extends Model
         'pathao_city_id',
         'pathao_zone_id',
         'pathao_area_id',
-        'notes'
+        'notes',
+        'created_by'
     ];
 
     protected $casts = [
@@ -52,6 +53,10 @@ class Invoice extends Model
         'due_amount' => 'decimal:2'
     ];
     
+      public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
     protected static function boot()
     {
         parent::boot();

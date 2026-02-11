@@ -34,6 +34,8 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 // Public API routes for form validation (no authentication needed)
 Route::get('/check-phone-today/{phone}', [InvoiceController::class, 'checkPhoneToday'])
     ->name('admin.check.phone.today');
+    Route::get('/check-phone-fraud/{phone}', [PathaoController::class, 'checkPhone'])
+    ->name('admin.check.phone.fraud');
 Route::get('/check-phone-last-days/{phone}', [InvoiceController::class, 'checkPhoneLastDays'])
     ->name('check.phone.last.days');
 Route::get('/check-customer-by-phone/{phone}', [PathaoController::class, 'checkCustomerByPhone'])
