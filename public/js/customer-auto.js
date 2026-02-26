@@ -233,6 +233,8 @@ class CustomerAutoManager {
         
         // Update customer modal selection
         this.updateCustomerModal(customer);
+         // TRIGGER THE CUSTOM AUTO-FILL EVENT
+        $(document).trigger('customerAutoFilled', [customer]);
     }
 
     updateCustomerModal(customer) {

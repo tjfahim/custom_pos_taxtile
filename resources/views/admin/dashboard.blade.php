@@ -316,7 +316,7 @@
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <i class="fa fa-users me-1"></i>
-                    <strong>Top 5 Creators by Performance</strong>
+                    <strong>Creators by Performance</strong>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">

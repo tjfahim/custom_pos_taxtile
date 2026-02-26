@@ -10,10 +10,21 @@
                 </h5>
                 <div>
                          
-                    <a href="{{ route('admin.invoices.download-today-csv') }}" class="btn btn-info btn-sm mr-2">
-                        <i class="fa fa-download"></i> Today's CSV
-                    </a>
-   @endcan
+             
+    
+    <a href="{{ route('admin.invoices.download-morning-csv') }}" class="btn btn-warning btn-sm mr-2">
+        <i class="fa fa-download"></i> Morning CSV (12AM - 3PM)
+    </a>
+    
+    <a href="{{ route('admin.invoices.download-evening-csv') }}" class="btn btn-secondary btn-sm">
+        <i class="fa fa-download"></i> Evening CSV (3PM - 12AM)
+    </a>
+           <div class="btn-group" role="group" aria-label="CSV Download Options">
+    <a href="{{ route('admin.invoices.download-today-csv') }}" class="btn btn-info btn-sm mr-2">
+        <i class="fa fa-download"></i> Today's CSV (All)
+    </a>
+</div>
+  
                     <a href="{{ route('admin.invoices.pos') }}" class="btn btn-primary btn-sm">
                         <i class="fa fa-plus"></i> Create Invoice
                     </a>

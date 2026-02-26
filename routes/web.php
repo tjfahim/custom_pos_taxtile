@@ -8,6 +8,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ReportController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,7 +21,35 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
-
+Route::get('/clear', function() {
+    try {
+        // Clear all caches
+        Artisan::call('cache:clear');
+        Artisan::call('config:clear');
+        Artisan::call('route:clear');
+        Artisan::call('view:clear');
+        Artisan::call('event:clear');
+        Artisan::call('optimize:clear');
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'All caches cleared successfully!',
+            'caches' => [
+                'application' => 'Cleared',
+                'configuration' => 'Cleared',
+                'route' => 'Cleared',
+                'view' => 'Cleared',
+                'event' => 'Cleared',
+                'optimize' => 'Cleared'
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error clearing caches: ' . $e->getMessage()
+        ], 500);
+    }
+});
 
     Route::get('/', [AuthController::class, 'showLoginFrom'])->name('login');
     Route::get('/register', [AuthController::class, 'showRegisterFrom'])->name('register');
@@ -50,6 +79,8 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     // CSV download
     Route::get('/invoices/download-today-csv', [InvoiceController::class, 'downloadTodayCSV'])
         ->name('invoices.download-today-csv');
+    Route::get('/invoices/download-morning-csv', [InvoiceController::class, 'downloadMorningCSV'])->name('invoices.download-morning-csv');
+    Route::get('/invoices/download-evening-csv', [InvoiceController::class, 'downloadEveningCSV'])->name('invoices.download-evening-csv');
 
     // Pathao routes
     Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');

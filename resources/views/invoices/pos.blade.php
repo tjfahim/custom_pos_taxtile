@@ -148,7 +148,7 @@
                     </div>
 
                     <!-- Store & Delivery Info -->
-                    <div class="row mb-3">
+                    <div class="row mb-3 pl-3 pr-3">
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Store Location</label>
@@ -165,6 +165,15 @@
                                 <select name="delivery_type" class="form-control" required>
                                     <option value="Parcel">Parcel</option>
                                     <option value="Express">Express</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label>Status</label>
+                                <select name="status" class="form-control" id="invoiceStatus">
+                                    <option value="confirmed" selected>Confirmed</option>
+                                    <option value="pending">Pending</option>
                                 </select>
                             </div>
                         </div>
@@ -204,6 +213,7 @@
 <script src="{{ asset('js/invoice-pos-payments.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-delivery.js') }}"></script>
 <script src="{{ asset('js/fraud-check.js') }}"></script>
+<script src="{{ asset('js/delivery-area-auto-select.js') }}"></script>
 <script src="{{ asset('js/customer-auto.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-form-handler.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-core.js') }}"></script>
