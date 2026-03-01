@@ -81,6 +81,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
         ->name('invoices.download-today-csv');
     Route::get('/invoices/download-morning-csv', [InvoiceController::class, 'downloadMorningCSV'])->name('invoices.download-morning-csv');
     Route::get('/invoices/download-evening-csv', [InvoiceController::class, 'downloadEveningCSV'])->name('invoices.download-evening-csv');
+    Route::get('/invoices/download-custom-csv', [InvoiceController::class, 'downloadCustomCSV'])->name('invoices.download-custom-csv');
 
     // Pathao routes
     Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');

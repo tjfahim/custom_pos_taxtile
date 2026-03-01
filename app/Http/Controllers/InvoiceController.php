@@ -173,12 +173,202 @@ private function getPaymentDetails($request)
         return view('invoices.print', compact('invoice'));
     }
 
-    // Index page with print only
-    public function index()
-    {
-        $invoices = Invoice::with('customer')->latest()->get();
-        return view('invoices.index', compact('invoices'));
+    // app/Http/Controllers/InvoiceController.php
+
+public function index(Request $request)
+{
+    if ($request->ajax()) {
+        \Log::info('AJAX Request received', $request->all());
+        return $this->getDataTableData($request);
     }
+    
+    // Get counts for filter buttons (optimized)
+    $counts = [
+        'all' => Invoice::whereNull('deleted_at')->count(),
+        'confirmed' => Invoice::whereNull('deleted_at')->where('status', 'confirmed')->count(),
+        'pending' => Invoice::whereNull('deleted_at')->where('status', 'pending')->count(),
+        'cancelled' => Invoice::whereNull('deleted_at')->where('status', 'cancelled')->count(),
+    ];
+    
+    return view('invoices.index', compact('counts'));
+}
+
+
+private function getDataTableData(Request $request)
+{
+    try {
+        $query = Invoice::with(['customer', 'creator'])
+            ->whereNull('deleted_at'); // Exclude soft deleted
+        
+        // Apply status filter
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+        
+        // DataTables parameters
+        $start = $request->input('start', 0);
+        $length = $request->input('length', 20);
+        $orderColumnIndex = $request->input('order.0.column', 5); // Default to date column
+        $orderDir = $request->input('order.0.dir', 'desc');
+        $searchValue = $request->input('search.value', '');
+        
+        // Define sortable columns with proper field names
+        $columns = [
+            0 => 'id',
+            1 => 'invoice_number',
+            2 => 'customer_id',
+            3 => 'recipient_phone',
+            4 => 'merchant_order_id',
+            5 => 'invoice_date',
+            6 => 'total',
+            7 => 'status',
+            8 => 'payment_status',
+            9 => 'created_by',
+            10 => 'id',
+        ];
+        
+        $orderColumn = $columns[$orderColumnIndex] ?? 'invoice_date';
+        
+        // Special handling for ordering - use created_at for latest records
+        if ($orderColumn == 'invoice_date') {
+            // Order by created_at DESC to get latest records first
+            $orderColumn = 'created_at';
+        }
+        
+        // Apply search
+        if (!empty($searchValue)) {
+            $query->where(function($q) use ($searchValue) {
+                $q->where('invoice_number', 'LIKE', "%{$searchValue}%")
+                  ->orWhere('merchant_order_id', 'LIKE', "%{$searchValue}%")
+                  ->orWhere('recipient_name', 'LIKE', "%{$searchValue}%")
+                  ->orWhere('recipient_phone', 'LIKE', "%{$searchValue}%")
+                  ->orWhereHas('customer', function($customerQuery) use ($searchValue) {
+                      $customerQuery->where('name', 'LIKE', "%{$searchValue}%")
+                                   ->orWhere('phone_number_1', 'LIKE', "%{$searchValue}%");
+                  });
+            });
+        }
+        
+        // Get total records count
+        $totalRecords = Invoice::whereNull('deleted_at')->count();
+        $filteredRecords = $query->count();
+        
+        // Get paginated data with proper ordering
+        $invoices = $query->orderBy($orderColumn, $orderDir)
+                          ->orderBy('id', 'desc') // Secondary order by ID for ties
+                          ->skip($start)
+                          ->take($length)
+                          ->get();
+        
+        // Format data for DataTables
+        $data = [];
+        foreach ($invoices as $index => $invoice) {
+            $row = [
+                'DT_RowIndex' => $start + $index + 1,
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'customer_name' => $invoice->customer->name ?? 'N/A',
+                'customer_phone' => $invoice->customer->phone_number_1 ?? $invoice->recipient_phone,
+                'merchant_order_id' => $invoice->merchant_order_id ?? 'N/A',
+                'invoice_date' => $invoice->invoice_date->format('d M Y'),
+                'total' => '৳' . number_format($invoice->total, 2),
+                'status' => [
+                    'value' => $invoice->status,
+                    'badge' => $invoice->status == 'confirmed' ? 'success' : ($invoice->status == 'pending' ? 'warning' : 'danger'),
+                    'text' => ucfirst($invoice->status)
+                ],
+                'payment_status' => [
+                    'value' => $invoice->payment_status,
+                    'badge' => $invoice->payment_status == 'paid' ? 'success' : ($invoice->payment_status == 'partial' ? 'warning' : 'danger'),
+                    'text' => ucfirst($invoice->payment_status)
+                ],
+                'created_by' => $invoice->creator->name ?? 'N/A',
+                'actions' => $this->getActionButtons($invoice),
+                // Add these for debugging if needed
+                'created_at' => $invoice->created_at ? $invoice->created_at->format('Y-m-d H:i:s') : null,
+                'updated_at' => $invoice->updated_at ? $invoice->updated_at->format('Y-m-d H:i:s') : null,
+            ];
+            $data[] = $row;
+        }
+        
+        $response = [
+            'draw' => intval($request->input('draw', 1)),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data
+        ];
+        
+        \Log::info('DataTable Response', [
+            'draw' => $response['draw'],
+            'total' => $totalRecords,
+            'filtered' => $filteredRecords,
+            'data_count' => count($data),
+            'first_invoice' => count($data) > 0 ? $data[0]['invoice_number'] : null,
+            'last_invoice' => count($data) > 0 ? $data[count($data)-1]['invoice_number'] : null
+        ]);
+        
+        return response()->json($response);
+        
+    } catch (\Exception $e) {
+        \Log::error('DataTable Error: ' . $e->getMessage());
+        \Log::error($e->getTraceAsString());
+        
+        return response()->json([
+            'draw' => intval($request->input('draw', 1)),
+            'recordsTotal' => 0,
+            'recordsFiltered' => 0,
+            'data' => [],
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+private function getActionButtons($invoice)
+{
+    $buttons = '<div class="btn-group btn-group-sm" role="group">';
+    
+    if (auth()->user()->can('print invoices')) {
+        $buttons .= '<a href="' . route('admin.invoices.print', $invoice->id) . '" class="btn btn-info" title="Print"><i class="fa fa-print"></i></a>';
+    }
+    
+    if (auth()->user()->can('view invoices')) {
+        $buttons .= '<a href="' . route('admin.invoices.show', $invoice->id) . '" class="btn btn-secondary" title="View"><i class="fa fa-eye"></i></a>';
+    }
+    
+    if (auth()->user()->can('edit invoices')) {
+        $buttons .= '<a href="' . route('admin.invoices.edit', $invoice->id) . '" class="btn btn-warning" title="Edit"><i class="fa fa-edit"></i></a>';
+    }
+    
+    $buttons .= $this->getStatusButtons($invoice);
+    
+    if (auth()->user()->can('delete invoices')) {
+        $buttons .= '<form action="' . route('admin.invoices.destroy', $invoice->id) . '" method="POST" class="d-inline">' .
+                    csrf_field() .
+                    method_field('DELETE') .
+                    '<button type="submit" class="btn btn-danger" onclick="return confirm(\'Delete this invoice?\')" title="Delete">' .
+                    '<i class="fa fa-trash"></i>' .
+                    '</button>' .
+                    '</form>';
+    }
+    
+    $buttons .= '</div>';
+    return $buttons;
+}
+
+private function getStatusButtons($invoice)
+{
+    $buttons = '';
+    
+    if ($invoice->status == 'pending') {
+        $buttons .= '<button type="button" class="btn btn-success btn-status-update" title="Confirm Invoice" data-invoice-id="' . $invoice->id . '" data-target-status="confirmed"><i class="fa fa-check"></i></button>';
+    }
+    
+    if ($invoice->status == 'confirmed') {
+        $buttons .= '<button type="button" class="btn btn-primary btn-status-update" title="Mark as Pending" data-invoice-id="' . $invoice->id . '" data-target-status="pending"><i class="fa fa-check"></i></button>';
+    }
+    
+    return $buttons;
+}
 
     // Show single invoice
     public function show($id)
@@ -590,6 +780,184 @@ public function update(Request $request, $id)
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
+    // app/Http/Controllers/InvoiceController.php
+
+// app/Http/Controllers/InvoiceController.php
+
+
+public function downloadCustomCSV(Request $request)
+{
+    try {
+        // Validate input
+        $request->validate([
+            'date' => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
+        ]);
+        
+        // Parse date and times
+        $date = Carbon::parse($request->date);
+        $startTime = Carbon::parse($request->date . ' ' . $request->start_time);
+        $endTime = Carbon::parse($request->date . ' ' . $request->end_time);
+        
+        // Get confirmed invoices for the selected time range
+        // IMPORTANT: Remove the non-existent relationships (pathaoCity, pathaoZone, pathaoArea)
+        $invoices = Invoice::whereBetween('updated_at', [$startTime, $endTime])
+            ->where('status', 'confirmed')
+            ->whereNull('deleted_at')
+            ->with(['customer', 'items']) // Only load existing relationships
+            ->orderBy('invoice_number', 'asc')
+            ->get();
+        
+        // Check if there are any invoices
+        if ($invoices->isEmpty()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No confirmed invoices found for the selected time range.'
+                ], 404);
+            }
+            return redirect()->back()->with('error', 'No confirmed invoices found for the selected time range.');
+        }
+        
+        // Generate CSV filename
+        $filename = 'invoices_' . $date->format('Y-m-d') . 
+                    '_' . str_replace(':', '-', $request->start_time) . 
+                    '_to_' . str_replace(':', '-', $request->end_time) . 
+                    '.csv';
+        
+        // Return the CSV as a download response
+        return $this->generateCSVResponse($invoices, $filename);
+        
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed: ' . $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422);
+        }
+        return redirect()->back()
+            ->withErrors($e->validator)
+            ->withInput()
+            ->with('error', 'Validation failed: ' . $e->getMessage());
+    } catch (\Exception $e) {
+        \Log::error('CSV Download Error: ' . $e->getMessage());
+        \Log::error($e->getTraceAsString());
+        
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate CSV: ' . $e->getMessage()
+            ], 500);
+        }
+        return redirect()->back()->with('error', 'Failed to generate CSV: ' . $e->getMessage());
+    }
+}
+private function generateCSVResponse($invoices, $filename)
+{
+    $csvData = [];
+    
+    foreach ($invoices as $invoice) {
+        // Parse delivery_area field to extract city, zone, area
+        $cityName = '';
+        $zoneName = '';
+        $areaName = '';
+        
+        if (!empty($invoice->delivery_area)) {
+            $parts = array_map('trim', explode(',', $invoice->delivery_area));
+            
+            // Get city (first part)
+            if (isset($parts[0])) {
+                $cityName = $parts[0];
+            }
+            
+            // Get zone (second part)
+            if (isset($parts[1])) {
+                $zoneName = $parts[1];
+            }
+            
+            // Get area (third part and beyond, join back)
+            if (count($parts) >= 3) {
+                $areaParts = array_slice($parts, 2);
+                $areaName = implode(', ', $areaParts);
+            }
+        }
+        
+        // Remove Pathao relationship code since it doesn't exist
+        
+        // Clean up any trailing commas from area
+        $areaName = trim($areaName, ', ');
+        
+        // Calculate TOTAL quantity and weight for ALL items in this invoice
+        $totalQuantity = $invoice->items->sum('quantity');
+        $totalWeight = $totalQuantity * 0.5;
+        
+        // Get item names only (NO descriptions)
+        $itemNames = [];
+        foreach ($invoice->items as $item) {
+            if ($item->item_name) {
+                $itemNames[] = $item->item_name;
+            }
+        }
+        
+        // Combine item names (without descriptions)
+        $itemDesc = '';
+        if (!empty($itemNames)) {
+            if (count($itemNames) == 1) {
+                $itemDesc = $itemNames[0];
+            } else {
+                $itemDesc = $itemNames[0];
+            }
+        } else {
+            $itemDesc = 'Items';
+        }
+        
+        // Clean fields that might contain newlines
+        $cleanAddress = str_replace(["\r", "\n"], ', ', $invoice->recipient_address);
+        $cleanAddress = trim(preg_replace('/\s+/', ' ', $cleanAddress));
+        
+        $cleanInstructions = str_replace(["\r", "\n"], ', ', $invoice->special_instructions);
+        $cleanInstructions = trim(preg_replace('/\s+/', ' ', $cleanInstructions));
+        
+        // Prepare ONE row per invoice
+        $row = [
+            'Parcel',
+            $invoice->store_location,
+            $invoice->merchant_order_id ?: '',
+            $invoice->recipient_name,
+            $invoice->recipient_phone,
+            $cleanAddress,
+            $cityName,
+            $zoneName,
+            $areaName,
+            $invoice->due_amount,
+            $totalQuantity,
+            $totalWeight,
+            $itemDesc,
+            $cleanInstructions
+        ];
+        
+        $csvData[] = $row;
+    }
+    
+    return response()->streamDownload(function() use ($csvData) {
+        $handle = fopen('php://output', 'w');
+        
+        // Add UTF-8 BOM for Excel
+        fwrite($handle, "\xEF\xBB\xBF");
+        
+        foreach ($csvData as $row) {
+            fputcsv($handle, $row);
+        }
+        
+        fclose($handle);
+    }, $filename, [
+        'Content-Type' => 'text/csv; charset=utf-8',
+        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+    ]);
+}
+
 
     public function downloadEveningCSV(Request $request)
     {

@@ -21,206 +21,253 @@ class ReportController extends Controller
         return view('reports.index', compact('fromDate', 'toDate'));
     }
 
-    public function generate(Request $request)
-    {
-        $request->validate([
-            'from_date' => 'required|date',
-            'to_date' => 'required|date|after_or_equal:from_date',
-        ]);
+ public function generate(Request $request)
+{
+    $request->validate([
+        'from_date' => 'required|date',
+        'to_date' => 'required|date|after_or_equal:from_date',
+    ]);
 
-        $fromDate = Carbon::parse($request->from_date)->startOfDay();
-        $toDate = Carbon::parse($request->to_date)->endOfDay();
+    $fromDate = Carbon::parse($request->from_date)->startOfDay();
+    $toDate = Carbon::parse($request->to_date)->endOfDay();
 
-        // Get filtered invoices with relationships
-        $invoices = Invoice::with(['customer', 'creator', 'items'])
-            ->whereBetween('created_at', [$fromDate, $toDate])
-            ->orderBy('created_at', 'desc')
-            ->get();
+    // Get filtered invoices with relationships - ONLY CONFIRMED and NOT DELETED
+    $invoices = Invoice::with(['customer', 'creator', 'items'])
+        ->whereBetween('created_at', [$fromDate, $toDate])
+        ->where('status', 'confirmed') // Only confirmed invoices
+        ->whereNull('deleted_at') // Exclude soft-deleted records
+        ->orderBy('created_at', 'desc')
+        ->get();
 
-        // Calculate summary totals
-        $summary = [
-            'total_invoices' => $invoices->count(),
-            'total_subtotal' => $invoices->sum('subtotal'),
-            'total_delivery_charge' => $invoices->sum('delivery_charge'),
-            'total_amount' => $invoices->sum('total'),
-            'total_paid' => $invoices->sum('paid_amount'),
-            'total_due' => $invoices->sum('due_amount'),
-            'total_weight' => $invoices->sum('total_weight'),
-            'total_quantity' => $invoices->sum(function($invoice) {
+    // Calculate summary totals
+    $summary = [
+        'total_invoices' => $invoices->count(),
+        'total_subtotal' => $invoices->sum('subtotal'),
+        'total_delivery_charge' => $invoices->sum('delivery_charge'),
+        'total_amount' => $invoices->sum('total'),
+        'total_paid' => $invoices->sum('paid_amount'),
+        'total_due' => $invoices->sum('due_amount'),
+        'total_weight' => $invoices->sum('total_weight'),
+        'total_quantity' => $invoices->sum(function($invoice) {
+            return $invoice->items->sum('quantity');
+        }),
+    ];
+
+    // Calculate income (total amount collected)
+    $summary['total_income'] = $summary['total_paid'];
+
+    // Payment status breakdown with quantity (only for confirmed invoices)
+    $paidInvoices = $invoices->where('payment_status', 'paid');
+    $partialInvoices = $invoices->where('payment_status', 'partial');
+    $unpaidInvoices = $invoices->where('payment_status', 'unpaid');
+
+    $paymentStatusStats = [
+        'paid' => [
+            'count' => $paidInvoices->count(),
+            'total' => $paidInvoices->sum('total'),
+            'paid' => $paidInvoices->sum('paid_amount'),
+            'due' => $paidInvoices->sum('due_amount'),
+            'quantity' => $paidInvoices->sum(function($invoice) {
                 return $invoice->items->sum('quantity');
             }),
-        ];
+        ],
+        'partial' => [
+            'count' => $partialInvoices->count(),
+            'total' => $partialInvoices->sum('total'),
+            'paid' => $partialInvoices->sum('paid_amount'),
+            'due' => $partialInvoices->sum('due_amount'),
+            'quantity' => $partialInvoices->sum(function($invoice) {
+                return $invoice->items->sum('quantity');
+            }),
+        ],
+        'unpaid' => [
+            'count' => $unpaidInvoices->count(),
+            'total' => $unpaidInvoices->sum('total'),
+            'paid' => $unpaidInvoices->sum('paid_amount'),
+            'due' => $unpaidInvoices->sum('due_amount'),
+            'quantity' => $unpaidInvoices->sum(function($invoice) {
+                return $invoice->items->sum('quantity');
+            }),
+        ],
+    ];
 
-        // Calculate income (total amount collected)
-        $summary['total_income'] = $summary['total_paid'];
-
-        // Payment status breakdown with quantity
-        $paidInvoices = $invoices->where('payment_status', 'paid');
-        $partialInvoices = $invoices->where('payment_status', 'partial');
-        $unpaidInvoices = $invoices->where('payment_status', 'unpaid');
-
-        $paymentStatusStats = [
-            'paid' => [
-                'count' => $paidInvoices->count(),
-                'total' => $paidInvoices->sum('total'),
-                'paid' => $paidInvoices->sum('paid_amount'),
-                'due' => $paidInvoices->sum('due_amount'),
-                'quantity' => $paidInvoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
-                }),
-            ],
-            'partial' => [
-                'count' => $partialInvoices->count(),
-                'total' => $partialInvoices->sum('total'),
-                'paid' => $partialInvoices->sum('paid_amount'),
-                'due' => $partialInvoices->sum('due_amount'),
-                'quantity' => $partialInvoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
-                }),
-            ],
-            'unpaid' => [
-                'count' => $unpaidInvoices->count(),
-                'total' => $unpaidInvoices->sum('total'),
-                'paid' => $unpaidInvoices->sum('paid_amount'),
-                'due' => $unpaidInvoices->sum('due_amount'),
-                'quantity' => $unpaidInvoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
-                }),
-            ],
-        ];
-
-        // Invoice status breakdown with quantity
-        $invoiceStatusStats = $invoices->groupBy('status')
-            ->map(function ($group) {
-                return [
-                    'count' => $group->count(),
-                    'total' => $group->sum('total'),
-                    'paid' => $group->sum('paid_amount'),
-                    'due' => $group->sum('due_amount'),
-                    'quantity' => $group->sum(function($invoice) {
-                        return $invoice->items->sum('quantity');
-                    }),
-                ];
-            });
-
-        // Daily summary for chart
-        $dailySummary = $invoices->groupBy(function ($invoice) {
-            return $invoice->created_at->format('Y-m-d');
-        })->map(function ($dayInvoices) {
+    // Invoice status breakdown (will only show 'confirmed' since we filtered)
+    $invoiceStatusStats = $invoices->groupBy('status')
+        ->map(function ($group) {
             return [
-                'date' => $dayInvoices->first()->created_at->format('M d, Y'),
-                'count' => $dayInvoices->count(),
-                'total' => $dayInvoices->sum('total'),
-                'paid' => $dayInvoices->sum('paid_amount'),
-                'due' => $dayInvoices->sum('due_amount'),
-                'quantity' => $dayInvoices->sum(function($invoice) {
+                'count' => $group->count(),
+                'total' => $group->sum('total'),
+                'paid' => $group->sum('paid_amount'),
+                'due' => $group->sum('due_amount'),
+                'quantity' => $group->sum(function($invoice) {
                     return $invoice->items->sum('quantity');
                 }),
             ];
-        })->values();
+        });
 
-        // Top customers by order value
-        $topCustomers = $invoices->groupBy('customer_id')
-            ->map(function ($customerInvoices) {
-                $customer = $customerInvoices->first()->customer;
-                return [
-                    'name' => $customer ? $customer->name : 'N/A',
-                    'phone' => $customer ? $customer->phone_number_1 : 'N/A',
-                    'invoice_count' => $customerInvoices->count(),
-                    'total_spent' => $customerInvoices->sum('total'),
-                    'total_paid' => $customerInvoices->sum('paid_amount'),
-                    'total_due' => $customerInvoices->sum('due_amount'),
-                    'quantity' => $customerInvoices->sum(function($invoice) {
-                        return $invoice->items->sum('quantity');
-                    }),
-                ];
-            })
-            ->sortByDesc('total_spent')
-            ->take(10)
-            ->values();
-
-        // Delivery area breakdown
-        $deliveryAreaStats = $invoices->groupBy('delivery_area')
-            ->map(function ($areaInvoices) {
-                return [
-                    'count' => $areaInvoices->count(),
-                    'total' => $areaInvoices->sum('total'),
-                    'delivery_charge' => $areaInvoices->sum('delivery_charge'),
-                    'paid' => $areaInvoices->sum('paid_amount'),
-                    'due' => $areaInvoices->sum('due_amount'),
-                    'quantity' => $areaInvoices->sum(function($invoice) {
-                        return $invoice->items->sum('quantity');
-                    }),
-                ];
-            })
-            ->sortByDesc('count');
-
-        // Product type breakdown
-        $productTypeStats = $invoices->groupBy('product_type')
-            ->map(function ($typeInvoices) {
-                return [
-                    'count' => $typeInvoices->count(),
-                    'total' => $typeInvoices->sum('total'),
-                    'paid' => $typeInvoices->sum('paid_amount'),
-                    'due' => $typeInvoices->sum('due_amount'),
-                    'quantity' => $typeInvoices->sum(function($invoice) {
-                        return $invoice->items->sum('quantity');
-                    }),
-                ];
-            });
-
-        // ENHANCED: Created by (User) breakdown with detailed metrics
-        $createdByStats = $invoices->groupBy('created_by')
-            ->map(function ($userInvoices) {
-                $user = $userInvoices->first()->creator;
-                return [
-                    'name' => $user ? $user->name : 'N/A',
-                    'email' => $user ? $user->email : 'N/A',
-                    'count' => $userInvoices->count(),
-                    'quantity' => $userInvoices->sum(function($invoice) {
-                        return $invoice->items->sum('quantity');
-                    }),
-                    'subtotal' => $userInvoices->sum('subtotal'),
-                    'delivery_charge' => $userInvoices->sum('delivery_charge'),
-                    'total' => $userInvoices->sum('total'),
-                    'paid' => $userInvoices->sum('paid_amount'),
-                    'due' => $userInvoices->sum('due_amount'),
-                    'avg_order_value' => $userInvoices->avg('total'),
-                    'avg_quantity_per_order' => $userInvoices->average(function($invoice) {
-                        return $invoice->items->sum('quantity');
-                    }),
-                ];
-            })
-            ->sortByDesc('total')
-            ->values();
-
-        // User performance summary totals
-        $userSummary = [
-            'total_creators' => $createdByStats->count(),
-            'total_orders_created' => $createdByStats->sum('count'),
-            'total_quantity_created' => $createdByStats->sum('quantity'),
-            'total_subtotal_created' => $createdByStats->sum('subtotal'),
-            'total_delivery_created' => $createdByStats->sum('delivery_charge'),
-            'total_amount_created' => $createdByStats->sum('total'),
-            'total_paid_created' => $createdByStats->sum('paid'),
-            'total_due_created' => $createdByStats->sum('due'),
+    // Daily summary for chart (only confirmed invoices)
+    $dailySummary = $invoices->groupBy(function ($invoice) {
+        return $invoice->created_at->format('Y-m-d');
+    })->map(function ($dayInvoices) {
+        return [
+            'date' => $dayInvoices->first()->created_at->format('M d, Y'),
+            'count' => $dayInvoices->count(),
+            'total' => $dayInvoices->sum('total'),
+            'paid' => $dayInvoices->sum('paid_amount'),
+            'due' => $dayInvoices->sum('due_amount'),
+            'quantity' => $dayInvoices->sum(function($invoice) {
+                return $invoice->items->sum('quantity');
+            }),
         ];
+    })->values();
 
-        return view('reports.index', compact(
-            'invoices',
-            'summary',
-            'fromDate',
-            'toDate',
-            'paymentStatusStats',
-            'invoiceStatusStats',
-            'dailySummary',
-            'topCustomers',
-            'deliveryAreaStats',
-            'productTypeStats',
-            'createdByStats',
-            'userSummary'
-        ));
-    }
+    // Top customers by order value (only from confirmed invoices)
+    $topCustomers = $invoices->groupBy('customer_id')
+        ->map(function ($customerInvoices) {
+            $customer = $customerInvoices->first()->customer;
+            return [
+                'name' => $customer ? $customer->name : 'N/A',
+                'phone' => $customer ? $customer->phone_number_1 : 'N/A',
+                'invoice_count' => $customerInvoices->count(),
+                'total_spent' => $customerInvoices->sum('total'),
+                'total_paid' => $customerInvoices->sum('paid_amount'),
+                'total_due' => $customerInvoices->sum('due_amount'),
+                'quantity' => $customerInvoices->sum(function($invoice) {
+                    return $invoice->items->sum('quantity');
+                }),
+            ];
+        })
+        ->sortByDesc('total_spent')
+        ->take(10)
+        ->values();
+
+    // Delivery area breakdown (only from confirmed invoices)
+    $deliveryAreaStats = $invoices->groupBy('delivery_area')
+        ->map(function ($areaInvoices) {
+            return [
+                'count' => $areaInvoices->count(),
+                'total' => $areaInvoices->sum('total'),
+                'delivery_charge' => $areaInvoices->sum('delivery_charge'),
+                'paid' => $areaInvoices->sum('paid_amount'),
+                'due' => $areaInvoices->sum('due_amount'),
+                'quantity' => $areaInvoices->sum(function($invoice) {
+                    return $invoice->items->sum('quantity');
+                }),
+            ];
+        })
+        ->sortByDesc('count');
+
+    // Product type breakdown (only from confirmed invoices)
+    $productTypeStats = $invoices->groupBy('product_type')
+        ->map(function ($typeInvoices) {
+            return [
+                'count' => $typeInvoices->count(),
+                'total' => $typeInvoices->sum('total'),
+                'paid' => $typeInvoices->sum('paid_amount'),
+                'due' => $typeInvoices->sum('due_amount'),
+                'quantity' => $typeInvoices->sum(function($invoice) {
+                    return $invoice->items->sum('quantity');
+                }),
+            ];
+        });
+
+    // ENHANCED: Created by (User) breakdown with detailed metrics (only from confirmed invoices)
+    $createdByStats = $invoices->groupBy('created_by')
+        ->map(function ($userInvoices) {
+            $user = $userInvoices->first()->creator;
+            return [
+                'name' => $user ? $user->name : 'N/A',
+                'email' => $user ? $user->email : 'N/A',
+                'count' => $userInvoices->count(),
+                'quantity' => $userInvoices->sum(function($invoice) {
+                    return $invoice->items->sum('quantity');
+                }),
+                'subtotal' => $userInvoices->sum('subtotal'),
+                'delivery_charge' => $userInvoices->sum('delivery_charge'),
+                'total' => $userInvoices->sum('total'),
+                'paid' => $userInvoices->sum('paid_amount'),
+                'due' => $userInvoices->sum('due_amount'),
+                'avg_order_value' => $userInvoices->avg('total'),
+                'avg_quantity_per_order' => $userInvoices->average(function($invoice) {
+                    return $invoice->items->sum('quantity');
+                }),
+            ];
+        })
+        ->sortByDesc('total')
+        ->values();
+
+    // User performance summary totals (only from confirmed invoices)
+    $userSummary = [
+        'total_creators' => $createdByStats->count(),
+        'total_orders_created' => $createdByStats->sum('count'),
+        'total_quantity_created' => $createdByStats->sum('quantity'),
+        'total_subtotal_created' => $createdByStats->sum('subtotal'),
+        'total_delivery_created' => $createdByStats->sum('delivery_charge'),
+        'total_amount_created' => $createdByStats->sum('total'),
+        'total_paid_created' => $createdByStats->sum('paid'),
+        'total_due_created' => $createdByStats->sum('due'),
+    ];
+
+    // OPTIONAL: Add top creators specifically for confirmed invoices (like your original query)
+    $topCreators = $invoices->groupBy('created_by')
+        ->map(function ($creatorInvoices) {
+            $user = $creatorInvoices->first()->creator;
+            
+            $totalQuantity = $creatorInvoices->sum(function($invoice) {
+                return $invoice->items->sum('quantity');
+            });
+            
+            return [
+                'id' => $user ? $user->id : null,
+                'name' => $user ? $user->name : 'N/A',
+                'email' => $user ? $user->email : 'N/A',
+                'total_invoices' => $creatorInvoices->count(),
+                'total_quantity' => $totalQuantity,
+                'total_subtotal' => $creatorInvoices->sum('subtotal'),
+                'total_delivery' => $creatorInvoices->sum('delivery_charge'),
+                'total_amount' => $creatorInvoices->sum('total'),
+                'total_paid' => $creatorInvoices->sum('paid_amount'),
+                'total_due' => $creatorInvoices->sum('due_amount'),
+                'avg_order_value' => $creatorInvoices->avg('total'),
+                'paid_invoices' => $creatorInvoices->where('payment_status', 'paid')->count(),
+                'partial_invoices' => $creatorInvoices->where('payment_status', 'partial')->count(),
+                'unpaid_invoices' => $creatorInvoices->where('payment_status', 'unpaid')->count(),
+            ];
+        })
+        ->filter(function ($creator) {
+            return $creator['total_invoices'] > 0;
+        })
+        ->sortByDesc('total_amount')
+        ->values();
+
+    $creatorSummary = [
+        'total_creators' => $topCreators->count(),
+        'total_invoices_created' => $topCreators->sum('total_invoices'),
+        'total_quantity_created' => $topCreators->sum('total_quantity'),
+        'total_amount_created' => $topCreators->sum('total_amount'),
+        'total_paid_created' => $topCreators->sum('total_paid'),
+        'total_due_created' => $topCreators->sum('total_due'),
+        'top_creator' => $topCreators->isNotEmpty() ? $topCreators->first()['name'] : 'N/A',
+        'top_creator_amount' => $topCreators->isNotEmpty() ? $topCreators->first()['total_amount'] : 0,
+    ];
+
+    return view('reports.index', compact(
+        'invoices',
+        'summary',
+        'fromDate',
+        'toDate',
+        'paymentStatusStats',
+        'invoiceStatusStats',
+        'dailySummary',
+        'topCustomers',
+        'deliveryAreaStats',
+        'productTypeStats',
+        'createdByStats',
+        'userSummary',
+        'topCreators',
+        'creatorSummary'
+    ));
+}
 
     public function exportCsv(Request $request)
     {

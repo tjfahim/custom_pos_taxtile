@@ -126,6 +126,7 @@ class Invoice extends Model
         $this->save();
     }
     
+    
     // Helper method to get the suffix number from invoice number
     public static function extractSuffix($invoiceNumber)
     {
