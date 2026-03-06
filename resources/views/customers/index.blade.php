@@ -33,218 +33,26 @@
                     <i class="fa fa-users mr-2"></i>
                     Customer List
                 </h5>
-                @can('create customers')
-                    
-              
-                <a href="{{ route('admin.customers.create') }}" class="btn btn-primary btn-sm">
-                    <i class="fa fa-plus"></i> Add Customer
-                </a>
-                  @endcan
-            </div>
-
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table id="customerTable" class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Customer</th>
-                                <th>Contact</th>
-                                <th>Address</th>
-                                <th>Merchant Id</th>
-                                <th>Area</th>
-                                <th>Status</th>
-                                <th>Notes</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            @forelse($customers as $c)
-                            <tr>
-                                <!-- ID Column -->
-                                <td>{{ $c->id }}</td>
-
-                                <!-- Customer Name Column -->
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-circle bg-primary text-white mr-3">
-                                            {{ substr($c->name, 0, 1) }}
-                                        </div>
-                                        <div>
-                                            <strong>{{ $c->name }}</strong>
-                                            <div class="text-muted small">
-                                                {{ $c->created_at->format('M d, Y') }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <!-- Contact Column -->
-                                <td>
-                                    @if($c->phone_number_1)
-                                    <div class="mb-1">
-                                        <i class="fa fa-phone text-primary mr-2"></i>
-                                        {{ $c->phone_number_1 }}
-                                    </div>
-                                    @endif
-                                    @if($c->phone_number_2)
-                                    <div class="text-muted">
-                                        <i class="fa fa-phone mr-2"></i>
-                                        {{ $c->phone_number_2 }}
-                                    </div>
-                                    @endif
-                                </td>
-
-                                <!-- Address Column -->
-                                <td>
-                                    <i class="fa fa-map-marker-alt text-danger mr-2"></i>
-                                    {{ Str::limit($c->full_address, 30) }}
-                                </td>
-                                
-                                <!-- Merchant ID Column -->
-                                <td>
-                                    @if($c->merchant_order_id)
-                                        <i class="fa fa-id-card text-info mr-2"></i>
-                                        {{ $c->merchant_order_id }}
-                                    @else
-                                        <span class="text-muted">No ID</span>
-                                    @endif
-                                </td>
-                                
-                                <!-- Area Column -->
-                                <td>
-                                    @if($c->delivery_area)
-                                        <i class="fa fa-map-marker-alt text-success mr-2"></i>
-                                        {{ Str::limit($c->delivery_area, 25) }}
-                                    @else
-                                        <span class="text-muted">No area</span>
-                                    @endif
-                                </td>
-
-                                <!-- Status Column -->
-                                <td>
-                                    <span class="badge {{ $c->status == 'active' ? 'badge-success' : 'badge-danger' }}">
-                                        {{ ucfirst($c->status) }}
-                                    </span>
-                                </td>
-
-                                <!-- Notes Column -->
-                                <td>
-                                    @if($c->note)
-                                    <i class="fa fa-sticky-note text-warning mr-1"></i>
-                                    {{ Str::limit($c->note, 20) }}
-                                    @else
-                                    <span class="text-muted">No notes</span>
-                                    @endif
-                                </td>
-
-                                <!-- Actions Column -->
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <!-- View Button -->
-                                             @can('view customers')
-                                        <button type="button" class="btn btn-sm btn-info mr-1" 
-                                                data-toggle="modal" data-target="#viewModal{{ $c->id }}"
-                                                title="View">
-                                            <i class="fa fa-eye"></i>
-                                        </button>
-                                                 @endcan
-                                          @can('edit customers')
-                                        <!-- Edit Button -->
-                                        <a href="{{ route('admin.customers.edit', $c->id) }}" 
-                                           class="btn btn-sm btn-warning mr-1"
-                                           title="Edit">
-                                            <i class="fa fa-edit"></i>
-                                        </a>
-                                                 @endcan
-                                          @can('delete customers')
-                                        <!-- Delete Button -->
-                                        <form action="{{ route('admin.customers.destroy', $c->id) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" 
-                                                    class="btn btn-sm btn-danger"
-                                                    title="Delete"
-                                                    onclick="return confirm('Are you sure?')">
-                                                <i class="fa fa-trash"></i>
-                                            </button>
-                                        </form>
-                                                 @endcan
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <!-- View Modal -->
-                            <div class="modal fade" id="viewModal{{ $c->id }}" tabindex="-1" role="dialog">
-                                <div class="modal-dialog" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Customer Details</h5>
-                                            <button type="button" class="close" data-dismiss="modal">
-                                                <span>&times;</span>
-                                            </button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="text-center mb-4">
-                                                <div class="avatar-circle bg-primary text-white mx-auto" style="width: 60px; height: 60px; font-size: 24px;">
-                                                    {{ substr($c->name, 0, 1) }}
-                                                </div>
-                                                <h5 class="mt-2">{{ $c->name }}</h5>
-                                            </div>
-                                            
-                                            <div class="row mb-3">
-                                                <div class="col-md-6">
-                                                    <p><strong>Primary Phone:</strong><br>{{ $c->phone_number_1 }}</p>
-                                                    @if($c->phone_number_2)
-                                                    <p><strong>Secondary Phone:</strong><br>{{ $c->phone_number_2 }}</p>
-                                                    @endif
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <p><strong>Created:</strong><br>{{ $c->created_at->format('M d, Y') }}</p>
-                                                    <p><strong>Updated:</strong><br>{{ $c->updated_at->format('M d, Y') }}</p>
-                                                </div>
-                                            </div>
-                                            
-                                            <p><strong>Address:</strong><br>{{ $c->full_address }}</p>
-                                            
-                                            <p><strong>Merchant ID:</strong><br>{{ $c->merchant_order_id ?: 'Not set' }}</p>
-                                            
-                                            <p><strong>Area:</strong><br>{{ $c->delivery_area ?: 'Not set' }}</p>
-                                            
-                                            @if($c->note)
-                                            <p><strong>Notes:</strong><br>{{ $c->note }}</p>
-                                            @endif
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                                            <a href="{{ route('admin.customers.edit', $c->id) }}" class="btn btn-primary">
-                                                Edit
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            @empty
-                            <tr>
-                                <td colspan="9" class="text-center py-4"> <!-- Updated to colspan="9" -->
-                                    <i class="fa fa-users fa-2x text-muted mb-2"></i>
-                                    <p>No customers found</p>
-                                    <a href="{{ route('admin.customers.create') }}" class="btn btn-primary btn-sm">
-                                        Add First Customer
-                                    </a>
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                <div class="d-flex align-items-center">
+                    <!-- Search Box -->
+                    <div class="mr-3">
+                        <input type="text" 
+                               id="searchInput" 
+                               class="form-control form-control-sm" 
+                               placeholder="Search customers..."
+                               value="{{ request('search') }}"
+                               style="width: 250px;">
+                    </div>
+                    @can('create customers')
+                    <a href="{{ route('admin.customers.create') }}" class="btn btn-primary btn-sm">
+                        <i class="fa fa-plus"></i> Add Customer
+                    </a>
+                    @endcan
                 </div>
             </div>
 
-            <div class="card-footer d-flex justify-content-between align-items-center">
-                <div class="text-muted">
-                    Showing {{ $customers->count() }} customer(s)
-                </div>
+            <div class="card-body" id="customerTableContainer">
+                @include('customers.partials.table')
             </div>
         </div>
     </div>
@@ -265,81 +73,100 @@
         background-color: #f5f5f5;
     }
     
-    /* Ensure table columns have proper spacing */
     #customerTable th,
     #customerTable td {
         vertical-align: middle;
         padding: 12px 8px;
     }
+    
+    /* Loading indicator */
+    .search-loading {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+    }
+    
+    .position-relative {
+        position: relative;
+    }
 </style>
 
 <script>
 $(document).ready(function() {
-    $('#customerTable').DataTable({
-        "order": [[0, "desc"]], // sort by ID descending
-        "columnDefs": [
-            { 
-                "orderable": false, 
-                "targets": [7, 8] // Notes and Actions columns non-sortable
-            },
-            {
-                "searchable": false,
-                "targets": [8] // Action column not searchable
-            },
-            {
-                "width": "10%",
-                "targets": [0] // ID column width
-            },
-            {
-                "width": "15%",
-                "targets": [1, 2] // Customer and Contact columns
-            },
-            {
-                "width": "12%",
-                "targets": [3, 5] // Address and Area columns
-            },
-            {
-                "width": "8%",
-                "targets": [4, 6] // Merchant ID and Status columns
-            },
-            {
-                "width": "10%",
-                "targets": [7] // Notes column
-            },
-            {
-                "width": "10%",
-                "targets": [8] // Actions column
-            }
-        ],
-        "pageLength": 10, // rows per page
-        "lengthMenu": [5, 10, 25, 50, 100],
-        "responsive": true,
-        "language": {
-            "emptyTable": "No customers found",
-            "info": "Showing _START_ to _END_ of _TOTAL_ customers",
-            "infoEmpty": "Showing 0 to 0 of 0 customers",
-            "infoFiltered": "(filtered from _MAX_ total customers)",
-            "lengthMenu": "Show _MENU_ customers",
-            "search": "Search:",
-            "zeroRecords": "No matching customers found",
-            "paginate": {
-                "first": "First",
-                "last": "Last",
-                "next": "Next",
-                "previous": "Previous"
-            }
-        },
-        "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-               '<"row"<"col-sm-12"tr>>' +
-               '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        "drawCallback": function(settings) {
-            // Initialize tooltips after table redraw
-            $('[data-toggle="tooltip"]').tooltip();
+    let searchTimer;
+    let currentRequest = null;
+
+    // Live search functionality
+    $('#searchInput').on('keyup', function() {
+        clearTimeout(searchTimer);
+        const searchValue = $(this).val();
+        
+        // Cancel previous request if it exists
+        if (currentRequest) {
+            currentRequest.abort();
         }
+        
+        // Add loading indicator
+        $(this).addClass('search-loading-active');
+        
+        searchTimer = setTimeout(function() {
+            performSearch(searchValue);
+        }, 500); // Wait 500ms after user stops typing
     });
-    
-    // Initialize tooltips
+
+    function performSearch(search) {
+        // Update URL without reloading page (optional)
+        const url = new URL(window.location);
+        if (search) {
+            url.searchParams.set('search', search);
+        } else {
+            url.searchParams.delete('search');
+        }
+        window.history.pushState({}, '', url);
+
+        // Show loading state
+        $('#customerTableContainer').append('<div class="text-center py-4" id="loadingIndicator"><i class="fa fa-spinner fa-spin fa-2x"></i><p>Searching...</p></div>');
+        
+        // Make AJAX request
+        currentRequest = $.ajax({
+            url: window.location.pathname,
+            method: 'GET',
+            data: { search: search },
+            success: function(response) {
+                $('#customerTableContainer').html(response);
+                // Reinitialize tooltips
+                $('[title]').tooltip('dispose').tooltip();
+                currentRequest = null;
+            },
+            error: function(xhr) {
+                if (xhr.statusText !== 'abort') {
+                    console.error('Search failed:', xhr);
+                    $('#customerTableContainer').append('<div class="alert alert-danger">Search failed. Please try again.</div>');
+                }
+            },
+            complete: function() {
+                $('#loadingIndicator').remove();
+            }
+        });
+    }
+
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const search = urlParams.get('search') || '';
+        $('#searchInput').val(search);
+        performSearch(search);
+    });
+});
+</script>
+
+<!-- Initialize tooltips -->
+<script>
+$(document).ready(function() {
     $('[title]').tooltip();
 });
 </script>
+
 @endsection

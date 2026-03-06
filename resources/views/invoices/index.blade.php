@@ -9,18 +9,15 @@
                     <i class="fa fa-file-invoice"></i> Invoices
                 </h5>
                 <div>
+                    <a href="#" class="btn btn-purple btn-sm mr-2" id="print-selected-btn" disabled>
+                        <i class="fa fa-print"></i> Print Selected <span id="selected-count" style="display: none;"></span>
+                    </a>
                     <!-- Time Range Picker Button -->
                     <button type="button" class="btn btn-info btn-sm mr-2" data-toggle="modal" data-target="#timeRangeModal">
                         <i class="fa fa-clock-o"></i> Custom Time CSV
                     </button>
-                    
-                    <a href="{{ route('admin.invoices.download-morning-csv') }}" class="btn btn-warning btn-sm mr-2">
-                        <i class="fa fa-download"></i> Morning CSV (12AM - 3PM)
-                    </a>
-                    
-                    <a href="{{ route('admin.invoices.download-evening-csv') }}" class="btn btn-secondary btn-sm">
-                        <i class="fa fa-download"></i> Evening CSV (3PM - 12AM)
-                    </a>
+   
+                  
                    
                     <div class="btn-group" role="group" aria-label="CSV Download Options">
                         <a href="{{ route('admin.invoices.download-today-csv') }}" class="btn btn-info btn-sm mr-2">
@@ -63,6 +60,9 @@
                     <table id="invoicesTable" class="table table-sm table-hover" style="width:100%">
                         <thead>
                             <tr>
+                                  <th style="width: 30px;">
+            <input type="checkbox" id="select-all-invoices" style="cursor: pointer;">
+        </th>
                                 <th>SL</th>
                                 <th>Invoice #</th>
                                 <th>Customer</th>
@@ -101,10 +101,12 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <!-- Include Modal Specific CSS -->
-<link rel="stylesheet" href="{{ asset('css/admin/invoices-modal.css') }}">
+<link rel="stylesheet" href="{{ asset('css/invoices.css') }}">
 
 <!-- Include Modal Specific JavaScript -->
 <script src="{{ asset('js/admin/invoices/time-range-modal.js') }}"></script>
+<script src="{{ asset('js/admin/invoices/multi-print.js') }}"></script>
+
 <script>
 $(document).ready(function() {
     let currentStatus = '';
@@ -145,6 +147,15 @@ $(document).ready(function() {
             }
         },
         columns: [
+                { 
+            data: 'id',  // We'll use id for checkbox
+            name: 'id',
+            orderable: false,
+            searchable: false,
+            render: function(data, type, row) {
+                return '<input type="checkbox" class="select-invoice" data-invoice-id="' + data + '">';
+            }
+        },
             { 
                 data: 'DT_RowIndex', 
                 name: 'DT_RowIndex', 
@@ -358,12 +369,12 @@ $(document).ready(function() {
                         // Update counts after table reload
                         updateStatusCounts();
                         
-                        // Show any additional info
-                        if (response.data) {
-                            if (response.data.invoice_number) {
-                                showToast('info', 'Invoice Number', `New invoice number: ${response.data.invoice_number}`);
-                            }
-                        }
+                      if (response.data && response.data.invoice_number) {
+                showToast('info', 'Invoice Number', `New invoice number: ${response.data.invoice_number}`);
+            }
+            
+            // TRIGGER THIS EVENT
+            $(document).trigger('status-update-complete');
                     }, false);
                 } else {
                     showToast('error', 'Error', response.message || 'Failed to update status');

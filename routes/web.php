@@ -79,8 +79,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     // CSV download
     Route::get('/invoices/download-today-csv', [InvoiceController::class, 'downloadTodayCSV'])
         ->name('invoices.download-today-csv');
-    Route::get('/invoices/download-morning-csv', [InvoiceController::class, 'downloadMorningCSV'])->name('invoices.download-morning-csv');
-    Route::get('/invoices/download-evening-csv', [InvoiceController::class, 'downloadEveningCSV'])->name('invoices.download-evening-csv');
+
     Route::get('/invoices/download-custom-csv', [InvoiceController::class, 'downloadCustomCSV'])->name('invoices.download-custom-csv');
 
     // Pathao routes
@@ -107,6 +106,8 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
         Route::get('/pos', [InvoiceController::class, 'pos'])->name('pos');
         Route::post('/pos/store', [InvoiceController::class, 'storePos'])->name('store-pos');
         Route::get('/{id}/print', [InvoiceController::class, 'print'])->name('print');
+
+        Route::get('/print-multiple/{ids}', [InvoiceController::class, 'printMultiple'])->name('invoices.print-multiple');
         Route::get('/{id}', [InvoiceController::class, 'show'])->name('show');
         Route::delete('/{id}', [InvoiceController::class, 'destroy'])->name('destroy');
         Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->name('edit');

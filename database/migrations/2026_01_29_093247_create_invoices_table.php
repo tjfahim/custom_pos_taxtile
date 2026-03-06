@@ -50,7 +50,8 @@ return new class extends Migration
     
     // Notes
     $table->text('notes')->nullable();
-    
+    $table->timestamp('confirmed_at')->nullable();
+
     $table->timestamps();
     $table->softDeletes();
 });

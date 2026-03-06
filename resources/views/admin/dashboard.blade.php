@@ -20,7 +20,6 @@
         </div>
     </div>
 </div>
-
 <div class="content mt-3">
     
     @if(!$hasFullAccess)
@@ -32,7 +31,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4><i class="fa fa-user-circle"></i> Welcome, {{ $user->name }}!</h4>
-                            <p class="mb-0 text-white">Here's your personal performance summary. You have created {{ $totalInvoices }} invoices in total.</p>
+                            <p class="mb-0 text-white">Here's your personal performance summary. You have created {{ $totalInvoices }} confirmed invoices in total.</p>
                         </div>
                         <div>
                          
@@ -44,7 +43,7 @@
     </div>
     @endif
 
-    <!-- Summary Cards -->
+    <!-- Summary Cards (All now show confirmed invoices only) -->
     <div class="row">
         <!-- Today's Summary -->
         <div class="col-xl-3 col-lg-6 col-md-6">
@@ -63,34 +62,14 @@
                             @if(isset($todayQuantity))
                             <small class="d-block text-muted">Qty: {{ number_format($todayQuantity) }}</small>
                             @endif
+                            <small class="d-block text-muted mt-1"><i class="fa fa-check-circle text-success"></i> Confirmed only</small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- This Week Summary (Last 7 Days) -->
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa-calendar text-success border-success"></i>
-                        </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">This Week (7 days)</div>
-                            <div class="stat-digit">{{ $weekInvoices }}</div>
-                            <div class="stat-sub">Revenue: ৳{{ number_format($weekRevenue, 2) }}</div>
-                            <small class="text-success">Paid: ৳{{ number_format($weekPaid ?? 0, 2) }}</small><br>
-                            <small class="text-danger">Due: ৳{{ number_format($weekDue ?? 0, 2) }}</small>
-                            @if(isset($weekQuantity))
-                            <small class="d-block text-muted">Qty: {{ number_format($weekQuantity) }}</small>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      
         
         <!-- This Month Summary -->
         <div class="col-xl-3 col-lg-6 col-md-6">
@@ -132,6 +111,7 @@
                             @if(isset($totalQuantity))
                             <small class="d-block text-muted">Total Qty: {{ number_format($totalQuantity) }}</small>
                             @endif
+                            <small class="d-block text-muted mt-1"><i class="fa fa-check-circle text-success"></i> Confirmed only</small>
                         </div>
                     </div>
                 </div>
@@ -165,8 +145,9 @@
                             <i class="fa fa fa-file-archive-o text-secondary border-secondary"></i>
                         </div>
                         <div class="stat-content dib">
-                            <div class="stat-text">Total Invoices</div>
+                            <div class="stat-text">Confirmed Invoices</div>
                             <div class="stat-digit">{{ number_format($totalInvoices) }}</div>
+                            <small class="text-muted">Total all time</small>
                         </div>
                     </div>
                 </div>
@@ -206,12 +187,12 @@
     </div>
     @endif
 
-    <!-- Monthly Performance Chart (Jan - Dec) -->
+    <!-- Monthly Performance Chart (Jan - Dec) - Now shows confirmed invoices only -->
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <strong class="card-title">{{ $hasFullAccess ? 'Monthly Performance ' . date('Y') : 'My Monthly Performance ' . date('Y') }}</strong>
+                    <strong class="card-title">{{ $hasFullAccess ? 'Monthly Performance (Confirmed Invoices) ' . date('Y') : 'My Monthly Performance (Confirmed) ' . date('Y') }}</strong>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -260,6 +241,30 @@
                                     </tr>
                                 @endforeach
                             </tbody>
+                            <tfoot class="table-secondary">
+                                @php
+                                    $yearTotal = collect($monthlyStats)->sum('total_revenue');
+                                    $yearPaid = collect($monthlyStats)->sum('total_paid');
+                                    $yearDue = collect($monthlyStats)->sum('total_due');
+                                    $yearQuantity = collect($monthlyStats)->sum('total_quantity');
+                                    $yearCollectionRate = $yearTotal > 0 ? ($yearPaid / $yearTotal) * 100 : 0;
+                                @endphp
+                                <tr>
+                                    <th>Year Total</th>
+                                    <th class="text-center">{{ collect($monthlyStats)->sum('total_invoices') }}</th>
+                                    <th class="text-center">{{ number_format($yearQuantity) }}</th>
+                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_subtotal'), 2) }}</th>
+                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_delivery'), 2) }}</th>
+                                    <th class="text-end">৳{{ number_format($yearTotal, 2) }}</th>
+                                    <th class="text-end text-success">৳{{ number_format($yearPaid, 2) }}</th>
+                                    <th class="text-end text-danger">৳{{ number_format($yearDue, 2) }}</th>
+                                    <th class="text-center">
+                                        <span class="badge bg-{{ $yearCollectionRate >= 80 ? 'success' : ($yearCollectionRate >= 50 ? 'warning' : 'danger') }}">
+                                            {{ number_format($yearCollectionRate, 1) }}%
+                                        </span>
+                                    </th>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -267,13 +272,14 @@
         </div>
     </div>
 
-    @if($hasFullAccess && isset($last7Days))
-    <!-- Last 7 Days Breakdown -->
+    @if($hasFullAccess && isset($last10Days))
+    <!-- Last 10 Days Breakdown - Updated from 7 to 10 days -->
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <strong class="card-title">Last 7 Days Performance</strong>
+                    <strong class="card-title">Last 10 Days Performance (Confirmed Invoices Only)</strong>
+                    <span class="float-right badge bg-info">Paid vs Due Comparison</span>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -286,10 +292,14 @@
                                     <th class="text-end">Revenue</th>
                                     <th class="text-end">Paid</th>
                                     <th class="text-end">Due</th>
+                                    <th class="text-center">Collection %</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($last7Days as $day)
+                                @foreach($last10Days as $day)
+                                @php
+                                    $dayCollectionRate = $day['revenue'] > 0 ? ($day['paid'] / $day['revenue']) * 100 : 0;
+                                @endphp
                                 <tr>
                                     <td>{{ $day['date'] }}</td>
                                     <td class="text-center">{{ $day['count'] }}</td>
@@ -297,11 +307,38 @@
                                     <td class="text-end">৳{{ number_format($day['revenue'], 2) }}</td>
                                     <td class="text-end text-success">৳{{ number_format($day['paid'], 2) }}</td>
                                     <td class="text-end text-danger">৳{{ number_format($day['due'], 2) }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ $dayCollectionRate >= 80 ? 'success' : ($dayCollectionRate >= 50 ? 'warning' : 'danger') }}">
+                                            {{ number_format($dayCollectionRate, 1) }}%
+                                        </span>
+                                    </td>
                                 </tr>
                                 @endforeach
                             </tbody>
+                            @php
+                                $total10DaysRevenue = collect($last10Days)->sum('revenue');
+                                $total10DaysPaid = collect($last10Days)->sum('paid');
+                                $total10DaysDue = collect($last10Days)->sum('due');
+                                $total10DaysCollectionRate = $total10DaysRevenue > 0 ? ($total10DaysPaid / $total10DaysRevenue) * 100 : 0;
+                            @endphp
+                            <tfoot class="table-info">
+                                <tr>
+                                    <th>10 Days Total</th>
+                                    <th class="text-center">{{ collect($last10Days)->sum('count') }}</th>
+                                    <th class="text-center">{{ number_format(collect($last10Days)->sum('quantity')) }}</th>
+                                    <th class="text-end">৳{{ number_format($total10DaysRevenue, 2) }}</th>
+                                    <th class="text-end text-success">৳{{ number_format($total10DaysPaid, 2) }}</th>
+                                    <th class="text-end text-danger">৳{{ number_format($total10DaysDue, 2) }}</th>
+                                    <th class="text-center">
+                                        <span class="badge bg-{{ $total10DaysCollectionRate >= 80 ? 'success' : ($total10DaysCollectionRate >= 50 ? 'warning' : 'danger') }}">
+                                            {{ number_format($total10DaysCollectionRate, 1) }}%
+                                        </span>
+                                    </th>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
+                    
                 </div>
             </div>
         </div>
@@ -309,14 +346,15 @@
     @endif
 
     @if($hasFullAccess)
-    <!-- Top Creators Performance -->
+    <!-- Top Creators Performance - Now shows confirmed invoices only -->
     @if(isset($topCreators) && $topCreators->count() > 0)
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <i class="fa fa-users me-1"></i>
-                    <strong>Creators by Performance</strong>
+                    <strong>Creators Performance (Confirmed Invoices Only)</strong>
+                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -375,7 +413,7 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <strong>My Payment Status</strong>
+                    <strong>My Payment Status (Confirmed Invoices)</strong>
                 </div>
                 <div class="card-body">
                     @if(isset($paymentStatusCounts) && count($paymentStatusCounts) > 0)
@@ -403,7 +441,7 @@
                         </div>
                     </div>
                     @else
-                    <p class="text-center text-muted">No invoice data available</p>
+                    <p class="text-center text-muted">No confirmed invoice data available</p>
                     @endif
                 </div>
             </div>
@@ -411,7 +449,7 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <strong>My Financial Summary</strong>
+                    <strong>My Financial Summary (Confirmed)</strong>
                 </div>
                 <div class="card-body">
                     <table class="table table-sm">
@@ -448,7 +486,7 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-body">
-                    <h4 class="mb-3">Invoice Status</h4>
+                    <h4 class="mb-3">Invoice Status (All Invoices)</h4>
                     <canvas id="invoiceStatusChart" height="150"></canvas>
                 </div>
             </div>
@@ -457,7 +495,7 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-body">
-                    <h4 class="mb-3">Payment Status</h4>
+                    <h4 class="mb-3">Payment Status (Confirmed Invoices)</h4>
                     <canvas id="paymentStatusChart" height="150"></canvas>
                 </div>
             </div>
@@ -470,7 +508,7 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
-                    <strong class="card-title">{{ $hasFullAccess ? 'Recent Invoices' : 'My Recent Invoices' }}</strong>
+                    <strong class="card-title">{{ $hasFullAccess ? 'Recent Confirmed Invoices' : 'My Recent Confirmed Invoices' }}</strong>
                     <a href="{{ route('admin.invoices.index') }}" class="float-right btn btn-sm btn-primary">View All</a>
                 </div>
                 <div class="card-body">
@@ -512,7 +550,7 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
-                    <strong class="card-title">Top Customers</strong>
+                    <strong class="card-title">Top Customers (Confirmed Invoices)</strong>
                     <a href="{{ route('admin.customers.index') }}" class="float-right btn btn-sm btn-primary">View All</a>
                 </div>
                 <div class="card-body">
@@ -545,7 +583,7 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
-                    <strong class="card-title">My Performance Summary</strong>
+                    <strong class="card-title">My Performance Summary (Confirmed)</strong>
                 </div>
                 <div class="card-body">
                     <div class="row">

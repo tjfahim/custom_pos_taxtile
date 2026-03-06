@@ -127,3 +127,134 @@
     cursor: not-allowed;
     opacity: 0.65;
 }
+
+
+ .btn-purple {
+        color: #fff;
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    .btn-purple:hover {
+        color: #fff;
+        background-color: #5e34b0;
+        border-color: #5e34b0;
+    }
+    .btn-purple:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    /* Checkbox styling */
+    .table td:first-child {
+        position: relative;
+        padding-left: 35px !important;
+    }
+    
+    .select-invoice {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        margin: 0;
+        cursor: pointer;
+        z-index: 10;
+    }
+    
+    #select-all-invoices {
+        cursor: pointer;
+        margin-right: 5px;
+    }
+    
+    /* Ensure SL numbers are visible */
+    .table td:first-child span {
+        display: inline-block;
+        margin-left: 5px;
+    }
+    
+    /* Style for header checkbox */
+    #select-all-invoices {
+        position: relative;
+        top: 2px;
+    }
+
+
+     .select-invoice {
+        margin-right: 8px !important;
+        cursor: pointer !important;
+        vertical-align: middle !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+    
+    #select-all-invoices {
+        cursor: pointer !important;
+        margin-right: 8px !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+    
+    /* Fix for table cells */
+    .table td:first-child,
+    .table th:first-child {
+        padding-left: 10px !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Ensure checkbox and text align properly */
+    .table td:first-child div,
+    .table th:first-child div {
+        display: flex !important;
+        align-items: center !important;
+        min-height: 30px !important;
+    }
+    
+    /* Print button styling */
+   
+    
+
+
+
+        #select-all-invoices,
+    .select-invoice {
+        cursor: pointer !important;
+        width: 18px;
+        height: 18px;
+        margin: 0 auto;
+        display: block;
+    }
+    
+    /* Center checkbox in first column */
+    .table td:first-child,
+    .table th:first-child {
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    /* Print button */
+    .btn-purple {
+        color: #fff;
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    
+    .btn-purple:hover {
+        color: #fff;
+        background-color: #5e34b0;
+        border-color: #5e34b0;
+    }
+    
+    .btn-purple:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    /* Loading spinner */
+    .fa-spinner {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }

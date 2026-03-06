@@ -98,6 +98,7 @@ public function storePos(Request $request)
             'status' => $request->status,
             'invoice_date' => now(),
             'created_by' => auth()->id(),
+            'confirmed_at' => now()
         ]);
 
         // Add invoice items
@@ -172,7 +173,29 @@ private function getPaymentDetails($request)
         $invoice = Invoice::with(['customer', 'items'])->findOrFail($id);
         return view('invoices.print', compact('invoice'));
     }
-
+/**
+ * Print multiple invoices
+ */
+public function printMultiple($ids)
+{
+    try {
+        $invoiceIds = explode(',', $ids);
+        
+        $invoices = Invoice::with(['customer', 'items'])
+            ->whereIn('id', $invoiceIds)
+            ->get();
+        
+        if ($invoices->isEmpty()) {
+            abort(404, 'No invoices found');
+        }
+        
+        return view('invoices.print-multiple', compact('invoices'));
+        
+    } catch (\Exception $e) {
+        \Log::error('Multi-print error: ' . $e->getMessage());
+        abort(500, 'Failed to load invoices');
+    }
+}
     // app/Http/Controllers/InvoiceController.php
 
 public function index(Request $request)
@@ -646,144 +669,7 @@ public function update(Request $request, $id)
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
-    public function downloadMorningCSV(Request $request)
-    {
-        // Get today's date
-        $today = Carbon::today();
-        
-        // Set time range: 12:00 AM to 3:00 PM
-        $startTime = $today->copy()->startOfDay(); // 00:00:00
-        $endTime = $today->copy()->setTime(15, 0, 0); // 15:00:00 (3:00 PM)
-        
-        // Get CONFIRMED invoices for morning slot
-        $invoices = Invoice::whereBetween('updated_at', [$startTime, $endTime])
-            ->where('status', 'confirmed')
-            ->with('customer', 'items')
-            ->orderBy('invoice_number', 'asc')
-            ->get();
-        
-        // Check if there are any confirmed invoices for this time slot
-        if ($invoices->isEmpty()) {
-            return redirect()->back()->with('error', 'No confirmed invoices found for morning slot (12 AM - 3 PM).');
-        }
-        
-        $csvData = [];
-        
-        foreach ($invoices as $invoice) {
-            // Parse delivery_area field to extract city, zone, area
-            $cityName = '';
-            $zoneName = '';
-            $areaName = '';
-            
-            if (!empty($invoice->delivery_area)) {
-                $parts = array_map('trim', explode(',', $invoice->delivery_area));
-                
-                // Get city (first part)
-                if (isset($parts[0])) {
-                    $cityName = $parts[0];
-                }
-                
-                // Get zone (second part)
-                if (isset($parts[1])) {
-                    $zoneName = $parts[1];
-                }
-                
-                // Get area (third part and beyond, join back)
-                if (count($parts) >= 3) {
-                    $areaParts = array_slice($parts, 2);
-                    $areaName = implode(', ', $areaParts);
-                }
-            }
-            
-            // If we have Pathao IDs, use those instead (higher priority)
-            if ($invoice->pathaoCity) {
-                $cityName = $invoice->pathaoCity->city_name;
-            }
-            if ($invoice->pathaoZone) {
-                $zoneName = $invoice->pathaoZone->zone_name;
-            }
-            if ($invoice->pathaoArea) {
-                $areaName = $invoice->pathaoArea->area_name;
-            }
-            
-            // Clean up any trailing commas from area
-            $areaName = trim($areaName, ', ');
-            
-            // Calculate TOTAL quantity and weight for ALL items in this invoice
-            $totalQuantity = $invoice->items->sum('quantity');
-            $totalWeight = $totalQuantity * 0.5;
-            
-            // Get item names only (NO descriptions)
-            $itemNames = [];
-            foreach ($invoice->items as $item) {
-                if ($item->item_name) {
-                    $itemNames[] = $item->item_name;
-                }
-            }
-            
-            // Combine item names (without descriptions)
-            $itemDesc = '';
-            if (!empty($itemNames)) {
-                if (count($itemNames) == 1) {
-                    $itemDesc = $itemNames[0];
-                } else {
-                    $itemDesc = $itemNames[0];
-                }
-            } else {
-                $itemDesc = 'Items';
-            }
-            
-            // Clean fields that might contain newlines
-            $cleanAddress = str_replace(["\r", "\n"], ', ', $invoice->recipient_address);
-            $cleanAddress = trim(preg_replace('/\s+/', ' ', $cleanAddress));
-            
-            $cleanInstructions = str_replace(["\r", "\n"], ', ', $invoice->special_instructions);
-            $cleanInstructions = trim(preg_replace('/\s+/', ' ', $cleanInstructions));
-            
-            // Prepare ONE row per invoice
-            $row = [
-                'Parcel',
-                $invoice->store_location,
-                $invoice->merchant_order_id ?: '',
-                $invoice->recipient_name,
-                $invoice->recipient_phone,
-                $cleanAddress,
-                $cityName,
-                $zoneName,
-                $areaName,
-                $invoice->due_amount,
-                $totalQuantity,
-                $totalWeight,
-                $itemDesc,
-                $cleanInstructions
-            ];
-            
-            $csvData[] = $row;
-        }
-        
-        // Generate CSV
-        $filename = 'morning_invoices_' . $today->toDateString() . '.csv';
-        
-        return response()->streamDownload(function() use ($csvData) {
-            $handle = fopen('php://output', 'w');
-            
-            // Add UTF-8 BOM for Excel
-            fwrite($handle, "\xEF\xBB\xBF");
-            
-            foreach ($csvData as $row) {
-                fputcsv($handle, $row);
-            }
-            
-            fclose($handle);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
-    }
-    // app/Http/Controllers/InvoiceController.php
-
-// app/Http/Controllers/InvoiceController.php
-
+  
 
 public function downloadCustomCSV(Request $request)
 {
@@ -959,141 +845,6 @@ private function generateCSVResponse($invoices, $filename)
 }
 
 
-    public function downloadEveningCSV(Request $request)
-    {
-        // Get today's date
-        $today = Carbon::today();
-        
-        // Set time range: 3:00 PM to 11:59:59 PM
-        $startTime = $today->copy()->setTime(15, 0, 1); // 15:00:01 (1 second after 3:00 PM)
-        $endTime = $today->copy()->endOfDay(); // 23:59:59
-        
-        // Get CONFIRMED invoices for evening slot
-        $invoices = Invoice::whereBetween('updated_at', [$startTime, $endTime])
-            ->where('status', 'confirmed')
-            ->with('customer', 'items')
-            ->orderBy('invoice_number', 'asc')
-            ->get();
-        
-        // Check if there are any confirmed invoices for this time slot
-        if ($invoices->isEmpty()) {
-            return redirect()->back()->with('error', 'No confirmed invoices found for evening slot (3 PM - 12 AM).');
-        }
-        
-        $csvData = [];
-        
-        foreach ($invoices as $invoice) {
-            // Parse delivery_area field to extract city, zone, area
-            $cityName = '';
-            $zoneName = '';
-            $areaName = '';
-            
-            if (!empty($invoice->delivery_area)) {
-                $parts = array_map('trim', explode(',', $invoice->delivery_area));
-                
-                // Get city (first part)
-                if (isset($parts[0])) {
-                    $cityName = $parts[0];
-                }
-                
-                // Get zone (second part)
-                if (isset($parts[1])) {
-                    $zoneName = $parts[1];
-                }
-                
-                // Get area (third part and beyond, join back)
-                if (count($parts) >= 3) {
-                    $areaParts = array_slice($parts, 2);
-                    $areaName = implode(', ', $areaParts);
-                }
-            }
-            
-            // If we have Pathao IDs, use those instead (higher priority)
-            if ($invoice->pathaoCity) {
-                $cityName = $invoice->pathaoCity->city_name;
-            }
-            if ($invoice->pathaoZone) {
-                $zoneName = $invoice->pathaoZone->zone_name;
-            }
-            if ($invoice->pathaoArea) {
-                $areaName = $invoice->pathaoArea->area_name;
-            }
-            
-            // Clean up any trailing commas from area
-            $areaName = trim($areaName, ', ');
-            
-            // Calculate TOTAL quantity and weight for ALL items in this invoice
-            $totalQuantity = $invoice->items->sum('quantity');
-            $totalWeight = $totalQuantity * 0.5;
-            
-            // Get item names only (NO descriptions)
-            $itemNames = [];
-            foreach ($invoice->items as $item) {
-                if ($item->item_name) {
-                    $itemNames[] = $item->item_name;
-                }
-            }
-            
-            // Combine item names (without descriptions)
-            $itemDesc = '';
-            if (!empty($itemNames)) {
-                if (count($itemNames) == 1) {
-                    $itemDesc = $itemNames[0];
-                } else {
-                    $itemDesc = $itemNames[0];
-                }
-            } else {
-                $itemDesc = 'Items';
-            }
-            
-            // Clean fields that might contain newlines
-            $cleanAddress = str_replace(["\r", "\n"], ', ', $invoice->recipient_address);
-            $cleanAddress = trim(preg_replace('/\s+/', ' ', $cleanAddress));
-            
-            $cleanInstructions = str_replace(["\r", "\n"], ', ', $invoice->special_instructions);
-            $cleanInstructions = trim(preg_replace('/\s+/', ' ', $cleanInstructions));
-            
-            // Prepare ONE row per invoice
-            $row = [
-                'Parcel',
-                $invoice->store_location,
-                $invoice->merchant_order_id ?: '',
-                $invoice->recipient_name,
-                $invoice->recipient_phone,
-                $cleanAddress,
-                $cityName,
-                $zoneName,
-                $areaName,
-                $invoice->due_amount,
-                $totalQuantity,
-                $totalWeight,
-                $itemDesc,
-                $cleanInstructions
-            ];
-            
-            $csvData[] = $row;
-        }
-        
-        // Generate CSV
-        $filename = 'evening_invoices_' . $today->toDateString() . '.csv';
-        
-        return response()->streamDownload(function() use ($csvData) {
-            $handle = fopen('php://output', 'w');
-            
-            // Add UTF-8 BOM for Excel
-            fwrite($handle, "\xEF\xBB\xBF");
-            
-            foreach ($csvData as $row) {
-                fputcsv($handle, $row);
-            }
-            
-            fclose($handle);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
-    }
-
 public function checkPhoneToday($phone)
 {
     try {
@@ -1221,7 +972,7 @@ public function updateStatus(Request $request, $id)
         if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
             $updateData = [
                 'status' => 'confirmed',
-                'confirmed_at' => now(),
+                'confirmed_at' => now()
             ];
             
             // Only assign new invoice number if not already assigned
@@ -1250,20 +1001,20 @@ public function updateStatus(Request $request, $id)
                 'success' => true,
                 'message' => 'Invoice confirmed successfully!',
                 'data' => [
-                    'status' => $invoice->status, // Use $invoice->status, not fresh() as we just refreshed
+                    'status' => $invoice->status,
                     'status_text' => ucfirst($invoice->status),
                     'invoice_number' => $invoice->invoice_number,
                     'invoice_date' => $invoice->invoice_date ? $invoice->invoice_date->format('d M Y') : null,
-                    // Add payment_status to ensure it doesn't change
                     'payment_status' => $invoice->payment_status,
                 ]
             ]);
         }
         // Handle confirmed → pending
         elseif ($oldStatus === 'confirmed' && $newStatus === 'pending') {
+            // When reverting to pending, we need to decide who gets credit?
             $invoice->update([
                 'status' => 'pending',
-                'confirmed_at' => null,
+                'confirmed_at' => now(),
             ]);
             
             $invoice->refresh();
@@ -1278,17 +1029,18 @@ public function updateStatus(Request $request, $id)
                 ]
             ]);
         }
-        // Handle other status changes (like to cancelled)
-        elseif ($newStatus === 'cancelled' || $newStatus === 'pending') {
+        // Handle cancelled
+        elseif ($newStatus === 'cancelled') {
             $invoice->update([
-                'status' => $newStatus,
+                'status' => 'cancelled',
+                'confirmed_at' => now(),
             ]);
             
             $invoice->refresh();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Invoice status updated successfully.',
+                'message' => 'Invoice cancelled.',
                 'data' => [
                     'status' => $invoice->status,
                     'status_text' => ucfirst($invoice->status),
@@ -1311,6 +1063,7 @@ public function updateStatus(Request $request, $id)
         ], 500);
     }
 }
+
 public function checkCustomerStatus($phone)
 {
     try {

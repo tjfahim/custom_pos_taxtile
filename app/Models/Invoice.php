@@ -39,11 +39,13 @@ class Invoice extends Model
         'pathao_zone_id',
         'pathao_area_id',
         'notes',
-        'created_by'
+        'created_by',
+        'confirmed_at'
     ];
 
     protected $casts = [
         'invoice_date' => 'date',
+        'confirmed_at' => 'date',
         'subtotal' => 'decimal:2',
         'total' => 'decimal:2',
         'delivery_charge' => 'decimal:2',
@@ -135,4 +137,5 @@ class Invoice extends Model
         }
         return 0;
     }
+    
 }

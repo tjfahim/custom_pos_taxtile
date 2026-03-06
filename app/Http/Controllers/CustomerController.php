@@ -11,11 +11,34 @@ class CustomerController extends Controller
     /**
      * Display a listing of the customers.
      */
-    public function index()
-    {
-        $customers = Customer::latest()->get();
-        return view('customers.index', compact('customers'));
+public function index(Request $request)
+{
+    
+    $query = Customer::query();
+
+    // Apply search if provided
+    if ($request->has('search') && !empty($request->search)) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->where('name', 'LIKE', "%{$search}%")
+              ->orWhere('phone_number_1', 'LIKE', "%{$search}%")
+              ->orWhere('phone_number_2', 'LIKE', "%{$search}%")
+              ->orWhere('full_address', 'LIKE', "%{$search}%")
+              ->orWhere('delivery_area', 'LIKE', "%{$search}%")
+              ->orWhere('merchant_order_id', 'LIKE', "%{$search}%")
+              ->orWhere('note', 'LIKE', "%{$search}%");
+        });
     }
+
+    $customers = $query->latest()->paginate(20);
+    
+    // If it's an AJAX request, return only the table partial
+    if ($request->ajax()) {
+        return view('customers.partials.table', compact('customers'))->render();
+    }
+    
+    return view('customers.index', compact('customers'));
+}
 
     /**
      * Show the form for creating a new customer.

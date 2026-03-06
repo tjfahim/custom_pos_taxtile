@@ -209,48 +209,71 @@ class ReportController extends Controller
     ];
 
     // OPTIONAL: Add top creators specifically for confirmed invoices (like your original query)
-    $topCreators = $invoices->groupBy('created_by')
-        ->map(function ($creatorInvoices) {
-            $user = $creatorInvoices->first()->creator;
+  $topCreators = $invoices->groupBy('created_by')
+    ->map(function ($creatorInvoices) {
+        $user = $creatorInvoices->first()->creator;
+        
+        $totalQuantity = $creatorInvoices->sum(function($invoice) {
+            return $invoice->items->sum('quantity');
+        });
+        
+        return [
+            'id' => $user ? $user->id : null,
+            'name' => $user ? $user->name : 'N/A',
+            'email' => $user ? $user->email : 'N/A',
             
-            $totalQuantity = $creatorInvoices->sum(function($invoice) {
-                return $invoice->items->sum('quantity');
-            });
+            // All metrics are based on confirmed invoices in the date range
+            'total_invoices' => $creatorInvoices->count(),
+            'total_quantity' => $totalQuantity,
+            'total_subtotal' => $creatorInvoices->sum('subtotal'),
+            'total_delivery' => $creatorInvoices->sum('delivery_charge'),
+            'total_amount' => $creatorInvoices->sum('total'),
+            'total_paid' => $creatorInvoices->sum('paid_amount'),
+            'total_due' => $creatorInvoices->sum('due_amount'),
+            'avg_order_value' => $creatorInvoices->avg('total'),
             
-            return [
-                'id' => $user ? $user->id : null,
-                'name' => $user ? $user->name : 'N/A',
-                'email' => $user ? $user->email : 'N/A',
-                'total_invoices' => $creatorInvoices->count(),
-                'total_quantity' => $totalQuantity,
-                'total_subtotal' => $creatorInvoices->sum('subtotal'),
-                'total_delivery' => $creatorInvoices->sum('delivery_charge'),
-                'total_amount' => $creatorInvoices->sum('total'),
-                'total_paid' => $creatorInvoices->sum('paid_amount'),
-                'total_due' => $creatorInvoices->sum('due_amount'),
-                'avg_order_value' => $creatorInvoices->avg('total'),
-                'paid_invoices' => $creatorInvoices->where('payment_status', 'paid')->count(),
-                'partial_invoices' => $creatorInvoices->where('payment_status', 'partial')->count(),
-                'unpaid_invoices' => $creatorInvoices->where('payment_status', 'unpaid')->count(),
-            ];
-        })
-        ->filter(function ($creator) {
-            return $creator['total_invoices'] > 0;
-        })
-        ->sortByDesc('total_amount')
-        ->values();
+            // Payment status counts
+            'paid_invoices' => $creatorInvoices->where('payment_status', 'paid')->count(),
+            'partial_invoices' => $creatorInvoices->where('payment_status', 'partial')->count(),
+            'unpaid_invoices' => $creatorInvoices->where('payment_status', 'unpaid')->count(),
+            
+            // Collection rate for this creator in this date range
+            'collection_rate' => $creatorInvoices->sum('total') > 0 
+                ? round(($creatorInvoices->sum('paid_amount') / $creatorInvoices->sum('total')) * 100, 2) 
+                : 0,
+            
+            // Additional useful metrics
+            'first_confirmed' => $creatorInvoices->min('confirmed_at')?->format('Y-m-d'),
+            'last_confirmed' => $creatorInvoices->max('confirmed_at')?->format('Y-m-d'),
+        ];
+    })
+    ->filter(function ($creator) {
+        return $creator['total_invoices'] > 0;
+    })
+    ->sortByDesc('total_amount')
+    ->values();
 
-    $creatorSummary = [
-        'total_creators' => $topCreators->count(),
-        'total_invoices_created' => $topCreators->sum('total_invoices'),
-        'total_quantity_created' => $topCreators->sum('total_quantity'),
-        'total_amount_created' => $topCreators->sum('total_amount'),
-        'total_paid_created' => $topCreators->sum('total_paid'),
-        'total_due_created' => $topCreators->sum('total_due'),
-        'top_creator' => $topCreators->isNotEmpty() ? $topCreators->first()['name'] : 'N/A',
-        'top_creator_amount' => $topCreators->isNotEmpty() ? $topCreators->first()['total_amount'] : 0,
-    ];
-
+$creatorSummary = [
+    'total_creators' => $topCreators->count(),
+    'total_invoices_created' => $topCreators->sum('total_invoices'),
+    'total_quantity_created' => $topCreators->sum('total_quantity'),
+    'total_amount_created' => $topCreators->sum('total_amount'),
+    'total_paid_created' => $topCreators->sum('total_paid'),
+    'total_due_created' => $topCreators->sum('total_due'),
+    'total_subtotal_created' => $topCreators->sum('total_subtotal'),
+    'total_delivery_created' => $topCreators->sum('total_delivery'),
+    'avg_order_value_overall' => $topCreators->sum('total_invoices') > 0 
+        ? round($topCreators->sum('total_amount') / $topCreators->sum('total_invoices'), 2) 
+        : 0,
+    'collection_rate_overall' => $topCreators->sum('total_amount') > 0 
+        ? round(($topCreators->sum('total_paid') / $topCreators->sum('total_amount')) * 100, 2) 
+        : 0,
+    'top_creator' => $topCreators->isNotEmpty() ? $topCreators->first()['name'] : 'N/A',
+    'top_creator_amount' => $topCreators->isNotEmpty() ? $topCreators->first()['total_amount'] : 0,
+    'top_creator_invoices' => $topCreators->isNotEmpty() ? $topCreators->first()['total_invoices'] : 0,
+    'from_date' => $request->from_date,
+    'to_date' => $request->to_date,
+];
     return view('reports.index', compact(
         'invoices',
         'summary',
