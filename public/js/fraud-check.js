@@ -10,13 +10,14 @@ class FraudChecker {
 
     init() {
         $('#recipientPhone').on('input', this.debounce(this.handlePhoneInput.bind(this), 800));
-         // Add phone number validation on input
+        // Add phone number validation on input
         $('#recipientPhone').on('keypress', this.validatePhoneKeyPress.bind(this));
         $('#recipientPhone').on('input', this.validatePhoneFormat.bind(this));
         // Add validation to form submission
         $('#posForm').on('submit', this.validateForm.bind(this));
     }
-   // Allow only digits (0-9)
+    
+    // Allow only digits (0-9)
     validatePhoneKeyPress(e) {
         const charCode = e.which ? e.which : e.keyCode;
         // Allow only digits (0-9)
@@ -27,7 +28,8 @@ class FraudChecker {
         }
         return true;
     }
-     // Validate phone format and length
+    
+    // Validate phone format and length
     validatePhoneFormat() {
         const phone = $('#recipientPhone').val();
         
@@ -149,7 +151,6 @@ class FraudChecker {
         };
     }
 
-   
     async checkCustomerStatus(phone) {
         this.showLoading('Checking customer status...');
         
@@ -219,15 +220,24 @@ class FraudChecker {
         
         try {
             const res = await fetch(`/check-phone-fraud/${phone}`);
+            
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
             const data = await res.json();
             
-            if (data.error) throw new Error(data.error);
+            if (!data || typeof data !== 'object') {
+                throw new Error('Invalid response format');
+            }
             
             this.currentData = data;
             this.displayFraudResults(this.currentData);
+            $('#fraudCheckError').remove();
+            
         } catch (error) {
             console.error('Fraud check error:', error);
-           
+            this.showError('Failed to check fraud history');
         } finally {
             this.hideLoading();
         }
@@ -244,7 +254,6 @@ class FraudChecker {
             `).insertAfter($('#recipientPhone').closest('.form-group'));
         }
         
-        // Determine alert level based on status
         let alertLevel = 'danger';
         let alertIcon = 'ban';
         let statusText = 'Blocked';
@@ -255,7 +264,6 @@ class FraudChecker {
             statusText = 'Inactive';
         }
         
-        // Update alert class
         container.removeClass('alert-danger alert-warning alert-info alert-success')
                 .addClass(`alert-${alertLevel}`);
         
@@ -271,7 +279,7 @@ class FraudChecker {
         
         const html = `
             <i class="fa fa-${alertIcon} mr-2 fa-lg"></i>
-            <div class="flex-grow-1 ">
+            <div class="flex-grow-1">
                 <strong>***** Customer ${statusText}:</strong>
                 <div class="mt-1">
                     <span class="badge badge-${alertLevel}">${data.name || 'Unknown Customer'}</span>
@@ -297,14 +305,12 @@ class FraudChecker {
                 </div>
             `).insertAfter($('#recipientPhone').closest('.form-group'));
             
-            // Move it after customer status warning if it exists
             const statusWarning = $('#customerStatusWarning');
             if (statusWarning.length) {
                 container.insertAfter(statusWarning);
             }
         }
         
-        // Determine overall alert level
         let alertLevel = 'info';
         let alertIcon = 'info-circle';
         
@@ -319,7 +325,6 @@ class FraudChecker {
             alertIcon = 'clock';
         }
         
-        // Update alert class
         container.removeClass('alert-danger alert-warning alert-info alert-success')
                 .addClass(`alert-${alertLevel}`);
         
@@ -407,7 +412,6 @@ class FraudChecker {
                 </div>
             `).insertAfter($('#recipientPhone').closest('.form-group'));
             
-            // Move it after the last warning if it exists
             const lastWarning = $('#threeDaysWarning').length ? $('#threeDaysWarning') : $('#customerStatusWarning');
             if (lastWarning.length) {
                 container.insertAfter(lastWarning);
@@ -416,11 +420,58 @@ class FraudChecker {
         
         $('#fraudCheckResults').html(this.resultsHtml(data));
         
-        // Initialize tooltips
-        $('[data-toggle="tooltip"]').tooltip();
+        // FIXED: Check if tooltip function exists before calling
+        if (typeof $.fn.tooltip === 'function' && $('[data-toggle="tooltip"]').length) {
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+        
+        if (data.reports && data.reports.length > 0) {
+            this.displayFraudReports(data.reports);
+        } else {
+            $('#fraudReportsContainer').remove();
+        }
+    }
+
+    displayFraudReports(reports) {
+        let container = $('#fraudReportsContainer');
+        if (!container.length) {
+            container = $(`
+                <div id="fraudReportsContainer" class="mt-2 alert alert-danger alert-dismissible fade show">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    <strong><i class="fa fa-exclamation-triangle"></i> Fraud Reports Found:</strong>
+                    <div id="fraudReportsList" class="mt-1"></div>
+                </div>
+            `).insertAfter($('#fraudCheckContainer'));
+        }
+        
+        let reportsHtml = '<ul class="mb-0 pl-3">';
+        reports.forEach(report => {
+            reportsHtml += `
+                <li class="mb-1">
+                    <strong>${report.name || 'Unknown'}</strong> 
+                    <small class="text-muted">(${report.courierName || 'Unknown Courier'})</small>
+                    <br>
+                    <small class="text-danger">${report.details || 'Fraud reported'}</small>
+                    <br>
+                    <small class="text-muted">Reported: ${new Date(report.created_at).toLocaleDateString()}</small>
+                </li>
+            `;
+        });
+        reportsHtml += '</ul>';
+        
+        $('#fraudReportsList').html(reportsHtml);
     }
 
     resultsHtml(data) {
+        if (!data || typeof data !== 'object') {
+            return `
+                <div class="alert alert-warning alert-sm p-2 mb-0">
+                    <i class="fa fa-exclamation-triangle mr-1"></i>
+                    No fraud data available for this number.
+                </div>
+            `;
+        }
+        
         const total = data.total_parcels || 0;
         const delivered = data.total_delivered || 0;
         const cancelled = data.total_cancel || 0;
@@ -429,61 +480,100 @@ class FraudChecker {
         
         let html = '';
         
-        // Show high-risk warning if fraud rate is low
         if (rate < 70 && total > 0) {
             html += `
                 <div class="alert alert-warning alert-sm p-2 mb-2">
                     <i class="fa fa-exclamation-triangle mr-1"></i>
-                    <strong>High Risk:</strong> ${rate}% success rate. Proceed with caution.
+                    <strong>⚠️ HIGH RISK:</strong> Only ${rate}% success rate (${delivered}/${total}). Proceed with extreme caution!
+                </div>
+            `;
+        } else if (rate < 85 && total > 0) {
+            html += `
+                <div class="alert alert-info alert-sm p-2 mb-2">
+                    <i class="fa fa-info-circle mr-1"></i>
+                    <strong>Medium Risk:</strong> ${rate}% success rate. Consider verifying carefully.
                 </div>
             `;
         }
         
+        if (total === 0 && Object.keys(data.apis || {}).length === 0) {
+            html += `
+                <div class="text-center text-muted py-2">
+                    <i class="fa fa-info-circle"></i> No order history found for this number.
+                </div>
+            `;
+            return html;
+        }
+        
         html += `
             <div class="row">
-                <div class="col-12 mb-1">
-                    <span class="text-muted">Overall Success Rate:</span>
-                    <span class="badge badge-${riskColor} ml-1">${rate}%</span>
-                    <small class="text-muted ml-2">${total} total orders</small>
+                <div class="col-12 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Overall Success Rate:</span>
+                        <span class="badge badge-${riskColor} badge-lg">${rate}%</span>
+                        <small class="text-muted">${total} total orders</small>
+                    </div>
+                    <div class="progress mt-1" style="height: 5px;">
+                        <div class="progress-bar bg-${riskColor}" role="progressbar" 
+                             style="width: ${rate}%" aria-valuenow="${rate}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
                 </div>
             </div>
             <div class="row">
                 <div class="col-12">
-                    <div class="d-flex flex-wrap">
+                    <strong class="text-muted small">Courier Performance:</strong>
+                    <div class="d-flex flex-wrap mt-1">
         `;
 
-        // Show all couriers in a compact format
-        if (data.apis) {
-            Object.entries(data.apis).forEach(([name, stats]) => {
-                const t = stats.total_parcels || 0;
-                const d = stats.total_delivered_parcels || 0;
-                const c = stats.total_cancelled_parcels || 0;
-                const r = t > 0 ? Math.round((d / t) * 100) : 0;
-                const col = t === 0 ? 'secondary' : r >= 90 ? 'success' : r >= 70 ? 'warning' : 'danger';
-                
-                html += `
-                    <div class="mr-3 mb-1">
-                        <small class="text-muted">${name}</small>
-                        <div class="d-flex align-items-center">
-                            <span class="badge badge-${col} badge-sm">${r}%</span>
-                            <small class="ml-1">${d}/${t}</small>
-                            ${c > 0 ? `<small class="text-danger ml-1">(${c}c)</small>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
+        if (data.apis && typeof data.apis === 'object') {
+            const courierEntries = Object.entries(data.apis);
+            
+            if (courierEntries.length === 0) {
+                html += `<div class="text-muted small">No courier data available</div>`;
+            } else {
+                courierEntries.forEach(([name, stats]) => {
+                    if (!stats || typeof stats !== 'object') return;
+                    
+                    const t = stats.total_parcels || 0;
+                    const d = stats.total_delivered_parcels || 0;
+                    const c = stats.total_cancelled_parcels || 0;
+                    const r = stats.success_ratio || (t > 0 ? Math.round((d / t) * 100) : 0);
+                    const col = t === 0 ? 'secondary' : r >= 90 ? 'success' : r >= 70 ? 'warning' : 'danger';
+                    const status = stats.status || (t > 0 ? 'active' : 'no_orders');
+                    
+                    if (status !== 'not_found') {
+                        html += `
+                            <div class="mr-3 mb-2">
+                                <small class="text-muted d-block">${name}</small>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge badge-${col} badge-sm">${r}%</span>
+                                    <small class="ml-1">${d}/${t}</small>
+                                    ${c > 0 ? `<small class="text-danger ml-1">(${c}c)</small>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+        } else {
+            html += `<div class="text-muted small">No courier data available</div>`;
         }
 
         html += `
                     </div>
                 </div>
             </div>
-            <div class="row mt-1">
+            <div class="row mt-2">
                 <div class="col-12">
-                    <small class="text-muted">
-                        ${delivered} delivered, ${cancelled} cancelled
-                        ${rate >= 90 ? '✅' : rate >= 70 ? '⚠️' : '❌'}
-                    </small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fa fa-check-circle text-success"></i> ${delivered} delivered 
+                            <i class="fa fa-times-circle text-danger ml-2"></i> ${cancelled} cancelled
+                        </small>
+                        <small class="text-${riskColor}">
+                            ${rate >= 90 ? '✅ Low Risk' : rate >= 70 ? '⚠️ Medium Risk' : '❌ High Risk'}
+                        </small>
+                    </div>
                 </div>
             </div>
         `;
@@ -495,6 +585,7 @@ class FraudChecker {
         $('#customerStatusWarning').remove();
         $('#fraudCheckContainer').remove();
         $('#threeDaysWarning').remove();
+        $('#fraudReportsContainer').remove();
         this.currentData = null;
         this.customerStatus = null;
         this.daysHistory = { today: false, yesterday: false, dayBefore: false };
@@ -502,7 +593,7 @@ class FraudChecker {
 
     validateForm(e) {
         const phone = $('#recipientPhone').val().trim().replace(/\D/g, '');
-           if (!phone) {
+        if (!phone) {
             e.preventDefault();
             e.stopPropagation();
             alert('Please enter a phone number');
@@ -525,7 +616,7 @@ class FraudChecker {
             $('#recipientPhone').focus().select();
             return false;
         }
-        // Check if customer is blocked/inactive
+        
         if (this.customerStatus && (this.customerStatus.status === 'inactive' || this.customerStatus.status === 'blocked')) {
             e.preventDefault();
             e.stopPropagation();
@@ -536,12 +627,10 @@ class FraudChecker {
                 : 'This customer is marked as INACTIVE. Proceed with caution.';
             
             if (this.customerStatus.status === 'blocked') {
-                // Show alert for blocked customers
                 alert(`CUSTOMER ${statusText}\n\n${alertMessage}\n\nNotes: ${this.customerStatus.notes || 'No notes available'}`);
                 $('#recipientPhone').focus().select();
                 return false;
             } else {
-                // For inactive customers, ask for confirmation
                 const proceed = confirm(`CUSTOMER ${statusText}\n\n${alertMessage}\n\nNotes: ${this.customerStatus.notes || 'No notes available'}\n\nDo you want to proceed?`);
                 if (!proceed) {
                     $('#recipientPhone').focus().select();
@@ -550,25 +639,58 @@ class FraudChecker {
             }
         }
         
-        // Check for today's orders
         if (this.daysHistory.today) {
             e.preventDefault();
             e.stopPropagation();
-            
-            // Show alert
             alert('This phone number has already placed an order today. Cannot create another invoice.');
-            
-            // Focus on phone field
             $('#recipientPhone').focus().select();
             return false;
+        }
+        
+        if (this.currentData && this.currentData.reports && this.currentData.reports.length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const reportCount = this.currentData.reports.length;
+            const reportNames = this.currentData.reports.map(r => r.name).join(', ');
+            
+            const proceed = confirm(
+                `⚠️ FRAUD ALERT ⚠️\n\n` +
+                `This phone number has ${reportCount} fraud report(s) against it.\n` +
+                `Reported by: ${reportNames}\n\n` +
+                `Do you still want to proceed with this order?`
+            );
+            
+            if (!proceed) {
+                $('#recipientPhone').focus().select();
+                return false;
+            }
+        }
+        
+        if (this.currentData) {
+            const total = this.currentData.total_parcels || 0;
+            const delivered = this.currentData.total_delivered || 0;
+            const rate = total > 0 ? Math.round((delivered / total) * 100) : 100;
+            
+            if (rate < 70 && total > 0) {
+                const proceed = confirm(
+                    `⚠️ HIGH RISK CUSTOMER ⚠️\n\n` +
+                    `This customer has only ${rate}% success rate (${delivered}/${total} delivered).\n` +
+                    `High risk of fraud or return.\n\n` +
+                    `Do you still want to proceed with this order?`
+                );
+                
+                if (!proceed) {
+                    $('#recipientPhone').focus().select();
+                    return false;
+                }
+            }
         }
         
         return true;
     }
 
-    // Add method to check before form submission
     canSubmitForm() {
-        // Check customer status first
         if (this.customerStatus) {
             if (this.customerStatus.status === 'blocked') {
                 return {
@@ -586,7 +708,36 @@ class FraudChecker {
             }
         }
         
-        // Then check days history
+        if (this.currentData && this.currentData.reports && this.currentData.reports.length > 0) {
+            return {
+                canSubmit: true,
+                message: `Warning: ${this.currentData.reports.length} fraud report(s) found!`,
+                warning: true,
+                fraudReports: true
+            };
+        }
+        
+        if (this.currentData) {
+            const total = this.currentData.total_parcels || 0;
+            const delivered = this.currentData.total_delivered || 0;
+            const rate = total > 0 ? Math.round((delivered / total) * 100) : 100;
+            
+            if (rate < 70 && total > 0) {
+                return {
+                    canSubmit: true,
+                    message: `Warning: Only ${rate}% success rate. High risk customer!`,
+                    warning: true,
+                    highRisk: true
+                };
+            } else if (rate < 85 && total > 0) {
+                return {
+                    canSubmit: true,
+                    message: `Note: ${rate}% success rate. Medium risk.`,
+                    info: true
+                };
+            }
+        }
+        
         if (this.daysHistory.today) {
             return {
                 canSubmit: false,
@@ -610,7 +761,7 @@ class FraudChecker {
     }
 
     showLoading(message = 'Loading...') {
-        this.hideLoading(); // Remove existing loading
+        this.hideLoading();
         
         $(`<small id="fraudCheckLoading" class="text-primary ml-2">
             <i class="fa fa-spinner fa-spin fa-xs"></i> ${message}
@@ -623,16 +774,26 @@ class FraudChecker {
 
     showError(message) {
         this.hideLoading();
+        $('#fraudCheckError').remove();
         
-        let container = $('#fraudCheckError');
-        if (!container.length) {
-            container = $(`
-                <div id="fraudCheckError" class="mt-2 alert alert-danger alert-dismissible fade show">
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                    <small>${message}</small>
-                </div>
-            `).insertAfter($('#recipientPhone').closest('.form-group'));
+        const errorDiv = $(`
+            <div id="fraudCheckError" class="mt-2 alert alert-warning alert-dismissible fade show">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <small><i class="fa fa-exclamation-triangle"></i> ${message}</small>
+            </div>
+        `);
+        
+        const container = $('#fraudCheckContainer');
+        if (container.length) {
+            errorDiv.insertAfter(container);
+        } else {
+            errorDiv.insertAfter($('#recipientPhone').closest('.form-group'));
         }
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            errorDiv.alert('close');
+        }, 3000);
     }
 }
 
