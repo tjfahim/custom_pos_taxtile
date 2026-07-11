@@ -25,7 +25,6 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         
-        /* Header - improved spacing */
         .invoice-header { 
             background: #e6f7ff; 
             padding: 12px 15px; 
@@ -57,10 +56,8 @@
             color: #333;
         }
         
-        /* Body - compact spacing */
         .invoice-body { padding: 12px 15px; width: 100%; }
         
-        /* Recipient Details - compact */
         .recipient-section { margin-bottom: 10px; font-size: 12px; }
         .recipient-title { 
             font-weight: bold; 
@@ -78,14 +75,13 @@
             min-width: 60px;
             color: #555;
         }
-        /* Increased phone number font size */
         .phone-number {
-            font-size: 14px; /* Increased from 12px to 14px */
+            font-size: 14px;
             font-weight: 600;
             color: #333;
         }
         
-        /* Items Table - compact */
+        /* Items Table - Fixed widths */
         .items-table { 
             width: 100%; 
             border-collapse: collapse; 
@@ -96,7 +92,6 @@
         .items-table thead { background: #e6f7ff; }
         .items-table th { 
             padding: 6px 4px; 
-            font-weight: ; 
             border: 1px solid #b3e0ff; 
             font-size: 14px;
         }
@@ -105,14 +100,42 @@
             border: 1px solid #e5e5e5; 
             font-size: 12px;
         }
-        .items-table th:nth-child(1) { width: 50%; }
-        .items-table th:nth-child(2) { width: 10%; }
-        .items-table th:nth-child(3) { width: 20%; }
-        .items-table th:nth-child(4) { width: 20%; }
+        .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 40%; }
+        .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 10%; }
+        .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 20%; }
+        .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 20%; }
+        
+        /* Return Items Table - Same widths as items table */
+        .return-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin: 5px 0 10px 0;
+            table-layout: fixed;
+        }
+        .return-table thead { background: #ffe6e6; }
+        .return-table th {
+            padding: 6px 4px;
+            border: 1px solid #ffb3b3;
+            font-size: 13px;
+            color: #d32f2f;
+        }
+        .return-table td {
+            padding: 6px 4px;
+            border: 1px solid #ffe6e6;
+            font-size: 12px;
+        }
+        /* Match exactly the same widths as items table */
+        .return-table th:nth-child(1), .return-table td:nth-child(1) { width: 40%; }
+        .return-table th:nth-child(2), .return-table td:nth-child(2) { width: 10%; }
+        .return-table th:nth-child(3), .return-table td:nth-child(3) { width: 20%; }
+        .return-table th:nth-child(4), .return-table td:nth-child(4) { width: 20%; }
+        /* Extra column for Reason - adjust other columns */
+        .return-table th:nth-child(5), .return-table td:nth-child(5) { width: 10%; }
+        
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         
-        /* Summary Table - right aligned, compact */
         .summary-wrapper { 
             display: flex; 
             justify-content: flex-end; 
@@ -136,27 +159,28 @@
         .summary-table td { padding: 4px 0; }
         .summary-table .label { font-weight: 500; color: #555; }
         .summary-table .value { text-align: right; font-weight: 600; }
-        
-        /* Specific styles for summary items */
         .total-qty-row { 
             font-weight: 700; 
-            font-size: 14px; /* Larger font for total quantity */
+            font-size: 14px;
             color: #333;
         }
         .total-row { 
             font-weight: 700; 
-            font-size: 14px; /* Larger font for total */
+            font-size: 14px;
+        }
+        .return-row-summary {
+            color: #d32f2f;
+            font-weight: 600;
         }
         .due-row { 
-            font-weight: 800; /* Bolder */
-            font-size: 16px; /* Larger font for due amount */
+            font-weight: 800;
+            font-size: 16px;
             color: #d32f2f;
             border-top: 1px solid #e5e5e5;
             padding-top: 6px;
             margin-top: 4px;
         }
         
-        /* Print button - visible on screen */
         .print-controls { 
             text-align: center; 
             margin-top: 20px; 
@@ -177,7 +201,6 @@
             background: #218838;
         }
         
-        /* Print styles - Remove browser headers/footers */
         @media print {
             @page {
                 size: A4;
@@ -208,7 +231,7 @@
                 box-shadow: none !important;
             }
             
-            .invoice-header, .items-table thead {
+            .invoice-header, .items-table thead, .return-table thead {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
                 color-adjust: exact !important;
@@ -216,11 +239,9 @@
             
             .print-controls { display: none !important; }
             
-            /* Hide URL and page numbers */
             @page :footer { display: none; }
             @page :header { display: none; }
             
-            /* Ensure due amount stands out in print */
             .due-row {
                 font-size: 16px !important;
                 font-weight: 800 !important;
@@ -228,7 +249,6 @@
             }
         }
         
-        /* Mobile */
         @media (max-width: 400px) {
             body { padding: 5px; }
             .recipient-grid { grid-template-columns: 1fr; }
@@ -240,7 +260,7 @@
 </head>
 <body>
     <div class="invoice-container">
-        <!-- Header with improved spacing -->
+        <!-- Header -->
         <div class="invoice-header">
             <div>
                 <div class="shop-name">Faisal Textile</div>
@@ -259,7 +279,6 @@
                 <div class="recipient-title">RECIPIENT DETAILS</div>
                 <div class="recipient-grid">
                     <div><span class="recipient-label">Name:</span> {{ $invoice->recipient_name }}</div>
-                    <!-- Increased phone number size -->
                     <div><span class="recipient-label">Phone:</span> <span class="phone-number">{{ $invoice->recipient_phone }}</span></div>
                     <div><span class="recipient-label">Address:</span> {{ $invoice->recipient_address }}</div>
                     <div><span class="recipient-label">Merchant ID:</span> {{ $invoice->merchant_order_id ?: 'N/A' }}</div>
@@ -281,13 +300,15 @@
                 <tbody>
                     @php
                         $totalQuantity = 0;
+                        $returnQuantity = 0;
+                        $returnSubtotal = 0;
                     @endphp
                     @foreach($invoice->items as $item)
                     @php
                         $totalQuantity += $item->quantity;
                     @endphp
                     <tr>
-                   <td>{{ $item->item_name }} {{ $item->description ? '(' . $item->description . ')' : '' }}</td>
+                        <td>{{ $item->item_name }} {{ $item->description ? '(' . $item->description . ')' : '' }}</td>
                         <td class="text-center">{{ $item->quantity }}</td>
                         <td class="text-right">৳{{ number_format($item->unit_price, 2) }}</td>
                         <td class="text-right">৳{{ number_format($item->total_price, 2) }}</td>
@@ -296,24 +317,68 @@
                 </tbody>
             </table>
             
-            <!-- Summary Table - right side -->
+            <!-- Return Items Table (if exists) -->
+            @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+            <div style="margin-top: 5px;">
+                <div style="font-weight: bold; color: #d32f2f; margin-bottom: 5px; font-size: 13px;">
+                    <i class="fa fa-undo"></i> RETURN ITEMS
+                </div>
+                <table class="return-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-right">Price</th>
+                            <th class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($invoice->returnItems as $returnItem)
+                        @php
+                            $returnQuantity += $returnItem->quantity;
+                            $returnSubtotal += $returnItem->total_price;
+                        @endphp
+                        <tr>
+                            <td>{{ $returnItem->item_name }} {{ $returnItem->description ? '(' . $returnItem->description . ')' : '' }}</td>
+                            <td class="text-center">{{ $returnItem->quantity }}</td>
+                            <td class="text-right">৳{{ number_format($returnItem->unit_price, 2) }}</td>
+                            <td class="text-right">৳{{ number_format($returnItem->total_price, 2) }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
+            
+            <!-- Summary Table -->
             <div class="summary-wrapper">
                 <div class="summary-section">
                     <div class="summary-title">PAYMENT SUMMARY</div>
                     <table class="summary-table">
-                        <!-- Added total quantity row with larger font -->
                         <tr class="total-qty-row">
                             <td class="label">Total Qty:</td>
                             <td class="value">{{ $totalQuantity }}</td>
                         </tr>
-                        <tr><td class="label">Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 2) }}</td></tr>
+                        @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+                        <tr class="return-row-summary">
+                            <td class="label">Return Qty:</td>
+                            <td class="value">{{ $returnQuantity }}</td>
+                        </tr>
+                        @endif
+                        <tr><td class="label">Subtotal:</td><td class="value">৳{{ number_format($invoice->items->sum('total_price'), 2) }}</td></tr>
+                        @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+                        <tr class="return-row-summary">
+                            <td class="label">Less Returns:</td>
+                            <td class="value">-৳{{ number_format($returnSubtotal, 2) }}</td>
+                        </tr>
+                        @endif
+                        <tr><td class="label">Net Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 2) }}</td></tr>
                         <tr><td class="label">Delivery:</td><td class="value">৳{{ number_format($invoice->delivery_charge, 2) }}</td></tr>
                         <tr class="total-row"><td class="label">Total:</td><td class="value">৳{{ number_format($invoice->total, 2) }}</td></tr>
                         <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 2) }}</td></tr>
-                        <!-- Due amount with larger and bolder font -->
                         <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 2) }}</td></tr>
                         @if($invoice->payment_method)
-                        <tr><td class="label">Method:</td><td class="value">{{ ucfirst($invoice->payment_method) }}</td></tr>
+                        <tr><td class="label">Method:</td><td class="value">{{ ucfirst(str_replace('_', ' ', $invoice->payment_method)) }}</td></tr>
                         @endif
                         @if($invoice->payment_details)
                         <tr><td class="label">Txn ID:</td><td class="value">{{ $invoice->payment_details }}</td></tr>
@@ -324,7 +389,7 @@
         </div>
     </div>
     
-    <!-- Print Button - Visible on screen -->
+    <!-- Print Button -->
     <div class="print-controls">
         <button onclick="printInvoice()" class="print-btn">
             🖨️ Print Invoice
@@ -335,32 +400,23 @@
     </div>
     
     <script>
-        // Simple print function
         function printInvoice() {
-            // Trigger browser print
             window.print();
         }
         
-        // Auto-print if parameter exists
         if (new URLSearchParams(window.location.search).get('autoprint') === '1') {
             setTimeout(() => {
                 window.print();
             }, 500);
         }
         
-        // Modern print handling with better header/footer removal
         window.addEventListener('beforeprint', function() {
-            // Add print-specific class
             document.body.classList.add('printing');
-            
-            // Remove print button from print view
             document.querySelector('.print-controls').style.display = 'none';
         });
         
         window.addEventListener('afterprint', function() {
-            // Remove print-specific class
             document.body.classList.remove('printing');
-            
             document.querySelector('.print-controls').style.display = 'block';
         });
     </script>

@@ -75,6 +75,19 @@
                             <span>Roles</span>
                         </a>
                     </li>
+
+                    <li class="{{ request()->routeIs('admin.pathao.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.pathao.manage') }}">
+                            <i class="menu-icon fa fa-map-marker"></i>
+                            <span>Pathao Locations</span>
+                        </a>
+                    </li>
+               <li class="{{ request()->routeIs('admin.delivery-charges.*') ? 'active' : '' }}">
+    <a href="{{ route('admin.delivery-charges.index') }}">
+        <i class="menu-icon fa fa-truck"></i>
+        <span>Delivery Charges</span>
+    </a>
+</li>
                 @endhasrole
                 
                 <!-- Logout -->

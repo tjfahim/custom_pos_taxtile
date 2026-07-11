@@ -55,11 +55,10 @@ const InvoiceItems = {
     },
     
     removeItemRow: function(rowId) {
-        if (confirm('Remove this item?')) {
-            $(`#itemRow${rowId}`).remove();
-            if (typeof InvoiceCalculations !== 'undefined') {
-                InvoiceCalculations.calculateTotals();
-            }
+        // Removed the confirm() popup - now deletes immediately
+        $(`#itemRow${rowId}`).remove();
+        if (typeof InvoiceCalculations !== 'undefined') {
+            InvoiceCalculations.calculateTotals();
         }
     },
     

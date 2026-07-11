@@ -204,6 +204,8 @@ const InvoiceFormHandler = {
     },
     
     // Reset form without confirmation
+    
+    // Reset form without confirmation - FIXED
     resetFormSilently: function() {
         // Reset the form
         $('#posForm')[0].reset();
@@ -216,6 +218,28 @@ const InvoiceFormHandler = {
             InvoiceItems.itemCount = 0;
             InvoiceItems.addItemRow();
         }
+        
+        // ====== FIX: Reset Return Items ======
+        // Clear return items body
+        $('#returnItemsBody').empty();
+        
+        // Reset return items counter
+        if (typeof ReturnItems !== 'undefined') {
+            ReturnItems.itemCount = 0;
+        }
+        
+        // Uncheck the return items checkbox
+        $('#hasReturnItems').prop('checked', false);
+        
+        // Hide return items section
+        $('#returnItemsSection').hide();
+        $('#addReturnBtn').hide();
+        
+        // Clear return items in summary
+        $('#returnSubtotalRow').hide();
+        $('#returnItemsCount').text('0');
+        $('#returnSubtotal').text('৳0.00');
+        // ====== END FIX ======
         
         // Reset delivery area selections
         if (typeof InvoiceDelivery !== 'undefined') {
@@ -242,7 +266,6 @@ const InvoiceFormHandler = {
                 $('#deliveryAreaSelect').empty().append('<option value="">-- Select Area --</option>').prop('disabled', true);
             }
         }
-        
         // Reset specific fields to default values
         $('#deliveryCharge').val(150);
         $('#paidAmount').val(0);

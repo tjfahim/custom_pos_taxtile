@@ -209,6 +209,7 @@
 
 <!-- Load all JavaScript modules in correct order -->
 <script src="{{ asset('js/invoice-pos-items.js') }}"></script>
+<script src="{{ asset('js/invoice-pos-return-items.js') }}"></script> 
 <script src="{{ asset('js/invoice-pos-calculations.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-payments.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-delivery.js') }}"></script>

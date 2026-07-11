@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\PathaoArea;
+use App\Models\PathaoCity;
+use App\Models\PathaoZone;
 use Enan\PathaoCourier\Facades\PathaoCourier;
 use Enan\PathaoCourier\Requests\PathaoUserSuccessRateRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PathaoController extends Controller
 {
@@ -17,6 +21,35 @@ class PathaoController extends Controller
         return view('pathao.index');
     }
 
+    public function issueToken()
+{
+    try {
+        $client = new \GuzzleHttp\Client();
+        
+        $response = $client->post('https://courier-api-sandbox.pathao.com/aladdin/api/v1/issue-token', [
+            'headers' => [
+                'Content-Type' => 'application/json',
+            ],
+            'json' => [
+                'client_id' => env('PATHAO_CLIENT_ID'),
+                'client_secret' => env('PATHAO_CLIENT_SECRET'),
+                'grant_type' => 'password', // Important: use 'password'
+                'username' => env('PATHAO_USERNAME'),
+                'password' => env('PATHAO_PASSWORD')
+            ]
+        ]);
+        
+        $tokenData = json_decode($response->getBody(), true);
+        
+        
+        
+        return $tokenData;
+        
+    } catch (\Exception $e) {
+        throw new \Exception('Token issuance failed: ' . $e->getMessage());
+    }
+}
+
     /**
      * Get all cities
      */
@@ -25,7 +58,7 @@ class PathaoController extends Controller
         try {
             $cities = PathaoCourier::GET_CITIES();
             return response()->json([
-                'success' => true,
+                'success'   => true,
                 'data' => $cities
             ]);
         } catch (\Exception $e) {
@@ -559,6 +592,847 @@ public function checkCustomerByPhone($phone)
         return response()->json([
             'success' => false,
             'message' => 'Error checking customer: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+  
+
+    public function storeAllLocationsPaginated()
+    {
+        try {
+            // Increase execution time
+            ini_set('max_execution_time', 0);
+            ini_set('memory_limit', '2048M');
+
+            DB::beginTransaction();
+
+            $citiesStored = 0;
+            $zonesStored = 0;
+            $areasStored = 0;
+
+            // 1. Get cities from API
+            $citiesResponse = PathaoCourier::GET_CITIES();
+            
+            if (!isset($citiesResponse['data']['data'])) {
+                throw new \Exception('Invalid response from Pathao API for cities');
+            }
+
+            $cities = $citiesResponse['data']['data'];
+            $totalCities = count($cities);
+
+            // Process cities in chunks
+            $cityChunks = array_chunk($cities, 5);
+            
+            foreach ($cityChunks as $chunkIndex => $cityChunk) {
+                foreach ($cityChunk as $cityData) {
+                    // Store or update city
+                    $city = PathaoCity::updateOrCreate(
+                        ['city_id' => $cityData['city_id']],
+                        ['city_name' => $cityData['city_name']]
+                    );
+                    $citiesStored++;
+
+                    // 2. Get zones for this city from API
+                    $zonesResponse = PathaoCourier::GET_ZONES($cityData['city_id']);
+                    
+                    if (isset($zonesResponse['data']['data'])) {
+                        $zones = $zonesResponse['data']['data'];
+
+                        foreach ($zones as $zoneData) {
+                            // Store or update zone
+                            $zone = PathaoZone::updateOrCreate(
+                                ['zone_id' => $zoneData['zone_id']],
+                                [
+                                    'zone_name' => $zoneData['zone_name'],
+                                    'city_id' => $cityData['city_id']
+                                ]
+                            );
+                            $zonesStored++;
+
+                            // 3. Get areas for this zone from API
+                            $areasResponse = PathaoCourier::GET_AREAS($zoneData['zone_id']);
+                            
+                            if (isset($areasResponse['data']['data'])) {
+                                $areas = $areasResponse['data']['data'];
+
+                                foreach ($areas as $areaData) {
+                                    PathaoArea::updateOrCreate(
+                                        ['area_id' => $areaData['area_id']],
+                                        [
+                                            'area_name' => $areaData['area_name'],
+                                            'zone_id' => $zoneData['zone_id'],
+                                            'home_delivery_available' => $areaData['home_delivery_available'] ?? true,
+                                            'pickup_available' => $areaData['pickup_available'] ?? true,
+                                        ]
+                                    );
+                                    $areasStored++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All locations stored successfully!',
+                'data' => [
+                    'cities_stored' => $citiesStored,
+                    'zones_stored' => $zonesStored,
+                    'areas_stored' => $areasStored,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Store locations error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to store locations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+       public function syncCitiesOnly()
+    {
+        try {
+            $citiesResponse = PathaoCourier::GET_CITIES();
+            
+            if (!isset($citiesResponse['data']['data'])) {
+                throw new \Exception('Invalid response from Pathao API');
+            }
+
+            $cities = $citiesResponse['data']['data'];
+            $stored = 0;
+
+            foreach ($cities as $cityData) {
+                PathaoCity::updateOrCreate(
+                    ['city_id' => $cityData['city_id']],
+                    ['city_name' => $cityData['city_name']]
+                );
+                $stored++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$stored} cities synced successfully!",
+                'data' => ['cities_synced' => $stored]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to sync cities: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+      public function syncZonesForCity($cityId)
+    {
+        try {
+            $city = PathaoCity::where('city_id', $cityId)->first();
+            
+            if (!$city) {
+                // Create city if not exists
+                $city = PathaoCity::create([
+                    'city_id' => $cityId,
+                    'city_name' => 'City ID: ' . $cityId
+                ]);
+            }
+
+            $zonesResponse = PathaoCourier::GET_ZONES($cityId);
+            
+            if (!isset($zonesResponse['data']['data'])) {
+                throw new \Exception('No zones found for city ID: ' . $cityId);
+            }
+
+            $zones = $zonesResponse['data']['data'];
+            $stored = 0;
+
+            foreach ($zones as $zoneData) {
+                PathaoZone::updateOrCreate(
+                    ['zone_id' => $zoneData['zone_id']],
+                    [
+                        'zone_name' => $zoneData['zone_name'],
+                        'city_id' => $cityId
+                    ]
+                );
+                $stored++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$stored} zones synced for city!",
+                'data' => ['zones_synced' => $stored]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to sync zones: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function syncAreasForZone($zoneId)
+    {
+        try {
+            $areasResponse = PathaoCourier::GET_AREAS($zoneId);
+            
+            if (!isset($areasResponse['data']['data'])) {
+                throw new \Exception('No areas found for zone ID: ' . $zoneId);
+            }
+
+            $areas = $areasResponse['data']['data'];
+            $stored = 0;
+
+            foreach ($areas as $areaData) {
+                PathaoArea::updateOrCreate(
+                    ['area_id' => $areaData['area_id']],
+                    [
+                        'area_name' => $areaData['area_name'],
+                        'zone_id' => $zoneId,
+                        'home_delivery_available' => $areaData['home_delivery_available'] ?? true,
+                        'pickup_available' => $areaData['pickup_available'] ?? true,
+                    ]
+                );
+                $stored++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$stored} areas synced for zone!",
+                'data' => ['areas_synced' => $stored]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to sync areas: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+      public function getSyncStatus()
+    {
+        // Check if queue is running
+        $queueSize = DB::table('jobs')->count();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'queue_size' => $queueSize,
+                'cities' => PathaoCity::count(),
+                'zones' => PathaoZone::count(),
+                'areas' => PathaoArea::count(),
+            ]
+        ]);
+    }
+    /**
+     * Search locations by name
+     */
+    
+    public function searchLocation(Request $request)
+    {
+        try {
+            $search = trim($request->search);
+            
+            if (empty($search)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Search term is required'
+                ], 400);
+            }
+
+            $allResults = [];
+            $searchLower = strtolower($search);
+            
+            // Split search into words
+            $words = preg_split('/[\s,|&-]+/', $search);
+            $words = array_filter($words, function($w) { return strlen($w) >= 2; });
+            $words = array_values($words);
+            
+            if (empty($words)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Search term is too short'
+                ], 400);
+            }
+
+            // 1. FIRST: Try to find exact matches for the entire search phrase
+            // Check exact matches in zones (priority)
+            $exactZones = PathaoZone::whereRaw('LOWER(zone_name) = ?', [$searchLower])
+                ->orWhere('zone_id', $search)
+                ->get();
+            
+            foreach ($exactZones as $zone) {
+                $allResults[] = $this->formatZoneResult($zone, 100);
+            }
+            
+            // Check exact matches in areas
+            $exactAreas = PathaoArea::whereRaw('LOWER(area_name) = ?', [$searchLower])
+                ->orWhere('area_id', $search)
+                ->get();
+            
+            foreach ($exactAreas as $area) {
+                $allResults[] = $this->formatAreaResult($area, 100);
+            }
+            
+            // Check exact matches in cities
+            $exactCities = PathaoCity::whereRaw('LOWER(city_name) = ?', [$searchLower])
+                ->orWhere('city_id', $search)
+                ->get();
+            
+            foreach ($exactCities as $city) {
+                $allResults[] = $this->formatCityResult($city, 100);
+            }
+
+            // 2. If exact matches found, return them first
+            if (!empty($allResults)) {
+                // Also search for related items with high match
+                $this->addRelatedMatches($allResults, $words);
+                
+                // Sort and return
+                $allResults = $this->uniqueResults($allResults);
+                usort($allResults, function($a, $b) {
+                    return $b['match_percent'] - $a['match_percent'];
+                });
+                $allResults = array_slice($allResults, 0, 50);
+                
+                return $this->formatSearchResponse($allResults);
+            }
+
+            // 3. SECOND: Try to find city + location combination
+            $cityMatch = null;
+            $locationTerms = [];
+            
+            // Find the best city match
+            $allCities = PathaoCity::all();
+            $bestCityMatch = null;
+            $bestCityPercent = 0;
+            $bestCityWord = '';
+            
+            foreach ($words as $word) {
+                foreach ($allCities as $city) {
+                    $percent = $this->calculateMatchPercentage($word, $city->city_name);
+                    if ($percent > $bestCityPercent) {
+                        $bestCityPercent = $percent;
+                        $bestCityMatch = $city;
+                        $bestCityWord = $word;
+                    }
+                }
+            }
+            
+            // If we found a city with good match, search within that city
+            if ($bestCityMatch && $bestCityPercent >= 70) {
+                $cityMatch = $bestCityMatch;
+                $locationTerms = array_diff($words, [$bestCityWord]);
+                $locationTerms = array_values($locationTerms);
+                
+                // If no other terms, just return the city
+                if (empty($locationTerms)) {
+                    $allResults[] = $this->formatCityResult($cityMatch, $bestCityPercent);
+                } else {
+                    // Search for zones in this city that match the location terms
+                    $zones = PathaoZone::where('city_id', $cityMatch->city_id)->get();
+                    
+                    foreach ($zones as $zone) {
+                        $bestZonePercent = 0;
+                        $zoneMatched = false;
+                        
+                        foreach ($locationTerms as $term) {
+                            $percent = $this->calculateMatchPercentage($term, $zone->zone_name);
+                            if ($percent >= 70) {
+                                $zoneMatched = true;
+                                $bestZonePercent = max($bestZonePercent, $percent);
+                            }
+                        }
+                        
+                        // If zone matches, add it
+                        if ($zoneMatched) {
+                            $allResults[] = $this->formatZoneResult($zone, $bestZonePercent);
+                        }
+                        
+                        // Also search areas in this zone
+                        $areas = PathaoArea::where('zone_id', $zone->zone_id)->get();
+                        foreach ($areas as $area) {
+                            $bestAreaPercent = 0;
+                            $areaMatched = false;
+                            
+                            foreach ($locationTerms as $term) {
+                                $percent = $this->calculateMatchPercentage($term, $area->area_name);
+                                if ($percent >= 70) {
+                                    $areaMatched = true;
+                                    $bestAreaPercent = max($bestAreaPercent, $percent);
+                                }
+                            }
+                            
+                            if ($areaMatched) {
+                                $allResults[] = $this->formatAreaResult($area, $bestAreaPercent);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 4. If no results with city context, do a general search
+            if (empty($allResults)) {
+                // Search each word individually with high priority
+                foreach ($words as $word) {
+                    if (strlen($word) < 2) continue;
+                    
+                    // Search zones with high priority
+                    $wordZones = PathaoZone::where('zone_name', 'LIKE', "%{$word}%")
+                        ->orWhere('zone_name', 'LIKE', "{$word}%")
+                        ->limit(20)
+                        ->get();
+                    
+                    foreach ($wordZones as $zone) {
+                        $percent = $this->calculateMatchPercentage($word, $zone->zone_name);
+                        if ($percent >= 70) {
+                            $allResults[] = $this->formatZoneResult($zone, $percent);
+                        }
+                    }
+                    
+                    // Search areas
+                    $wordAreas = PathaoArea::where('area_name', 'LIKE', "%{$word}%")
+                        ->orWhere('area_name', 'LIKE', "{$word}%")
+                        ->limit(20)
+                        ->get();
+                    
+                    foreach ($wordAreas as $area) {
+                        $percent = $this->calculateMatchPercentage($word, $area->area_name);
+                        if ($percent >= 70) {
+                            $allResults[] = $this->formatAreaResult($area, $percent);
+                        }
+                    }
+                    
+                    // Search cities
+                    $wordCities = PathaoCity::where('city_name', 'LIKE', "%{$word}%")
+                        ->orWhere('city_name', 'LIKE', "{$word}%")
+                        ->limit(10)
+                        ->get();
+                    
+                    foreach ($wordCities as $city) {
+                        $percent = $this->calculateMatchPercentage($word, $city->city_name);
+                        if ($percent >= 70) {
+                            $allResults[] = $this->formatCityResult($city, $percent);
+                        }
+                    }
+                }
+            }
+
+            // 5. If still no results, try fuzzy matching with all data
+            if (empty($allResults)) {
+                // Try with all zones
+                $allZones = PathaoZone::all();
+                foreach ($allZones as $zone) {
+                    $bestPercent = 0;
+                    foreach ($words as $word) {
+                        $percent = $this->calculateMatchPercentage($word, $zone->zone_name);
+                        $bestPercent = max($bestPercent, $percent);
+                    }
+                    if ($bestPercent >= 60) {
+                        $allResults[] = $this->formatZoneResult($zone, $bestPercent);
+                    }
+                }
+                
+                // Try with all areas
+                $allAreas = PathaoArea::all();
+                foreach ($allAreas as $area) {
+                    $bestPercent = 0;
+                    foreach ($words as $word) {
+                        $percent = $this->calculateMatchPercentage($word, $area->area_name);
+                        $bestPercent = max($bestPercent, $percent);
+                    }
+                    if ($bestPercent >= 60) {
+                        $allResults[] = $this->formatAreaResult($area, $bestPercent);
+                    }
+                }
+            }
+
+            // Remove duplicates and sort
+            $allResults = $this->uniqueResults($allResults);
+            usort($allResults, function($a, $b) {
+                return $b['match_percent'] - $a['match_percent'];
+            });
+            $allResults = array_slice($allResults, 0, 50);
+            
+            return $this->formatSearchResponse($allResults);
+
+        } catch (\Exception $e) {
+            Log::error('Search error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Search failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Calculate match percentage between search term and text
+     * Uses Levenshtein distance and similar_text
+     */
+    private function calculateMatchPercentage($search, $text)
+    {
+        $search = trim(strtolower($search));
+        $text = trim(strtolower($text));
+        
+        if (empty($search) || empty($text)) {
+            return 0;
+        }
+        
+        // Exact match
+        if ($search === $text) {
+            return 100;
+        }
+        
+        // Starts with
+        if (strpos($text, $search) === 0) {
+            return 95;
+        }
+        
+        // Contains with space
+        if (strpos($text, ' ' . $search) !== false) {
+            return 90;
+        }
+        
+        // Contains
+        if (strpos($text, $search) !== false) {
+            return 85;
+        }
+        
+        // Levenshtein distance
+        $distance = levenshtein($search, $text);
+        $maxLen = max(strlen($search), strlen($text));
+        if ($maxLen > 0) {
+            $similarity = (1 - $distance / $maxLen) * 100;
+            if ($similarity >= 70) {
+                return round($similarity);
+            }
+        }
+        
+        // similar_text
+        similar_text($search, $text, $percent);
+        
+        // Bonus for similar length
+        $lengthDiff = abs(strlen($search) - strlen($text));
+        if ($lengthDiff <= 2 && $percent >= 60) {
+            $percent += 10;
+        }
+        
+        return round($percent);
+    }
+
+    /**
+     * Add related matches to results
+     */
+    private function addRelatedMatches(&$results, $words)
+    {
+        $existingIds = [];
+        foreach ($results as $result) {
+            $existingIds[] = $result['type'] . '_' . $result['id'];
+        }
+        
+        foreach ($words as $word) {
+            if (strlen($word) < 2) continue;
+            
+            // Search zones
+            $zones = PathaoZone::where('zone_name', 'LIKE', "%{$word}%")
+                ->limit(10)
+                ->get();
+            
+            foreach ($zones as $zone) {
+                $key = 'zone_' . $zone->zone_id;
+                if (!in_array($key, $existingIds)) {
+                    $percent = $this->calculateMatchPercentage($word, $zone->zone_name);
+                    if ($percent >= 85) {
+                        $results[] = $this->formatZoneResult($zone, $percent);
+                        $existingIds[] = $key;
+                    }
+                }
+            }
+            
+            // Search areas
+            $areas = PathaoArea::where('area_name', 'LIKE', "%{$word}%")
+                ->limit(10)
+                ->get();
+            
+            foreach ($areas as $area) {
+                $key = 'area_' . $area->area_id;
+                if (!in_array($key, $existingIds)) {
+                    $percent = $this->calculateMatchPercentage($word, $area->area_name);
+                    if ($percent >= 85) {
+                        $results[] = $this->formatAreaResult($area, $percent);
+                        $existingIds[] = $key;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Format search response
+     */
+    private function formatSearchResponse($results)
+    {
+        $exactCount = count(array_filter($results, function($r) { return $r['match_percent'] == 100; }));
+        $highCount = count(array_filter($results, function($r) { return $r['match_percent'] >= 80 && $r['match_percent'] < 100; }));
+        $mediumCount = count(array_filter($results, function($r) { return $r['match_percent'] < 80; }));
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'results' => $results,
+                'summary' => [
+                    'total' => count($results),
+                    'exact' => $exactCount,
+                    'high' => $highCount,
+                    'medium' => $mediumCount,
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Format city result with hierarchy
+     */
+    private function formatCityResult($city, $matchPercent = 100)
+    {
+        return [
+            'type' => 'city',
+            'id' => $city->city_id,
+            'name' => $city->city_name,
+            'display_name' => $city->city_name,
+            'full_address' => $city->city_name,
+            'match_percent' => min(100, $matchPercent),
+            'hierarchy' => [
+                'city' => $city->city_name,
+                'city_id' => $city->city_id,
+                'zone' => null,
+                'zone_id' => null,
+                'area' => null,
+                'area_id' => null,
+            ]
+        ];
+    }
+
+    /**
+     * Format zone result with hierarchy
+     */
+    private function formatZoneResult($zone, $matchPercent = 100)
+    {
+        $city = $zone->city;
+        $displayName = $city ? $city->city_name . ' → ' . $zone->zone_name : $zone->zone_name;
+        
+        return [
+            'type' => 'zone',
+            'id' => $zone->zone_id,
+            'name' => $zone->zone_name,
+            'display_name' => $displayName,
+            'full_address' => $displayName,
+            'match_percent' => min(100, $matchPercent),
+            'hierarchy' => [
+                'city' => $city ? $city->city_name : null,
+                'city_id' => $city ? $city->city_id : null,
+                'zone' => $zone->zone_name,
+                'zone_id' => $zone->zone_id,
+                'area' => null,
+                'area_id' => null,
+            ]
+        ];
+    }
+
+    /**
+     * Format area result with hierarchy
+     */
+    private function formatAreaResult($area, $matchPercent = 100)
+    {
+        $zone = $area->zone;
+        $city = $zone ? $zone->city : null;
+        
+        $displayName = '';
+        if ($city) $displayName .= $city->city_name . ' → ';
+        if ($zone) $displayName .= $zone->zone_name . ' → ';
+        $displayName .= $area->area_name;
+        
+        return [
+            'type' => 'area',
+            'id' => $area->area_id,
+            'name' => $area->area_name,
+            'display_name' => $displayName,
+            'full_address' => $displayName,
+            'match_percent' => min(100, $matchPercent),
+            'home_delivery_available' => $area->home_delivery_available,
+            'pickup_available' => $area->pickup_available,
+            'hierarchy' => [
+                'city' => $city ? $city->city_name : null,
+                'city_id' => $city ? $city->city_id : null,
+                'zone' => $zone ? $zone->zone_name : null,
+                'zone_id' => $zone ? $zone->zone_id : null,
+                'area' => $area->area_name,
+                'area_id' => $area->area_id,
+            ]
+        ];
+    }
+
+    /**
+     * Remove duplicate results
+     */
+    private function uniqueResults($results)
+    {
+        $seen = [];
+        $unique = [];
+        
+        foreach ($results as $result) {
+            $key = $result['type'] . '_' . $result['id'];
+            if (!in_array($key, $seen)) {
+                $seen[] = $key;
+                $unique[] = $result;
+            }
+        }
+        
+        return $unique;
+    }
+
+
+    /**
+     * Get full location hierarchy by area ID
+     */
+    public function getLocationHierarchy($areaId)
+    {
+        try {
+            $area = PathaoArea::with(['zone.city'])
+                             ->where('area_id', $areaId)
+                             ->first();
+            
+            if (!$area) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Area not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'area' => $area,
+                    'zone' => $area->zone,
+                    'city' => $area->zone?->city,
+                    'full_address' => $area->zone?->city?->city_name . ', ' . 
+                                     $area->zone?->zone_name . ', ' . 
+                                     $area->area_name
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Sync a single city with its zones and areas
+     */
+    public function syncCity($cityId)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Get city details from API (optional - you might not have this endpoint)
+            // For now, we'll just sync zones and areas for the given city ID
+            
+            $zonesResponse = PathaoCourier::GET_ZONES($cityId);
+            
+            if (!isset($zonesResponse['data']['data'])) {
+                throw new \Exception('No zones found for city ID: ' . $cityId);
+            }
+
+            $zones = $zonesResponse['data']['data'];
+            $zonesSynced = 0;
+            $areasSynced = 0;
+
+            foreach ($zones as $zoneData) {
+                $zone = PathaoZone::updateOrCreate(
+                    ['zone_id' => $zoneData['zone_id']],
+                    [
+                        'zone_name' => $zoneData['zone_name'],
+                        'city_id' => $cityId
+                    ]
+                );
+                $zonesSynced++;
+
+                $areasResponse = PathaoCourier::GET_AREAS($zoneData['zone_id']);
+                
+                if (isset($areasResponse['data']['data'])) {
+                    $areas = $areasResponse['data']['data'];
+
+                    foreach ($areas as $areaData) {
+                        PathaoArea::updateOrCreate(
+                            ['area_id' => $areaData['area_id']],
+                            [
+                                'area_name' => $areaData['area_name'],
+                                'zone_id' => $zoneData['zone_id'],
+                                'home_delivery_available' => $areaData['home_delivery_available'] ?? true,
+                                'pickup_available' => $areaData['pickup_available'] ?? true,
+                            ]
+                        );
+                        $areasSynced++;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'City synced successfully!',
+                'data' => [
+                    'city_id' => $cityId,
+                    'zones_synced' => $zonesSynced,
+                    'areas_synced' => $areasSynced,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to sync city: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function manage()
+{
+    return view('pathao.manage');
+}
+
+/**
+ * Get statistics for dashboard
+ */
+public function getStatistics()
+{
+    try {
+        $cities = PathaoCity::count();
+        $zones = PathaoZone::count();
+        $areas = PathaoArea::count();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'cities' => $cities,
+                'zones' => $zones,
+                'areas' => $areas,
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
         ], 500);
     }
 }

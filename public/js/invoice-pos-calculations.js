@@ -1,10 +1,12 @@
-// invoice-pos-calculations.js
+// Invoice Calculations Module - Handles all calculations
 const InvoiceCalculations = {
     
     calculateTotals: function() {
         let subtotal = 0;
         let totalQuantity = 0;
         let totalWeightGrams = 0;
+        let returnSubtotal = 0;
+        let returnQuantity = 0;
         
         // Calculate subtotal, quantity, and weight from items
         $('.item-row').each(function() {
@@ -22,14 +24,28 @@ const InvoiceCalculations = {
             totalWeightGrams += (weightGrams * quantity);
         });
         
+        // Calculate return items subtotal
+        $('.return-row').each(function() {
+            const quantity = parseFloat($(this).find('.return-quantity').val()) || 0;
+            const unitPrice = parseFloat($(this).find('.return-unit-price').val()) || 0;
+            const total = quantity * unitPrice;
+            
+            // Update return item total display
+            $(this).find('.return-total-price').val('৳' + total.toFixed(2));
+            $(this).find('.return-total-hidden').val(total);
+            
+            returnSubtotal += total;
+            returnQuantity += quantity;
+        });
+        
         // Convert grams to kilograms (divide by 1000)
         const totalWeightKg = totalWeightGrams / 1000;
         
         // Get delivery charge
         const deliveryCharge = parseFloat($('#deliveryCharge').val()) || 0;
         
-        // Calculate total
-        const total = subtotal + deliveryCharge;
+        // Calculate total (subtotal - returnSubtotal + delivery)
+        const total = subtotal - returnSubtotal + deliveryCharge;
         
         // Get advance payment
         const advancePayment = parseFloat($('#paidAmount').val()) || 0;
@@ -39,16 +55,28 @@ const InvoiceCalculations = {
         
         // Update display
         $('#subtotal').text('৳' + subtotal.toFixed(2));
+        $('#returnSubtotal').text('৳' + returnSubtotal.toFixed(2));
         $('#deliveryAmount').text('৳' + deliveryCharge.toFixed(2));
         $('#total').text('৳' + total.toFixed(2));
         $('#totalQuantity').text(totalQuantity);
+        $('#returnQuantity').text(returnQuantity);
+        
+        // Show/hide return items row in summary
+        const returnSubtotalRow = $('#returnSubtotalRow');
+        if (returnSubtotal > 0 || returnQuantity > 0) {
+            returnSubtotalRow.show();
+            // Update return items count
+            $('#returnItemsCount').text(returnQuantity);
+        } else {
+            returnSubtotalRow.hide();
+        }
         
         // Show/hide total weight row (in kg)
         const totalWeightRow = $('#totalWeightRow');
         const totalWeightDisplay = $('#totalWeight');
         if (totalWeightKg > 0) {
             totalWeightRow.show();
-            totalWeightDisplay.text(totalWeightKg.toFixed(3) + ' kg'); // 3 decimal places for grams conversion
+            totalWeightDisplay.text(totalWeightKg.toFixed(3) + ' kg');
         } else {
             totalWeightRow.hide();
         }
@@ -56,6 +84,7 @@ const InvoiceCalculations = {
         // Update hidden inputs if they exist
         if ($('#subtotalInput').length) $('#subtotalInput').val(subtotal.toFixed(2));
         if ($('#totalInput').length) $('#totalInput').val(total.toFixed(2));
+        if ($('#returnSubtotalInput').length) $('#returnSubtotalInput').val(returnSubtotal.toFixed(2));
         
         // Update advance payment display
         this.updateAdvanceDisplay(advancePayment, dueAmount);
@@ -87,7 +116,7 @@ const InvoiceCalculations = {
         this.updateAdvanceDisplay(advancePayment, dueAmount);
     },
     
-    // New: Calculate total weight in kg
+    // Calculate total weight in kg
     calculateTotalWeight: function() {
         let totalWeightGrams = 0;
         
@@ -98,5 +127,18 @@ const InvoiceCalculations = {
         });
         
         return totalWeightGrams / 1000; // Return in kg
+    },
+    
+    // Calculate return items total
+    calculateReturnTotal: function() {
+        let returnTotal = 0;
+        
+        $('.return-row').each(function() {
+            const quantity = parseFloat($(this).find('.return-quantity').val()) || 0;
+            const unitPrice = parseFloat($(this).find('.return-unit-price').val()) || 0;
+            returnTotal += quantity * unitPrice;
+        });
+        
+        return returnTotal;
     }
 };

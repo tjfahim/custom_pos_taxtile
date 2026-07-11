@@ -30,7 +30,6 @@
             page-break-after: auto;
         }
         
-        /* Copy all your existing print styles from print.blade.php here */
         .invoice-header { 
             background: #e6f7ff; 
             padding: 12px 15px; 
@@ -62,19 +61,59 @@
             color: #333;
         }
         
-        /* Add all other styles from your print.blade.php */
         .invoice-body { padding: 12px 15px; width: 100%; }
         .recipient-section { margin-bottom: 10px; font-size: 12px; }
         .recipient-title { font-weight: bold; margin-bottom: 6px; font-size: 12px; color: #333; }
         .recipient-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
         .recipient-label { font-weight: 500; min-width: 60px; color: #555; }
         .phone-number { font-size: 14px; font-weight: 600; color: #333; }
-        .items-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; table-layout: fixed; }
+        
+        /* Items Table - Fixed widths */
+        .items-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 12px; 
+            margin: 10px 0; 
+            table-layout: fixed; 
+        }
         .items-table thead { background: #e6f7ff; }
         .items-table th { padding: 6px 4px; border: 1px solid #b3e0ff; font-size: 14px; }
         .items-table td { padding: 6px 4px; border: 1px solid #e5e5e5; font-size: 12px; }
+        .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 40%; }
+        .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 10%; }
+        .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 20%; }
+        .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 20%; }
+        
+        /* Return Items Table - Same widths as items table */
+        .return-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin: 5px 0 10px 0;
+            table-layout: fixed;
+        }
+        .return-table thead { background: #ffe6e6; }
+        .return-table th {
+            padding: 6px 4px;
+            border: 1px solid #ffb3b3;
+            font-size: 13px;
+            color: #d32f2f;
+        }
+        .return-table td {
+            padding: 6px 4px;
+            border: 1px solid #ffe6e6;
+            font-size: 12px;
+        }
+        /* Match exactly the same widths as items table */
+        .return-table th:nth-child(1), .return-table td:nth-child(1) { width: 35%; }
+        .return-table th:nth-child(2), .return-table td:nth-child(2) { width: 10%; }
+        .return-table th:nth-child(3), .return-table td:nth-child(3) { width: 15%; }
+        .return-table th:nth-child(4), .return-table td:nth-child(4) { width: 15%; }
+        .return-table th:nth-child(5), .return-table td:nth-child(5) { width: 15%; }
+        
         .text-right { text-align: right; }
         .text-center { text-align: center; }
+        
         .summary-wrapper { display: flex; justify-content: flex-end; margin-top: 12px; width: 100%; }
         .summary-section { width: 45%; border: 1px solid #e5e5e5; padding: 8px; font-size: 14px; background: #f9f9f9; }
         .summary-table { width: 100%; font-size: 14px; }
@@ -83,6 +122,7 @@
         .summary-table .value { text-align: right; font-weight: 600; }
         .total-qty-row { font-weight: 700; font-size: 14px; color: #333; }
         .total-row { font-weight: 700; font-size: 14px; }
+        .return-row-summary { color: #d32f2f; font-weight: 600; }
         .due-row { font-weight: 800; font-size: 16px; color: #d32f2f; border-top: 1px solid #e5e5e5; padding-top: 6px; margin-top: 4px; }
         
         @media print {
@@ -94,7 +134,7 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            .invoice-header, .items-table thead {
+            .invoice-header, .items-table thead, .return-table thead {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
@@ -107,6 +147,11 @@
 </head>
 <body>
     @foreach($invoices as $index => $invoice)
+        @php
+            $totalQuantity = 0;
+            $returnQuantity = 0;
+            $returnSubtotal = 0;
+        @endphp
         <div class="invoice-container">
             <!-- Header -->
             <div class="invoice-header">
@@ -146,7 +191,6 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php $totalQuantity = 0; @endphp
                         @foreach($invoice->items as $item)
                             @php $totalQuantity += $item->quantity; @endphp
                             <tr>
@@ -159,6 +203,39 @@
                     </tbody>
                 </table>
                 
+                <!-- Return Items Table (if exists) -->
+                @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+                <div style="margin-top: 5px;">
+                    <div style="font-weight: bold; color: #d32f2f; margin-bottom: 5px; font-size: 13px;">
+                        <i class="fa fa-undo"></i> RETURN ITEMS
+                    </div>
+                    <table class="return-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-right">Price</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($invoice->returnItems as $returnItem)
+                            @php
+                                $returnQuantity += $returnItem->quantity;
+                                $returnSubtotal += $returnItem->total_price;
+                            @endphp
+                            <tr>
+                                <td>{{ $returnItem->item_name }} {{ $returnItem->description ? '(' . $returnItem->description . ')' : '' }}</td>
+                                <td class="text-center">{{ $returnItem->quantity }}</td>
+                                <td class="text-right">৳{{ number_format($returnItem->unit_price, 2) }}</td>
+                                <td class="text-right">৳{{ number_format($returnItem->total_price, 2) }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+                
                 <!-- Summary -->
                 <div class="summary-wrapper">
                     <div class="summary-section">
@@ -168,25 +245,35 @@
                                 <td class="label">Total Qty:</td>
                                 <td class="value">{{ $totalQuantity }}</td>
                             </tr>
-                            <tr><td class="label">Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 2) }}</td></tr>
+                            @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+                            <tr class="return-row-summary">
+                                <td class="label">Return Qty:</td>
+                                <td class="value">{{ $returnQuantity }}</td>
+                            </tr>
+                            @endif
+                            <tr><td class="label">Subtotal:</td><td class="value">৳{{ number_format($invoice->items->sum('total_price'), 2) }}</td></tr>
+                            @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+                            <tr class="return-row-summary">
+                                <td class="label">Less Returns:</td>
+                                <td class="value">-৳{{ number_format($returnSubtotal, 2) }}</td>
+                            </tr>
+                            @endif
+                            <tr><td class="label">Net Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 2) }}</td></tr>
                             <tr><td class="label">Delivery:</td><td class="value">৳{{ number_format($invoice->delivery_charge, 2) }}</td></tr>
                             <tr class="total-row"><td class="label">Total:</td><td class="value">৳{{ number_format($invoice->total, 2) }}</td></tr>
                             <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 2) }}</td></tr>
                             <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 2) }}</td></tr>
                             @if($invoice->payment_method)
-                                <tr><td class="label">Method:</td><td class="value">{{ ucfirst($invoice->payment_method) }}</td></tr>
+                                <tr><td class="label">Method:</td><td class="value">{{ ucfirst(str_replace('_', ' ', $invoice->payment_method)) }}</td></tr>
                             @endif
                         </table>
                     </div>
                 </div>
             </div>
         </div>
-        
-      
     @endforeach
     
     <script>
-        // Auto-print when loaded
         window.onload = function() {
             setTimeout(function() {
                 window.print();

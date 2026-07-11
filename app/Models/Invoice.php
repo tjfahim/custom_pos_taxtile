@@ -40,6 +40,7 @@ class Invoice extends Model
         'pathao_area_id',
         'notes',
         'created_by',
+        'has_return_items',
         'confirmed_at'
     ];
 
@@ -52,13 +53,15 @@ class Invoice extends Model
         'total_weight' => 'decimal:2',
         'amount_to_collect' => 'decimal:2',
         'paid_amount' => 'decimal:2',
-        'due_amount' => 'decimal:2'
+        'due_amount' => 'decimal:2',
+        'has_return_items' => 'boolean'
     ];
     
-      public function creator()
+    public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+    
     protected static function boot()
     {
         parent::boot();
@@ -74,12 +77,10 @@ class Invoice extends Model
     {
         $today = date('Ymd');
         
-        // Get the maximum invoice number suffix for today
         $maxSuffix = self::withTrashed()
             ->where('invoice_number', 'like', 'INV-' . $today . '-%')
             ->max(\DB::raw('CAST(SUBSTRING(invoice_number, 14) AS UNSIGNED)'));
         
-        // Start from 1 if no invoices exist for today
         $nextSuffix = $maxSuffix ? $maxSuffix + 1 : 1;
         
         return 'INV-' . $today . '-' . str_pad($nextSuffix, 4, '0', STR_PAD_LEFT);
@@ -89,7 +90,6 @@ class Invoice extends Model
     {
         do {
             $invoiceNumber = self::generateInvoiceNumber($status);
-            // Check if this invoice number already exists
             $exists = self::withTrashed()->where('invoice_number', $invoiceNumber)->exists();
         } while ($exists);
         
@@ -105,12 +105,33 @@ class Invoice extends Model
     {
         return $this->hasMany(InvoiceItem::class);
     }
-
+    
+    public function returnItems()
+    {
+        return $this->hasMany(ReturnItem::class);
+    }
+    
+    /**
+     * Calculate totals including return items deduction
+     */
     public function calculateTotals()
     {
+        // Calculate subtotal from items
         $subtotal = $this->items->sum('total_price');
-        $this->subtotal = $subtotal;
-        $this->total = $subtotal + $this->delivery_charge;
+        
+        // Calculate return items total
+        $returnTotal = $this->returnItems->sum('total_price');
+        
+        // Subtract return items from subtotal
+        $subtotalAfterReturn = $subtotal - $returnTotal;
+        
+        // Set subtotal (after returns)
+        $this->subtotal = $subtotalAfterReturn;
+        
+        // Calculate total (subtotal + delivery)
+        $this->total = $subtotalAfterReturn + $this->delivery_charge;
+        
+        // Calculate total weight from items only (returns don't affect weight)
         $this->total_weight = $this->items->sum('weight');
         
         // Update due amount
@@ -126,9 +147,42 @@ class Invoice extends Model
         }
         
         $this->save();
+        
+        return $this;
     }
     
+    /**
+     * Get original subtotal before return deduction
+     */
+    public function getOriginalSubtotalAttribute()
+    {
+        return $this->items->sum('total_price');
+    }
     
+    /**
+     * Get return items total
+     */
+    public function getReturnTotalAttribute()
+    {
+        return $this->returnItems->sum('total_price');
+    }
+    
+    /**
+     * Get formatted subtotal display
+     */
+    public function getFormattedSubtotalAttribute()
+    {
+        return number_format($this->subtotal, 2);
+    }
+    
+    /**
+     * Get formatted total display
+     */
+    public function getFormattedTotalAttribute()
+    {
+        return number_format($this->total, 2);
+    }
+
     // Helper method to get the suffix number from invoice number
     public static function extractSuffix($invoiceNumber)
     {
@@ -137,5 +191,4 @@ class Invoice extends Model
         }
         return 0;
     }
-    
 }

@@ -47,6 +47,13 @@
                     <td>Total Weight:</td>
                     <td class="text-right" id="totalWeight">0.000 kg</td>
                 </tr>
+                    <tr id="returnSubtotalRow" style="display: none;" class="text-danger">
+                    <td>
+                        <i class="fa fa-undo"></i> Return Items 
+                        <span class="badge badge-danger" id="returnItemsCount">0</span>:
+                    </td>
+                    <td class="text-right" id="returnSubtotal">৳0.00</td>
+                </tr>
                 <tr class="border-top">
                     <td>Subtotal:</td>
                     <td class="text-right" id="subtotal">৳0.00</td>

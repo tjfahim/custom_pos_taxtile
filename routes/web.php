@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\PathaoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DeliveryChargeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Artisan;
@@ -83,16 +84,39 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::get('/invoices/download-custom-csv', [InvoiceController::class, 'downloadCustomCSV'])->name('invoices.download-custom-csv');
 
     // Pathao routes
-    Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');
-    Route::get('/pathao/cities', [PathaoController::class, 'getCities'])->name('pathao.cities');
-    Route::get('/pathao/zones/{cityId}', [PathaoController::class, 'getZones'])->name('pathao.zones');
-    Route::get('/pathao/areas/{zoneId}', [PathaoController::class, 'getAreas'])->name('pathao.areas');
-    Route::get('/pathao/check-success-rate', function () {
-        return view('pathao.success-rate');
-    })->name('pathao.success-rate');
-    Route::post('/pathao/user-success-rate', [PathaoController::class, 'getUserSuccessRate'])->name('pathao.user-success-rate');
-    Route::get('/pathao/getUserSuccessRateByPhone', [PathaoController::class, 'getUserSuccessRateByPhone'])->name('pathao.user-success-rate-by-phone');
-  
+   // Pathao routes
+Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');
+Route::get('/issueToken', [PathaoController::class, 'issueToken'])->name('pathao.issue-token');
+
+// API endpoints
+Route::get('/pathao/cities', [PathaoController::class, 'getCities'])->name('pathao.cities');
+Route::get('/pathao/zones/{cityId}', [PathaoController::class, 'getZones'])->name('pathao.zones');
+Route::get('/pathao/areas/{zoneId}', [PathaoController::class, 'getAreas'])->name('pathao.areas');
+
+// Sync options
+Route::get('/pathao/store-all-direct', [PathaoController::class, 'storeAllLocationsPaginated'])->name('pathao.store-all-direct');
+Route::get('/pathao/sync-cities', [PathaoController::class, 'syncCitiesOnly'])->name('pathao.sync-cities');
+Route::get('/pathao/sync-zones/{cityId}', [PathaoController::class, 'syncZonesForCity'])->name('pathao.sync-zones');
+Route::get('/pathao/sync-areas/{zoneId}', [PathaoController::class, 'syncAreasForZone'])->name('pathao.sync-areas');
+Route::get('/pathao/sync-status', [PathaoController::class, 'getSyncStatus'])->name('pathao.sync-status');
+
+// Search and hierarchy
+Route::get('/pathao/search', [PathaoController::class, 'searchLocation'])->name('pathao.search');
+Route::get('/pathao/hierarchy/{areaId}', [PathaoController::class, 'getLocationHierarchy'])->name('pathao.hierarchy');
+Route::post('/pathao/sync-city/{cityId}', [PathaoController::class, 'syncCity'])->name('pathao.sync-city');
+
+// Management page
+Route::get('/pathao/manage', [PathaoController::class, 'manage'])->name('pathao.manage');
+
+// Pathao success rate routes
+Route::get('/pathao/check-success-rate', function () {
+    return view('pathao.success-rate');
+})->name('pathao.success-rate');
+Route::post('/pathao/user-success-rate', [PathaoController::class, 'getUserSuccessRate'])->name('pathao.user-success-rate');
+Route::get('/pathao/getUserSuccessRateByPhone', [PathaoController::class, 'getUserSuccessRateByPhone'])->name('pathao.user-success-rate-by-phone');
+    // Get statistics
+    Route::get('/pathao/statistics', [PathaoController::class, 'getStatistics'])->name('pathao.statistics');
+
     // Customers
     Route::resource('customers', CustomerController::class);
     Route::get('customers/trashed', [CustomerController::class, 'trashed'])->name('customers.trashed');
@@ -140,4 +164,12 @@ Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.updat
 Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
 
 
+    Route::resource('delivery-charges', DeliveryChargeController::class);
+
+
+    Route::get('/delivery-charges-data', [DeliveryChargeController::class, 'getActiveCharges'])
+        ->name('delivery-charges-data');
+ 
+
 });
+
