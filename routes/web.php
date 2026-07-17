@@ -176,7 +176,8 @@ Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.d
     Route::get('inside-dhaka/toggle-status/{id}', [InsideDhakaController::class, 'toggleStatus'])
         ->name('inside-dhaka.toggle-status');
 
-
+Route::get('/get-delivery-charge/{zoneId}/{totalQuantity?}', [PathaoController::class, 'getDeliveryChargeByZone'])
+    ->name('get.delivery.charge.by.zone');
  
 
 });

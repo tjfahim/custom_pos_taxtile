@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\InsideDhaka;
 use App\Models\PathaoArea;
 use App\Models\PathaoCity;
 use App\Models\PathaoZone;
@@ -53,7 +54,7 @@ class PathaoController extends Controller
     /**
      * Get all cities
      */
-    public function getCities()
+    public function getCitiesold()
     {
         try {
             $cities = PathaoCourier::GET_CITIES();
@@ -72,7 +73,7 @@ class PathaoController extends Controller
     /**
      * Get zones by city ID
      */
-    public function getZones($cityId)
+    public function getZonesold($cityId)
     {
         try {
             $zones = PathaoCourier::GET_ZONES($cityId);
@@ -91,13 +92,113 @@ class PathaoController extends Controller
     /**
      * Get areas by zone ID
      */
-    public function getAreas($zoneId)
+    public function getAreasold($zoneId)
     {
         try {
             $areas = PathaoCourier::GET_AREAS($zoneId);
             return response()->json([
                 'success' => true,
                 'data' => $areas
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+        public function getCities()
+    {
+        try {
+            $cities = PathaoCity::orderBy('city_name')->get();
+            
+            $formattedData = $cities->map(function($city) {
+                return [
+                    'city_id' => (int) $city->city_id,
+                    'city_name' => $city->city_name
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => (object) [
+                    'data' => (object) [
+                        'data' => $formattedData
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get zones by city ID from database (exact API response format)
+     */
+    public function getZones($cityId)
+    {
+        try {
+            $zones = PathaoZone::where('city_id', $cityId)
+                ->orderBy('zone_name')
+                ->get();
+            
+            $formattedData = $zones->map(function($zone) {
+                return [
+                    'zone_id' => (int) $zone->zone_id,
+                    'zone_name' => $zone->zone_name
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => (object) [
+                    'data' => (object) [
+                        'data' => $formattedData
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get areas by zone ID from database (exact API response format)
+     */
+    public function getAreas($zoneId)
+    {
+        try {
+            $areas = PathaoArea::where('zone_id', $zoneId)
+                ->orderBy('area_name')
+                ->get();
+            
+            $formattedData = $areas->map(function($area) {
+                return [
+                    'area_id' => (int) $area->area_id,
+                    'area_name' => $area->area_name,
+                    'home_delivery_available' => (bool) $area->home_delivery_available,
+                    'pickup_available' => (bool) $area->pickup_available
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => (object) [
+                    'data' => (object) [
+                        'data' => $formattedData
+                    ]
+                ],
+                'message' => 'Area list fetched.',
+                'status' => 200
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -1436,4 +1537,30 @@ public function getStatistics()
         ], 500);
     }
 }
+
+
+
+  public function getDeliveryChargeByZone($zoneId, $totalQuantity = 1)
+    {
+        try {
+            // Validate total quantity
+            if ($totalQuantity < 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Total quantity must be at least 1'
+                ], 400);
+            }
+
+            // Get delivery charge
+            $result = InsideDhaka::getDeliveryChargeByZone($zoneId, $totalQuantity);
+            
+            return response()->json($result);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get delivery charge: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

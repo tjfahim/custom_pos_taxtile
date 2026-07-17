@@ -98,4 +98,32 @@ class InsideDhaka extends Model
         }
         return $zone->zone_name ?? 'Unknown Zone';
     }
+
+      public static function getDeliveryChargeByZone($zoneId, $totalQuantity = 1)
+    {
+        // Check if zone is inside Dhaka
+        $isInsideDhaka = self::isInsideDhaka($zoneId);
+        
+        // Get delivery charge based on total quantity
+        $deliveryCharge = DeliveryCharge::getCharge($totalQuantity, $isInsideDhaka);
+        
+        // Get zone details
+        $zone = PathaoZone::where('zone_id', $zoneId)->with('city')->first();
+        
+        return [
+            'success' => true,
+            'data' => [
+                'zone_id' => $zoneId,
+                'zone_name' => $zone->zone_name ?? 'Unknown',
+                'city_id' => $zone->city_id ?? null,
+                'city_name' => $zone->city->city_name ?? 'Unknown',
+                'total_quantity' => $totalQuantity,
+                'is_inside_dhaka' => $isInsideDhaka,
+                'delivery_charge' => $deliveryCharge,
+                'price_type' => $isInsideDhaka ? 'Inside Dhaka' : 'Outside Dhaka',
+                'currency' => 'BDT',
+                'formatted' => '৳' . number_format($deliveryCharge, 2)
+            ]
+        ];
+    }
 }
