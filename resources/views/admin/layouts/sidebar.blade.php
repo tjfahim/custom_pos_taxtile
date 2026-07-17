@@ -88,6 +88,12 @@
         <span>Delivery Charges</span>
     </a>
 </li>
+<li class="{{ request()->routeIs('admin.inside-dhaka.*') ? 'active' : '' }}">
+    <a href="{{ route('admin.inside-dhaka.index') }}">
+        <i class="menu-icon fa fa-map-marker-alt"></i>
+        <span>Inside Dhaka</span>
+    </a>
+</li>
                 @endhasrole
                 
                 <!-- Logout -->

@@ -14,7 +14,6 @@ return new class extends Migration
             $table->string('city_id')->unique()->index();
             $table->string('city_name');
             $table->timestamps();
-            
             // Add indexes for faster searches
             $table->index('city_name');
         });

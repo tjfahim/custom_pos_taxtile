@@ -7,6 +7,7 @@ use App\Http\Controllers\PathaoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DeliveryChargeController;
+use App\Http\Controllers\InsideDhakaController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Artisan;
@@ -83,7 +84,6 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
 
     Route::get('/invoices/download-custom-csv', [InvoiceController::class, 'downloadCustomCSV'])->name('invoices.download-custom-csv');
 
-    // Pathao routes
    // Pathao routes
 Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');
 Route::get('/issueToken', [PathaoController::class, 'issueToken'])->name('pathao.issue-token');
@@ -169,6 +169,14 @@ Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.d
 
     Route::get('/delivery-charges-data', [DeliveryChargeController::class, 'getActiveCharges'])
         ->name('delivery-charges-data');
+
+         Route::resource('inside-dhaka', InsideDhakaController::class);
+    
+    // Additional routes
+    Route::get('inside-dhaka/toggle-status/{id}', [InsideDhakaController::class, 'toggleStatus'])
+        ->name('inside-dhaka.toggle-status');
+
+
  
 
 });
