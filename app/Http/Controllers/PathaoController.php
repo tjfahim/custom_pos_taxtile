@@ -933,7 +933,100 @@ public function checkCustomerByPhone($phone)
     /**
      * Search locations by name
      */
-    
+    public function autoSubmitLocation(Request $request)
+{
+    try {
+        $search = trim($request->search);
+        
+        if (empty($search)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Search term is required'
+            ], 400);
+        }
+
+        $words = preg_split('/[\s,|&\-\/.]+/', $search);
+        $words = array_values(array_filter($words, fn($w) => mb_strlen($w) >= 2));
+
+        if (empty($words)) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Search term is too short'
+            ]);
+        }
+
+        // 1. Find the best CITY match across all words
+        $cities = PathaoCity::all();
+        $bestCity = null;
+        $bestCityPercent = 0;
+        $bestCityWord = '';
+
+        foreach ($words as $word) {
+            foreach ($cities as $city) {
+                $percent = $this->calculateMatchPercentage($word, $city->city_name);
+                if ($percent > $bestCityPercent) {
+                    $bestCityPercent = $percent;
+                    $bestCity = $city;
+                    $bestCityWord = $word;
+                }
+            }
+        }
+
+        // Threshold: below this we don't trust the city guess at all
+        if (!$bestCity || $bestCityPercent < 60) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'No confident city match'
+            ]);
+        }
+
+        // 2. Find the best ZONE match, scoped to that city only
+        $remainingWords = array_values(array_diff($words, [$bestCityWord]));
+        $wordsForZone = !empty($remainingWords) ? $remainingWords : $words;
+
+        $zones = PathaoZone::where('city_id', $bestCity->city_id)->get();
+        $bestZone = null;
+        $bestZonePercent = 0;
+
+        foreach ($zones as $zone) {
+            foreach ($wordsForZone as $word) {
+                $percent = $this->calculateMatchPercentage($word, $zone->zone_name);
+                if ($percent > $bestZonePercent) {
+                    $bestZonePercent = $percent;
+                    $bestZone = $zone;
+                }
+            }
+        }
+
+        $result = [
+            'success' => true,
+            'city' => [
+                'id' => $bestCity->city_id,
+                'name' => $bestCity->city_name,
+                'match_percent' => $bestCityPercent,
+            ],
+            'zone' => null,
+        ];
+
+        // Threshold for zone confidence
+        if ($bestZone && $bestZonePercent >= 55) {
+            $result['zone'] = [
+                'id' => $bestZone->zone_id,
+                'name' => $bestZone->zone_name,
+                'match_percent' => $bestZonePercent,
+            ];
+        }
+
+        return response()->json($result);
+
+    } catch (\Exception $e) {
+        Log::error('Search error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Search failed: ' . $e->getMessage()
+        ], 500);
+    }
+}
     public function searchLocation(Request $request)
     {
         try {

@@ -266,6 +266,9 @@ const InvoiceFormHandler = {
                 $('#deliveryAreaSelect').empty().append('<option value="">-- Select Area --</option>').prop('disabled', true);
             }
         }
+        if (typeof DeliveryChargeManager !== 'undefined') {
+    DeliveryChargeManager.reset();
+}
         // Reset specific fields to default values
         $('#deliveryCharge').val(150);
         $('#paidAmount').val(0);

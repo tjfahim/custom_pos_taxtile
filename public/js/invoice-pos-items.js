@@ -52,6 +52,7 @@ const InvoiceItems = {
         if (typeof InvoiceCalculations !== 'undefined') {
             InvoiceCalculations.calculateTotals();
         }
+        $(document).trigger('itemsChanged'); 
     },
     
     removeItemRow: function(rowId) {
@@ -60,6 +61,7 @@ const InvoiceItems = {
         if (typeof InvoiceCalculations !== 'undefined') {
             InvoiceCalculations.calculateTotals();
         }
+        $(document).trigger('itemsChanged'); 
     },
     
     updateItemTotal: function(rowId) {

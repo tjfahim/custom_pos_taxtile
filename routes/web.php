@@ -102,6 +102,7 @@ Route::get('/pathao/sync-status', [PathaoController::class, 'getSyncStatus'])->n
 
 // Search and hierarchy
 Route::get('/pathao/search', [PathaoController::class, 'searchLocation'])->name('pathao.search');
+Route::get('/location/auto-submit', [PathaoController::class, 'autoSubmitLocation'])->name('location.auto-submit');
 Route::get('/pathao/hierarchy/{areaId}', [PathaoController::class, 'getLocationHierarchy'])->name('pathao.hierarchy');
 Route::post('/pathao/sync-city/{cityId}', [PathaoController::class, 'syncCity'])->name('pathao.sync-city');
 

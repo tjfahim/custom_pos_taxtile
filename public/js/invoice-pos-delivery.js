@@ -109,26 +109,27 @@ const InvoiceDelivery = {
     },
     
     loadZones: function(cityId) {
-        $('#zoneLoading').show();
-        $('#deliveryZoneSelect').prop('disabled', true);
-        $('#deliveryAreaSelect').prop('disabled', true);
-        
-        $.ajax({
-            url: `/admin/pathao/zones/${cityId}`,
-            type: 'GET',
-            success: function(response) {
-                const zonesData = response.data?.data?.data || response.data?.data || response.data || [];
-                InvoiceDelivery.renderZones(zonesData);
-            },
-            error: function() {
-                alert('Failed to load zones. Please try again.');
-            },
-            complete: function() {
-                $('#zoneLoading').hide();
-                $('#deliveryZoneSelect').prop('disabled', false);
-            }
-        });
-    },
+    $('#zoneLoading').show();
+    $('#deliveryZoneSelect').prop('disabled', true);
+    $('#deliveryAreaSelect').prop('disabled', true);
+    
+    $.ajax({
+        url: `/admin/pathao/zones/${cityId}`,
+        type: 'GET',
+        success: function(response) {
+            const zonesData = response.data?.data?.data || response.data?.data || response.data || [];
+            InvoiceDelivery.renderZones(zonesData);
+            $(document).trigger('deliveryZonesLoaded', [cityId]); // NEW
+        },
+        error: function() {
+            alert('Failed to load zones. Please try again.');
+        },
+        complete: function() {
+            $('#zoneLoading').hide();
+            $('#deliveryZoneSelect').prop('disabled', false);
+        }
+    });
+},
     
     renderZones: function(zonesData) {
         const select = $('#deliveryZoneSelect');
