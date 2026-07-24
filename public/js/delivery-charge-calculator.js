@@ -23,13 +23,16 @@ const DeliveryChargeManager = {
         $(document).on('itemsChanged', () => this.refreshDebounced());
     },
 
-    refreshDebounced: function() {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-            const zoneId = $('#deliveryZoneSelect').val();
-            if (zoneId) this.refresh(zoneId);
-        }, 400);
-    },
+ refreshDebounced: function() {
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+        // NEW: same guard here
+        if ($('#isInhouseSale').is(':checked')) return;
+
+        const zoneId = $('#deliveryZoneSelect').val();
+        if (zoneId) this.refresh(zoneId);
+    }, 400);
+},
 
     getTotalQuantity: function() {
         let total = 0;
@@ -39,26 +42,28 @@ const DeliveryChargeManager = {
         return total || 1;
     },
 
-    refresh: function(zoneId) {
-        const totalQuantity = this.getTotalQuantity();
+   refresh: function(zoneId) {
+    // NEW: never touch delivery charge during an in-house sale
+    if ($('#isInhouseSale').is(':checked')) return;
 
-        // Skip duplicate/no-op calls
-        if (zoneId == this.lastZoneId && totalQuantity === this.lastQuantity) return;
+    const totalQuantity = this.getTotalQuantity();
 
-        this.lastZoneId = zoneId;
-        this.lastQuantity = totalQuantity;
+    if (zoneId == this.lastZoneId && totalQuantity === this.lastQuantity) return;
 
-        $.ajax({
-            url: `/admin/get-delivery-charge/${zoneId}/${totalQuantity}`,
-            method: 'GET',
-            success: (response) => {
-                if (response.success && response.data) {
-                    this.applyCharge(response.data.delivery_charge);
-                }
-            },
-            error: (xhr) => console.error('Delivery charge fetch error:', xhr)
-        });
-    },
+    this.lastZoneId = zoneId;
+    this.lastQuantity = totalQuantity;
+
+    $.ajax({
+        url: `/admin/get-delivery-charge/${zoneId}/${totalQuantity}`,
+        method: 'GET',
+        success: (response) => {
+            if (response.success && response.data) {
+                this.applyCharge(response.data.delivery_charge);
+            }
+        },
+        error: (xhr) => console.error('Delivery charge fetch error:', xhr)
+    });
+},
 
     applyCharge: function(charge) {
         $('#deliveryCharge').val(charge);

@@ -20,16 +20,42 @@
     </div>
     <div class="card-body" id="customerSection">
         <div class="row">
-            <div class="col-md-12 mb-3">
-                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#customerModal">
-                    <i class="fa fa-search"></i> Select Customer
-                </button>
-                <input type="hidden" name="customer_id" id="customerId">
-                <div class="mt-2">
-                    <small id="selectedCustomer" class="text-muted">No customer selected. Enter phone number to auto-detect or select manually.</small>
-                </div>
+    <div class="col-md-6 mb-3">
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#customerModal">
+            <i class="fa fa-search"></i> Select Customer
+        </button>
+        <input type="hidden" name="customer_id" id="customerId">
+        <div class="mt-2">
+            <small id="selectedCustomer" class="text-muted">No customer selected. Enter phone number to auto-detect or select manually.</small>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-md-end" style="gap: 1.25rem;">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_wholesale" id="isWholesale" value="1">
+                <label class="form-check-label" for="isWholesale">Wholesale</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_inhouse_sale" id="isInhouseSale" value="1">
+                <label class="form-check-label" for="isInhouseSale">In-house Sale</label>
+            </div>
+
+            <div class="form-group mb-0" style="min-width: 190px;">
+                <label class="mb-0 small text-muted">Courier</label>
+                <select name="courier_name" id="courierName" class="form-control form-control-sm">
+                    <option value="Pathao" selected>Pathao (Default)</option>
+                    <option value="Steadfast">Steadfast</option>
+                    <option value="SA">SA</option>
+                    <option value="SUNDORBAN">SUNDORBAN</option>
+                    <option value="JANONI">JANONI</option>
+                    <option value="REDEX">REDEX</option>
+                </select>
             </div>
         </div>
+    </div>
+</div>
   
                             <div class="row">
                                     <div class="col-md-4">
@@ -73,12 +99,13 @@
                                     </div>
                                 </div>
                                <div class="col-md-12">
+   <div class="col-md-12" id="deliveryAreaWrapper">
     <div class="col-md-12">
-    <div class="card mb-3">
-        <div class="card-header bg-light">
-            <h6 class="mb-0"><i class="fa fa-map-marker-alt"></i> Delivery Area</h6>
-        </div>
-        <div class="card-body">
+        <div class="card mb-3" id="deliveryAreaCard">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fa fa-map-marker-alt"></i> Delivery Area</h6>
+            </div>
+            <div class="card-body">
             <div class="row">
                 <!-- City Selection -->
                 <div class="col-md-4">
@@ -101,7 +128,7 @@
                 <!-- Zone Selection -->
                 <div class="col-md-4">
                     <div class="form-group">
-                        <label>Zone</label>
+                        <label>Zone <span class="text-danger">*</span></label>
                         <select class="form-control select2-search" id="deliveryZoneSelect" name="delivery_zone" disabled>
                             <option value="">-- Select Zone --</option>
                         </select>
@@ -116,7 +143,7 @@
                 <!-- Area Selection -->
                 <div class="col-md-4">
                     <div class="form-group">
-                        <label>Area <span class="text-danger">*</span></label>
+                        <label>Area </label>
                         <select class="form-control select2-search" id="deliveryAreaSelect" name="delivery_area_id" disabled>
                             <option value="">-- Select Area --</option>
                         </select>
@@ -140,6 +167,7 @@
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     </div>
 </div>
@@ -213,6 +241,8 @@
 <script src="{{ asset('js/invoice-pos-calculations.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-payments.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-delivery.js') }}"></script>
+<script src="{{ asset('js/inhouse-sale-toggle.js') }}"></script>
+
 <script src="{{ asset('js/address-city-zone-autofill.js') }}"></script>
 <script src="{{ asset('js/delivery-charge-calculator.js') }}"></script>
 <script src="{{ asset('js/fraud-check.js') }}"></script>

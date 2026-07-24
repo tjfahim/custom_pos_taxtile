@@ -207,6 +207,13 @@ const InvoiceFormHandler = {
     
     // Reset form without confirmation - FIXED
     resetFormSilently: function() {
+        $('#isWholesale').prop('checked', false);
+$('#isInhouseSale').prop('checked', false);
+$('#courierName').val('Pathao').prop('disabled', false);
+
+if (typeof InhouseSaleToggle !== 'undefined') {
+    InhouseSaleToggle.apply();
+}
         // Reset the form
         $('#posForm')[0].reset();
         
@@ -335,7 +342,15 @@ const InvoiceFormHandler = {
     },
     
     validateForm: function() {
+
+        const isInhouseSale = $('#isInhouseSale').is(':checked');
+        if (!isInhouseSale && !$('#deliveryArea').val().trim()) {
+            alert('Please enter delivery area');
+            $('#deliveryArea').focus();
+            return false;
+        }
         // Check recipient name
+
         if (!$('#recipientName').val().trim()) {
             alert('Please enter recipient name');
             $('#recipientName').focus();
@@ -366,13 +381,7 @@ const InvoiceFormHandler = {
             return false;
         }
         
-        // Check delivery area
-        if (!$('#deliveryArea').val().trim()) {
-            alert('Please enter delivery area');
-            $('#deliveryArea').focus();
-            return false;
-        }
-        
+       
         // Check at least one item
         if ($('#itemsBody tr').length === 0) {
             alert('Please add at least one item');

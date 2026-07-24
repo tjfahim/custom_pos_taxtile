@@ -261,16 +261,39 @@
 <body>
     <div class="invoice-container">
         <!-- Header -->
-        <div class="invoice-header">
-            <div>
-                <div class="shop-name">Faisal Textile</div>
-                <div class="shop-address">20, Balaka Vhaban, Chadni Chawk Market (Ground Floor)<br>Dhaka 1205 • Phone: 01923232543</div>
-            </div>
-            <div class="invoice-info">
-                <div class="invoice-no">#{{ $invoice->invoice_number }}</div>
-                <div class="invoice-date">{{ now()->format('d/m/Y h:i A') }}</div>
-            </div>
+       <div class="invoice-header">
+    <div>
+       <div class="invoice-header">
+    <div style="flex: 0 0 auto;">
+        <div class="shop-name">Faisal Textile</div>
+        <div class="shop-address">20, Balaka Vhaban, Chadni Chawk Market (Ground Floor)<br>Dhaka 1205 • Phone: 01923232543</div>
+    </div>
+    
+    <!-- Sale Type - Center -->
+    <div style="flex: 1; text-align: center; display: flex; align-items: center; justify-content: center;">
+        <div class="sale-type" style="font-size: 16px; font-weight: 500; color: #000000;">
+            @if($invoice->is_wholesale)
+                <span style="font-weight: bold; color: #000000;">Whole Sale</span>
+                @if($invoice->is_inhouse_sale)
+                    <span style="color: #000000;"> (In House)</span>
+                @else
+                    <span style="color: #000000;"> ({{ $invoice->courier_name ?? 'Pathao' }})</span>
+                @endif
+            @else
+                @if($invoice->is_inhouse_sale)
+                    <span style="font-weight: bold; color: #000000;">In House</span>
+                @else
+                    <span style="color: #000000;">{{ $invoice->courier_name ?? 'Pathao' }}</span>
+                @endif
+            @endif
         </div>
+    </div>
+    
+    <div class="invoice-info" style="flex: 0 0 auto; text-align: right;">
+        <div class="invoice-no">#{{ $invoice->invoice_number }}</div>
+        <div class="invoice-date">{{ now()->format('d/m/Y h:i A') }}</div>
+    </div>
+</div>
         
         <!-- Body -->
         <div class="invoice-body">

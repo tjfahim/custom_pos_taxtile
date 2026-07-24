@@ -41,6 +41,9 @@ class Invoice extends Model
         'notes',
         'created_by',
         'has_return_items',
+          'is_wholesale',     
+    'is_inhouse_sale',  
+    'courier_name',     
         'confirmed_at'
     ];
 
@@ -54,6 +57,8 @@ class Invoice extends Model
         'amount_to_collect' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'due_amount' => 'decimal:2',
+        'is_wholesale',     
+    'is_inhouse_sale',  
         'has_return_items' => 'boolean'
     ];
     

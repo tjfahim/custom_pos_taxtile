@@ -25,8 +25,11 @@ return new class extends Migration
     $table->string('recipient_phone');
     $table->string('recipient_secondary_phone')->nullable();
     $table->text('recipient_address');
-    $table->string('delivery_area');
-    
+    $table->string('delivery_area')->nullable();
+
+    $table->boolean('is_wholesale')->default(false);
+    $table->boolean('is_inhouse_sale')->default(false);
+    $table->string('courier_name')->default('Pathao');
     // Delivery Information
     $table->string('delivery_type');
     $table->decimal('delivery_charge', 10, 2)->default(0);
