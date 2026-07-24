@@ -79,8 +79,8 @@
                             <td>{{ $item->item_name }} @if($item->description) <br><small class="text-muted">{{ $item->description }}</small> @endif</td>
                             <td>{{ $item->quantity }}</td>
                             <td>{{ $item->weight }}g</td>
-                            <td>৳{{ number_format($item->unit_price, 2) }}</td>
-                            <td>৳{{ number_format($item->total_price, 2) }}</td>
+                            <td>৳{{ number_format($item->unit_price, 0) }}</td>
+                            <td>৳{{ number_format($item->total_price, 0) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -116,8 +116,8 @@
                             <td>{{ $returnItem->item_name }} @if($returnItem->description) <br><small class="text-muted">{{ $returnItem->description }}</small> @endif</td>
                             <td>{{ $returnItem->quantity }}</td>
                             <td>{{ $returnItem->weight }}g</td>
-                            <td>৳{{ number_format($returnItem->unit_price, 2) }}</td>
-                            <td class="text-danger">-৳{{ number_format($returnItem->total_price, 2) }}</td>
+                            <td>৳{{ number_format($returnItem->unit_price, 0) }}</td>
+                            <td class="text-danger">-৳{{ number_format($returnItem->total_price, 0) }}</td>
                             <td>{{ ucfirst(str_replace('_', ' ', $returnItem->return_reason ?? 'N/A')) }}</td>
                         </tr>
                         @endforeach
@@ -129,7 +129,7 @@
                         </tr>
                         <tr>
                             <td colspan="6" class="text-right font-weight-bold text-danger">Total Return Amount:</td>
-                            <td class="text-danger">-৳{{ number_format($invoice->returnItems->sum('total_price'), 2) }}</td>
+                            <td class="text-danger">-৳{{ number_format($invoice->returnItems->sum('total_price'), 0) }}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -142,25 +142,25 @@
                         <table class="table table-bordered">
                             <tr>
                                 <td><strong>Items Subtotal:</strong></td>
-                                <td class="text-right">৳{{ number_format($invoice->items->sum('total_price'), 2) }}</td>
+                                <td class="text-right">৳{{ number_format($invoice->items->sum('total_price'), 0) }}</td>
                             </tr>
                             @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
                             <tr class="text-danger">
                                 <td><strong>Less Returns:</strong></td>
-                                <td class="text-right">-৳{{ number_format($invoice->returnItems->sum('total_price'), 2) }}</td>
+                                <td class="text-right">-৳{{ number_format($invoice->returnItems->sum('total_price'), 0) }}</td>
                             </tr>
                             @endif
                             <tr>
                                 <td><strong>Net Subtotal:</strong></td>
-                                <td class="text-right">৳{{ number_format($invoice->subtotal, 2) }}</td>
+                                <td class="text-right">৳{{ number_format($invoice->subtotal, 0) }}</td>
                             </tr>
                             <tr>
                                 <td><strong>Delivery Charge:</strong></td>
-                                <td class="text-right">৳{{ number_format($invoice->delivery_charge, 2) }}</td>
+                                <td class="text-right">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
                             </tr>
                             <tr class="table-primary">
                                 <td><strong>Grand Total:</strong></td>
-                                <td class="text-right"><strong>৳{{ number_format($invoice->total, 2) }}</strong></td>
+                                <td class="text-right"><strong>৳{{ number_format($invoice->total, 0) }}</strong></td>
                             </tr>
                         </table>
                     </div>
@@ -168,11 +168,11 @@
                         <table class="table table-bordered">
                             <tr>
                                 <td><strong>Paid Amount:</strong></td>
-                                <td class="text-right">৳{{ number_format($invoice->paid_amount, 2) }}</td>
+                                <td class="text-right">৳{{ number_format($invoice->paid_amount, 0) }}</td>
                             </tr>
                             <tr>
                                 <td><strong>Due Amount:</strong></td>
-                                <td class="text-right"><strong class="text-{{ $invoice->due_amount > 0 ? 'danger' : 'success' }}">৳{{ number_format($invoice->due_amount, 2) }}</strong></td>
+                                <td class="text-right"><strong class="text-{{ $invoice->due_amount > 0 ? 'danger' : 'success' }}">৳{{ number_format($invoice->due_amount, 0) }}</strong></td>
                             </tr>
                             @if($invoice->payment_method)
                             <tr>

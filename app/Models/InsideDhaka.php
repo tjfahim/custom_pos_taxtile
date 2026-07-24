@@ -122,7 +122,7 @@ class InsideDhaka extends Model
                 'delivery_charge' => $deliveryCharge,
                 'price_type' => $isInsideDhaka ? 'Inside Dhaka' : 'Outside Dhaka',
                 'currency' => 'BDT',
-                'formatted' => '৳' . number_format($deliveryCharge, 2)
+                'formatted' => '৳' . number_format($deliveryCharge, 0)
             ]
         ];
     }

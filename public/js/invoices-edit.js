@@ -109,7 +109,7 @@
                 const weight = this.calculateWeight(qty);
                 
                 // Update row values
-                $row.find('.total-price').val('৳' + total.toFixed(2));
+                $row.find('.total-price').val('৳' + total.toFixed(0));
                 $row.find('.item-total').val(total);
                 $row.find('.weight-display').val(this.formatWeight(weight));
                 $row.find('.item-weight').val(weight);
@@ -141,7 +141,7 @@
                 const weight = this.calculateWeight(qty);
                 
                 // Update row values
-                $row.find('.return-total-price').val('৳' + total.toFixed(2));
+                $row.find('.return-total-price').val('৳' + total.toFixed(0));
                 $row.find('.return-item-total').val(total);
                 $row.find('.return-weight-display').val(this.formatWeight(weight));
                 $row.find('.return-item-weight').val(weight);
@@ -191,33 +191,33 @@
         updateItemsDisplay(itemsData) {
             $('#total-quantity').text(itemsData.totalQuantity);
             $('#total-weight').text(itemsData.totalWeightFormatted);
-            $('#subtotal').text(itemsData.subtotal.toFixed(2));
+            $('#subtotal').text(itemsData.subtotal.toFixed(0));
             
             // Update summary section
             $('#summary-total-items').text(itemsData.totalQuantity);
             $('#summary-total-weight').text(itemsData.totalWeightFormatted);
-            $('#summary-subtotal').text('৳' + itemsData.subtotal.toFixed(2));
+            $('#summary-subtotal').text('৳' + itemsData.subtotal.toFixed(0));
         }
         
         // 6. Update Return Display
         updateReturnDisplay(returnData) {
             $('#return-total-quantity').text(returnData.returnQuantity);
-            $('#return-subtotal').text(returnData.returnSubtotal.toFixed(2));
+            $('#return-subtotal').text(returnData.returnSubtotal.toFixed(0));
             
             // Update summary section
             $('#summary-return-items').text(returnData.returnQuantity);
-            $('#summary-return-amount').text('-৳' + returnData.returnSubtotal.toFixed(2));
+            $('#summary-return-amount').text('-৳' + returnData.returnSubtotal.toFixed(0));
         }
         
         // 7. Update Summary Display
         updateSummaryDisplay(itemsData, returnData, finalData) {
-            $('#summary-net-subtotal').text('৳' + finalData.finalSubtotal.toFixed(2));
-            $('#summary-delivery').text('৳' + finalData.delivery.toFixed(2));
-            $('#summary-grand-total').text('৳' + finalData.grandTotal.toFixed(2));
+            $('#summary-net-subtotal').text('৳' + finalData.finalSubtotal.toFixed(0));
+            $('#summary-delivery').text('৳' + finalData.delivery.toFixed(0));
+            $('#summary-grand-total').text('৳' + finalData.grandTotal.toFixed(0));
             
             // Update items table footer
-            $('#delivery-display').text(finalData.delivery.toFixed(2));
-            $('#grand-total').text(finalData.grandTotal.toFixed(2));
+            $('#delivery-display').text(finalData.delivery.toFixed(0));
+            $('#grand-total').text(finalData.grandTotal.toFixed(0));
         }
         
         // ====== END OF SEPARATED CALCULATIONS ======
@@ -242,7 +242,7 @@
                         <input type="hidden" class="item-weight" name="items[${newIndex}][weight]" value="500">
                     </td>
                     <td>
-                        <input type="text" class="form-control total-price" value="৳0.00" readonly>
+                        <input type="text" class="form-control total-price" value="৳0" readonly>
                         <input type="hidden" class="item-total" value="0">
                     </td>
                     <td class="text-center">
@@ -311,7 +311,7 @@
                     </td>
                     <td>
                         <input type="text" class="form-control return-total-price" 
-                               value="৳0.00" readonly>
+                               value="৳0" readonly>
                         <input type="hidden" class="return-item-total" 
                                value="0">
                     </td>

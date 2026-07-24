@@ -335,7 +335,7 @@ private function getDataTableData(Request $request)
                 'customer_phone' => $invoice->customer->phone_number_1 ?? $invoice->recipient_phone,
                 'merchant_order_id' => $invoice->merchant_order_id ?? 'N/A',
                 'invoice_date' => $invoice->invoice_date->format('d M Y'),
-                'total' => '৳' . number_format($invoice->total, 2),
+                'total' => '৳' . number_format($invoice->total, 0),
                 'status' => [
                     'value' => $invoice->status,
                     'badge' => $invoice->status == 'confirmed' ? 'success' : ($invoice->status == 'pending' ? 'warning' : 'danger'),

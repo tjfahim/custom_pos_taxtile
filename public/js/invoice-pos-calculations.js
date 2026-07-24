@@ -3,7 +3,7 @@ const InvoiceCalculations = {
     
     calculateTotals: function() {
         let subtotal = 0;
-        let totalQuantity = 0;
+        let totalQuantity = '';
         let totalWeightGrams = 0;
         let returnSubtotal = 0;
         let returnQuantity = 0;
@@ -16,11 +16,11 @@ const InvoiceCalculations = {
             const total = quantity * unitPrice;
             
             // Update item total display
-            $(this).find('.total-price').text('৳' + total.toFixed(2));
+            $(this).find('.total-price').text('৳' + total.toFixed(0));
             $(this).find('.total-price-hidden').val(total);
             
             subtotal += total;
-            totalQuantity += quantity;
+            totalQuantity +='Total Items ' + (quantity);
             totalWeightGrams += (weightGrams * quantity);
         });
         
@@ -31,7 +31,7 @@ const InvoiceCalculations = {
             const total = quantity * unitPrice;
             
             // Update return item total display
-            $(this).find('.return-total-price').val('৳' + total.toFixed(2));
+            $(this).find('.return-total-price').val('৳' + total.toFixed(0));
             $(this).find('.return-total-hidden').val(total);
             
             returnSubtotal += total;
@@ -54,10 +54,10 @@ const InvoiceCalculations = {
         const dueAmount = Math.max(0, total - advancePayment);
         
         // Update display
-        $('#subtotal').text('৳' + subtotal.toFixed(2));
-        $('#returnSubtotal').text('৳' + returnSubtotal.toFixed(2));
-        $('#deliveryAmount').text('৳' + deliveryCharge.toFixed(2));
-        $('#total').text('৳' + total.toFixed(2));
+        $('#subtotal').text('৳' + subtotal.toFixed(0));
+        $('#returnSubtotal').text('৳' + returnSubtotal.toFixed(0));
+        $('#deliveryAmount').text('৳' + deliveryCharge.toFixed(0));
+        $('#total').text('৳' + total.toFixed(0));
         $('#totalQuantity').text(totalQuantity);
         $('#returnQuantity').text(returnQuantity);
         
@@ -65,7 +65,6 @@ const InvoiceCalculations = {
         const returnSubtotalRow = $('#returnSubtotalRow');
         if (returnSubtotal > 0 || returnQuantity > 0) {
             returnSubtotalRow.show();
-            // Update return items count
             $('#returnItemsCount').text(returnQuantity);
         } else {
             returnSubtotalRow.hide();
@@ -82,9 +81,9 @@ const InvoiceCalculations = {
         }
         
         // Update hidden inputs if they exist
-        if ($('#subtotalInput').length) $('#subtotalInput').val(subtotal.toFixed(2));
-        if ($('#totalInput').length) $('#totalInput').val(total.toFixed(2));
-        if ($('#returnSubtotalInput').length) $('#returnSubtotalInput').val(returnSubtotal.toFixed(2));
+        if ($('#subtotalInput').length) $('#subtotalInput').val(subtotal.toFixed(0));
+        if ($('#totalInput').length) $('#totalInput').val(total.toFixed(0));
+        if ($('#returnSubtotalInput').length) $('#returnSubtotalInput').val(returnSubtotal.toFixed(0));
         
         // Update advance payment display
         this.updateAdvanceDisplay(advancePayment, dueAmount);
@@ -97,15 +96,15 @@ const InvoiceCalculations = {
         if (advancePayment > 0) {
             // Show advance payment row
             advanceRow.show();
-            advanceAmount.text('৳' + advancePayment.toFixed(2));
+            advanceAmount.text('৳' + advancePayment.toFixed(0));
         } else {
             // Hide advance payment row
             advanceRow.hide();
         }
         
         // Update due amount
-        $('#dueAmount').text('৳' + dueAmount.toFixed(2));
-        if ($('#dueInput').length) $('#dueInput').val(dueAmount.toFixed(2));
+        $('#dueAmount').text('৳' + dueAmount.toFixed(0));
+        if ($('#dueInput').length) $('#dueInput').val(dueAmount.toFixed(0));
     },
     
     updateDueAmount: function() {

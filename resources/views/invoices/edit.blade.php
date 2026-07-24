@@ -239,7 +239,7 @@
                                             </td>
                                             <td>
                                                 <input type="text" class="form-control weight-display" 
-                                                       value="{{ number_format($item->weight / 1000, 2) }} kg" 
+                                                       value="{{ number_format($item->weight / 1000, 0) }} kg" 
                                                        readonly>
                                                 <input type="hidden" class="item-weight" 
                                                        name="items[{{ $index }}][weight]" 
@@ -247,7 +247,7 @@
                                             </td>
                                             <td>
                                                 <input type="text" class="form-control total-price" 
-                                                       value="৳{{ number_format($item->total_price, 2) }}" 
+                                                       value="৳{{ number_format($item->total_price, 0) }}" 
                                                        readonly>
                                                 <input type="hidden" class="item-total" 
                                                        value="{{ $item->total_price }}">
@@ -270,14 +270,14 @@
                                             </td>
                                             <td colspan="1" class="text-right font-weight-bold">Total Weight:</td>
                                             <td class="text-center font-weight-bold">
-                                                <span id="total-weight">{{ number_format($invoice->items->sum('weight') / 1000, 2) }} kg</span>
+                                                <span id="total-weight">{{ number_format($invoice->items->sum('weight') / 1000, 0) }} kg</span>
                                             </td>
                                             <td colspan="2"></td>
                                         </tr>
                                         <tr>
                                             <td colspan="3" class="text-right font-weight-bold">Subtotal:</td>
                                             <td colspan="4" class="font-weight-bold">
-                                                ৳<span id="subtotal">{{ number_format($invoice->subtotal, 2) }}</span>
+                                                ৳<span id="subtotal">{{ number_format($invoice->subtotal, 0) }}</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -343,14 +343,14 @@
                                             </td>
                                             <td>
                                                 <input type="text" class="form-control return-weight-display" 
-                                                       value="{{ number_format($returnItem->weight / 1000, 2) }} kg" readonly>
+                                                       value="{{ number_format($returnItem->weight / 1000, 0) }} kg" readonly>
                                                 <input type="hidden" class="return-item-weight" 
                                                        name="return_items[{{ $index }}][weight]" 
                                                        value="{{ $returnItem->weight }}">
                                             </td>
                                             <td>
                                                 <input type="text" class="form-control return-total-price" 
-                                                       value="৳{{ number_format($returnItem->total_price, 2) }}" readonly>
+                                                       value="৳{{ number_format($returnItem->total_price, 0) }}" readonly>
                                                 <input type="hidden" class="return-item-total" 
                                                        value="{{ $returnItem->total_price }}">
                                             </td>
@@ -383,7 +383,7 @@
                                             </td>
                                             <td colspan="2"></td>
                                             <td colspan="2" class="font-weight-bold text-danger">
-                                                ৳<span id="return-subtotal">{{ number_format($invoice->returnItems->sum('total_price'), 2) }}</span>
+                                                ৳<span id="return-subtotal">{{ number_format($invoice->returnItems->sum('total_price'), 0) }}</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -411,11 +411,11 @@
                                                 </tr>
                                                 <tr>
                                                     <td>Total Weight:</td>
-                                                    <td class="text-right"><strong id="summary-total-weight">0.00 kg</strong></td>
+                                                    <td class="text-right"><strong id="summary-total-weight">0 kg</strong></td>
                                                 </tr>
                                                 <tr>
                                                     <td>Subtotal:</td>
-                                                    <td class="text-right"><strong id="summary-subtotal">৳0.00</strong></td>
+                                                    <td class="text-right"><strong id="summary-subtotal">৳0</strong></td>
                                                 </tr>
                                             </table>
                                         </div>
@@ -434,7 +434,7 @@
                                                 </tr>
                                                 <tr>
                                                     <td>Return Amount:</td>
-                                                    <td class="text-right"><strong id="summary-return-amount" class="text-danger">-৳0.00</strong></td>
+                                                    <td class="text-right"><strong id="summary-return-amount" class="text-danger">-৳0</strong></td>
                                                 </tr>
                                             </table>
                                         </div>
@@ -449,15 +449,15 @@
                                             <table class="table table-sm table-borderless text-white">
                                                 <tr>
                                                     <td>Net Subtotal:</td>
-                                                    <td class="text-right"><strong id="summary-net-subtotal">৳0.00</strong></td>
+                                                    <td class="text-right"><strong id="summary-net-subtotal">৳0</strong></td>
                                                 </tr>
                                                 <tr>
                                                     <td>Delivery Charge:</td>
-                                                    <td class="text-right"><strong id="summary-delivery">৳0.00</strong></td>
+                                                    <td class="text-right"><strong id="summary-delivery">৳0</strong></td>
                                                 </tr>
                                                 <tr class="border-top">
                                                     <td><strong>Grand Total:</strong></td>
-                                                    <td class="text-right"><strong id="summary-grand-total" style="font-size: 18px;">৳0.00</strong></td>
+                                                    <td class="text-right"><strong id="summary-grand-total" style="font-size: 18px;">৳0</strong></td>
                                                 </tr>
                                             </table>
                                         </div>

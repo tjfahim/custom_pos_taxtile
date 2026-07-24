@@ -245,7 +245,7 @@ if (typeof InhouseSaleToggle !== 'undefined') {
         // Clear return items in summary
         $('#returnSubtotalRow').hide();
         $('#returnItemsCount').text('0');
-        $('#returnSubtotal').text('৳0.00');
+        $('#returnSubtotal').text('৳0');
         // ====== END FIX ======
         
         // Reset delivery area selections

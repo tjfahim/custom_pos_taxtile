@@ -177,7 +177,7 @@ class Invoice extends Model
      */
     public function getFormattedSubtotalAttribute()
     {
-        return number_format($this->subtotal, 2);
+        return number_format($this->subtotal, 0);
     }
     
     /**
@@ -185,7 +185,7 @@ class Invoice extends Model
      */
     public function getFormattedTotalAttribute()
     {
-        return number_format($this->total, 2);
+        return number_format($this->total, 0);
     }
 
     // Helper method to get the suffix number from invoice number

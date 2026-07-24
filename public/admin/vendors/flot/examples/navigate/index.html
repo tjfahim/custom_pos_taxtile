@@ -79,7 +79,7 @@
 			$(".message").html("Panning to x: "  + axes.xaxis.min.toFixed(2)
 			+ " &ndash; " + axes.xaxis.max.toFixed(2)
 			+ " and y: " + axes.yaxis.min.toFixed(2)
-			+ " &ndash; " + axes.yaxis.max.toFixed(2));
+			+ " &ndash; " + axes.yaxis.max.toFixed(0));
 		});
 
 		placeholder.bind("plotzoom", function (event, plot) {
@@ -87,7 +87,7 @@
 			$(".message").html("Zooming to x: "  + axes.xaxis.min.toFixed(2)
 			+ " &ndash; " + axes.xaxis.max.toFixed(2)
 			+ " and y: " + axes.yaxis.min.toFixed(2)
-			+ " &ndash; " + axes.yaxis.max.toFixed(2));
+			+ " &ndash; " + axes.yaxis.max.toFixed(0));
 		});
 
 		// add zoom out button 

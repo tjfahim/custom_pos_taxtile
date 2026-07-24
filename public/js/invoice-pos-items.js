@@ -22,21 +22,22 @@ const InvoiceItems = {
                            value="500" min="0" step="1"
                            onchange="InvoiceItems.updateItemTotal(${this.itemCount})">
                 </td>
-                <td>
-                    <input type="number" name="items[${this.itemCount}][quantity]" 
-                           class="form-control form-control-sm quantity text-center" 
-                           value="1" min="1" step="1" required 
-                           onchange="InvoiceItems.updateItemTotal(${this.itemCount})">
-                </td>
+              <td>
+    <input type="number" name="items[${this.itemCount}][quantity]" 
+           class="form-control form-control-sm quantity text-center" 
+           value="1" min="1" step="1" required 
+           onchange="InvoiceItems.updateItemTotal(${this.itemCount})"
+           onfocus="this.select()">
+</td>
                 <td>
                     <input type="number" name="items[${this.itemCount}][unit_price]" 
                            class="form-control form-control-sm unit-price text-right" 
-                           value="" min="0" step="0.01" required 
+                           value="" min="0"  required 
                            onchange="InvoiceItems.updateItemTotal(${this.itemCount})">
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm total-price text-right" 
-                           readonly value="৳0.00">
+                           readonly value="৳0">
                     <input type="hidden" name="items[${this.itemCount}][total_price]" 
                            class="total-price-hidden" value="0">
                 </td>
@@ -69,7 +70,7 @@ const InvoiceItems = {
         const unitPrice = $(`#itemRow${rowId} .unit-price`).val() || 0;
         const total = quantity * unitPrice;
         
-        $(`#itemRow${rowId} .total-price`).val('৳' + total.toFixed(2));
+        $(`#itemRow${rowId} .total-price`).val('৳' + total.toFixed(0));
         $(`#itemRow${rowId} .total-price-hidden`).val(total);
         
         if (typeof InvoiceCalculations !== 'undefined') {

@@ -39,43 +39,42 @@
             <table class="table table-sm table-borderless">
                 <!-- Total Quantity Row -->
                 <tr id="totalQuantityRow">
-                    <td>Total Items:</td>
-                    <td class="text-right" id="totalQuantity">0</td>
+                    <td id="totalQuantity">                        <span class="badge badge-danger" id="totalQuantity">0</span>:
+</td>
+
+                    <td class="text-right" id="subtotal">0</td>
                 </tr>
                 <!-- Total Weight Row (in kg) -->
                 <tr id="totalWeightRow" style="display: none;">
                     <td>Total Weight:</td>
-                    <td class="text-right" id="totalWeight">0.000 kg</td>
+                    <td class="text-right" id="totalWeight">0 kg</td>
                 </tr>
                     <tr id="returnSubtotalRow" style="display: none;" class="text-danger">
                     <td>
-                        <i class="fa fa-undo"></i> Return Items 
+                        Return Items 
                         <span class="badge badge-danger" id="returnItemsCount">0</span>:
                     </td>
-                    <td class="text-right" id="returnSubtotal">৳0.00</td>
+                    <td class="text-right" id="returnSubtotal">৳0</td>
                 </tr>
-                <tr class="border-top">
-                    <td>Subtotal:</td>
-                    <td class="text-right" id="subtotal">৳0.00</td>
-                </tr>
+           
                 <tr>
                     <td>Delivery:</td>
-                    <td class="text-right" id="deliveryAmount">৳60.00</td>
+                    <td class="text-right" id="deliveryAmount">৳60</td>
                 </tr>
                 <tr class="border-top">
                     <td><strong>Total:</strong></td>
-                    <td class="text-right"><strong id="total">৳0.00</strong></td>
+                    <td class="text-right"><strong id="total">৳0</strong></td>
                 </tr>
                 
                 <!-- Advance Payment Row (Hidden by default) -->
                 <tr id="advancePaymentRow" style="display: none;">
                     <td>Advance:</td>
-                    <td class="text-right text-success" id="advanceAmount">৳0.00</td>
+                    <td class="text-right text-success" id="advanceAmount">৳0</td>
                 </tr>
                 
                 <tr class="border-top">
                     <td><strong>Due:</strong></td>
-                    <td class="text-right"><strong id="dueAmount">৳0.00</strong></td>
+                    <td class="text-right"><strong id="dueAmount">৳0</strong></td>
                 </tr>
             </table>
         </div>

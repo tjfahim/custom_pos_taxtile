@@ -57,7 +57,7 @@ const ReturnItems = {
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm return-total-price text-right" 
-                           readonly value="৳0.00">
+                           readonly value="৳0">
                     <input type="hidden" name="return_items[${this.itemCount}][total_price]" 
                            class="return-total-hidden" value="0">
                 </td>
@@ -106,7 +106,7 @@ const ReturnItems = {
         const unitPrice = $(`#returnRow${rowId} .return-unit-price`).val() || 0;
         const total = quantity * unitPrice;
         
-        $(`#returnRow${rowId} .return-total-price`).val('৳' + total.toFixed(2));
+        $(`#returnRow${rowId} .return-total-price`).val('৳' + total.toFixed(0));
         $(`#returnRow${rowId} .return-total-hidden`).val(total);
         
         // Recalculate totals

@@ -213,32 +213,32 @@
             </div>
             <div class="card">
                 <h3>Total Amount</h3>
-                <div class="amount">৳{{ number_format($summary['total_amount'], 2) }}</div>
+                <div class="amount">৳{{ number_format($summary['total_amount'], 0) }}</div>
                 <div class="small-text">Invoice value</div>
             </div>
             <div class="card">
                 <h3>Total Paid</h3>
-                <div class="amount">৳{{ number_format($summary['total_paid'], 2) }}</div>
+                <div class="amount">৳{{ number_format($summary['total_paid'], 0) }}</div>
                 <div class="small-text">Collected</div>
             </div>
             <div class="card">
                 <h3>Total Due</h3>
-                <div class="amount">৳{{ number_format($summary['total_due'], 2) }}</div>
+                <div class="amount">৳{{ number_format($summary['total_due'], 0) }}</div>
                 <div class="small-text">Receivable</div>
             </div>
             <div class="card">
                 <h3>Subtotal</h3>
-                <div class="amount">৳{{ number_format($summary['total_subtotal'], 2) }}</div>
+                <div class="amount">৳{{ number_format($summary['total_subtotal'], 0) }}</div>
                 <div class="small-text">Product value</div>
             </div>
             <div class="card">
                 <h3>Delivery Charge</h3>
-                <div class="amount">৳{{ number_format($summary['total_delivery_charge'], 2) }}</div>
+                <div class="amount">৳{{ number_format($summary['total_delivery_charge'], 0) }}</div>
                 <div class="small-text">Shipping cost</div>
             </div>
             <div class="card">
                 <h3>Avg Order Value</h3>
-                <div class="amount">৳{{ number_format($summary['total_amount'] / max($summary['total_invoices'], 1), 2) }}</div>
+                <div class="amount">৳{{ number_format($summary['total_amount'] / max($summary['total_invoices'], 1), 0) }}</div>
                 <div class="small-text">Per invoice</div>
             </div>
         </div>
@@ -267,27 +267,27 @@
                 <tr>
                     <td><strong>Subtotal (Product Value)</strong></td>
                     <td class="text-center">—</td>
-                    <td class="text-end">৳{{ number_format($summary['total_subtotal'], 2) }}</td>
+                    <td class="text-end">৳{{ number_format($summary['total_subtotal'], 0) }}</td>
                 </tr>
                 <tr>
                     <td><strong>Delivery Charge</strong></td>
                     <td class="text-center">—</td>
-                    <td class="text-end">৳{{ number_format($summary['total_delivery_charge'], 2) }}</td>
+                    <td class="text-end">৳{{ number_format($summary['total_delivery_charge'], 0) }}</td>
                 </tr>
                 <tr style="background-color: #e8f4f8; font-weight: bold;">
                     <td><strong>TOTAL INVOICE AMOUNT</strong></td>
                     <td class="text-center">—</td>
-                    <td class="text-end"><strong>৳{{ number_format($summary['total_amount'], 2) }}</strong></td>
+                    <td class="text-end"><strong>৳{{ number_format($summary['total_amount'], 0) }}</strong></td>
                 </tr>
                 <tr style="background-color: #d4edda;">
                     <td><strong>TOTAL PAID AMOUNT (COLLECTED)</strong></td>
                     <td class="text-center">—</td>
-                    <td class="text-end"><strong style="color: #28a745;">৳{{ number_format($summary['total_paid'], 2) }}</strong></td>
+                    <td class="text-end"><strong style="color: #28a745;">৳{{ number_format($summary['total_paid'], 0) }}</strong></td>
                 </tr>
                 <tr style="background-color: #f8d7da;">
                     <td><strong>TOTAL DUE AMOUNT (RECEIVABLE)</strong></td>
                     <td class="text-center">—</td>
-                    <td class="text-end"><strong style="color: #dc3545;">৳{{ number_format($summary['total_due'], 2) }}</strong></td>
+                    <td class="text-end"><strong style="color: #dc3545;">৳{{ number_format($summary['total_due'], 0) }}</strong></td>
                 </tr>
             </tbody>
             <tfoot>
@@ -331,9 +331,9 @@
                         <span class="badge badge-info">{{ $user['count'] }}</span>
                     </td>
                     <td class="text-center">{{ number_format($user['quantity']) }}</td>
-                    <td class="text-end">৳{{ number_format($user['total'], 2) }}</td>
-                    <td class="text-end">৳{{ number_format($user['paid'], 2) }}</td>
-                    <td class="text-end">৳{{ number_format($user['due'], 2) }}</td>
+                    <td class="text-end">৳{{ number_format($user['total'], 0) }}</td>
+                    <td class="text-end">৳{{ number_format($user['paid'], 0) }}</td>
+                    <td class="text-end">৳{{ number_format($user['due'], 0) }}</td>
                     <td class="text-center">
                         @php
                             $collectionRate = $user['total'] > 0 ? ($user['paid'] / $user['total']) * 100 : 0;
@@ -350,9 +350,9 @@
                     <td colspan="2" class="text-end">TOTAL:</td>
                     <td class="text-center">{{ number_format($createdByStats->sum('count')) }}</td>
                     <td class="text-center">{{ number_format($createdByStats->sum('quantity')) }}</td>
-                    <td class="text-end">৳{{ number_format($createdByStats->sum('total'), 2) }}</td>
-                    <td class="text-end">৳{{ number_format($createdByStats->sum('paid'), 2) }}</td>
-                    <td class="text-end">৳{{ number_format($createdByStats->sum('due'), 2) }}</td>
+                    <td class="text-end">৳{{ number_format($createdByStats->sum('total'), 0) }}</td>
+                    <td class="text-end">৳{{ number_format($createdByStats->sum('paid'), 0) }}</td>
+                    <td class="text-end">৳{{ number_format($createdByStats->sum('due'), 0) }}</td>
                     <td class="text-center">—</td>
                 </tr>
             </tfoot>
@@ -370,7 +370,7 @@
                     </tr>
                     <tr style="background: none;">
                         <td style="border: none; padding: 5px 0;"><strong>Daily Average Amount:</strong></td>
-                        <td style="border: none; text-align: right;">৳{{ number_format($summary['total_amount'] / max($fromDate->diffInDays($toDate) + 1, 1), 2) }}</td>
+                        <td style="border: none; text-align: right;">৳{{ number_format($summary['total_amount'] / max($fromDate->diffInDays($toDate) + 1, 1), 0) }}</td>
                     </tr>
                     <tr style="background: none;">
                         <td style="border: none; padding: 5px 0;"><strong>Average Items/Order:</strong></td>
@@ -378,7 +378,7 @@
                     </tr>
                     <tr style="background: none;">
                         <td style="border: none; padding: 5px 0;"><strong>Average Order Value:</strong></td>
-                        <td style="border: none; text-align: right;">৳{{ number_format($summary['total_amount'] / max($summary['total_invoices'], 1), 2) }}</td>
+                        <td style="border: none; text-align: right;">৳{{ number_format($summary['total_amount'] / max($summary['total_invoices'], 1), 0) }}</td>
                     </tr>
                 </table>
             </div>

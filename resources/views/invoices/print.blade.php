@@ -26,12 +26,11 @@
         }
         
         .invoice-header { 
-            background: #e6f7ff; 
+            background: #e6f7ff00; 
             padding: 12px 15px; 
             display: flex; 
             justify-content: space-between;
             width: 100%;
-            border-bottom: 2px solid #b3e0ff;
         }
         .shop-name { 
             font-size: 16px; 
@@ -89,10 +88,10 @@
             margin: 10px 0;
             table-layout: fixed;
         }
-        .items-table thead { background: #e6f7ff; }
+        .items-table thead { background: #e6f7ff00; }
         .items-table th { 
             padding: 6px 4px; 
-            border: 1px solid #b3e0ff; 
+            border: 1px solid #747474a2; 
             font-size: 14px;
         }
         .items-table td { 
@@ -113,12 +112,10 @@
             margin: 5px 0 10px 0;
             table-layout: fixed;
         }
-        .return-table thead { background: #ffe6e6; }
         .return-table th {
             padding: 6px 4px;
-            border: 1px solid #ffb3b3;
+            border: 1px solid #747474a2;
             font-size: 13px;
-            color: #d32f2f;
         }
         .return-table td {
             padding: 6px 4px;
@@ -169,13 +166,11 @@
             font-size: 14px;
         }
         .return-row-summary {
-            color: #d32f2f;
             font-weight: 600;
         }
         .due-row { 
             font-weight: 800;
             font-size: 16px;
-            color: #d32f2f;
             border-top: 1px solid #e5e5e5;
             padding-top: 6px;
             margin-top: 4px;
@@ -333,17 +328,17 @@
                     <tr>
                         <td>{{ $item->item_name }} {{ $item->description ? '(' . $item->description . ')' : '' }}</td>
                         <td class="text-center">{{ $item->quantity }}</td>
-                        <td class="text-right">৳{{ number_format($item->unit_price, 2) }}</td>
-                        <td class="text-right">৳{{ number_format($item->total_price, 2) }}</td>
+                        <td class="text-right">৳{{ number_format($item->unit_price, 0) }}</td>
+                        <td class="text-right">৳{{ number_format($item->total_price, 0) }}</td>
                     </tr>
                     @endforeach
                 </tbody>
             </table>
             
             <!-- Return Items Table (if exists) -->
-            @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+            {{-- @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
             <div style="margin-top: 5px;">
-                <div style="font-weight: bold; color: #d32f2f; margin-bottom: 5px; font-size: 13px;">
+                <div style="font-weight: bold; margin-bottom: 5px; font-size: 13px;">
                     <i class="fa fa-undo"></i> RETURN ITEMS
                 </div>
                 <table class="return-table">
@@ -364,14 +359,26 @@
                         <tr>
                             <td>{{ $returnItem->item_name }} {{ $returnItem->description ? '(' . $returnItem->description . ')' : '' }}</td>
                             <td class="text-center">{{ $returnItem->quantity }}</td>
-                            <td class="text-right">৳{{ number_format($returnItem->unit_price, 2) }}</td>
-                            <td class="text-right">৳{{ number_format($returnItem->total_price, 2) }}</td>
+                            <td class="text-right">৳{{ number_format($returnItem->unit_price, 0) }}</td>
+                            <td class="text-right">৳{{ number_format($returnItem->total_price, 0) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            @endif
+            @endif --}}
+            <!-- Return Items Summary (if exists) -->
+@if($invoice->has_return_items && $invoice->returnItems->count() > 0)
+@php
+    $returnQuantity = $invoice->returnItems->sum('quantity');
+    $returnSubtotal = $invoice->returnItems->sum('total_price');
+@endphp
+<div style="margin-top: 5px; text-align: right;">
+    <div style="font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #585757;">
+        <i class="fa fa-undo"></i> RETURN ITEMS SUMMARY ({{ $returnQuantity }}) , Total Return: ৳{{ number_format($returnSubtotal, 0) }}
+    </div>
+</div>
+@endif
             
             <!-- Summary Table -->
             <div class="summary-wrapper">
@@ -379,27 +386,21 @@
                     <div class="summary-title">PAYMENT SUMMARY</div>
                     <table class="summary-table">
                         <tr class="total-qty-row">
-                            <td class="label">Total Qty:</td>
-                            <td class="value">{{ $totalQuantity }}</td>
+                            <td class="label">Total Qty: {{ $totalQuantity }}</td>
+                            <td class="value">৳{{ number_format($invoice->items->sum('total_price'), 0) }}</td>
                         </tr>
                         @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
                         <tr class="return-row-summary">
-                            <td class="label">Return Qty:</td>
-                            <td class="value">{{ $returnQuantity }}</td>
+                            <td class="label">Return Qty: {{ $returnQuantity }}</td>
+                            <td class="value">-৳{{ number_format($returnSubtotal, 0) }}</td>
                         </tr>
                         @endif
-                        <tr><td class="label">Subtotal:</td><td class="value">৳{{ number_format($invoice->items->sum('total_price'), 2) }}</td></tr>
-                        @if($invoice->has_return_items && $invoice->returnItems->count() > 0)
-                        <tr class="return-row-summary">
-                            <td class="label">Less Returns:</td>
-                            <td class="value">-৳{{ number_format($returnSubtotal, 2) }}</td>
-                        </tr>
-                        @endif
-                        <tr><td class="label">Net Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 2) }}</td></tr>
-                        <tr><td class="label">Delivery:</td><td class="value">৳{{ number_format($invoice->delivery_charge, 2) }}</td></tr>
-                        <tr class="total-row"><td class="label">Total:</td><td class="value">৳{{ number_format($invoice->total, 2) }}</td></tr>
-                        <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 2) }}</td></tr>
-                        <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 2) }}</td></tr>
+                  
+                        <tr><td class="label">Net Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 0) }}</td></tr>
+                        <tr><td class="label">Delivery:</td><td class="value">৳{{ number_format($invoice->delivery_charge, 0) }}</td></tr>
+                       
+                        <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 0) }}</td></tr>
+                        <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 0) }}</td></tr>
                         @if($invoice->payment_method)
                         <tr><td class="label">Method:</td><td class="value">{{ ucfirst(str_replace('_', ' ', $invoice->payment_method)) }}</td></tr>
                         @endif

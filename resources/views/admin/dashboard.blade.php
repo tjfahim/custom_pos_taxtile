@@ -56,9 +56,9 @@
                         <div class="stat-content dib">
                             <div class="stat-text">Today</div>
                             <div class="stat-digit">{{ $todayInvoices }}</div>
-                            <div class="stat-sub">Revenue: ৳{{ number_format($todayRevenue, 2) }}</div>
-                            <small class="text-success">Paid: ৳{{ number_format($todayPaid ?? 0, 2) }}</small><br>
-                            <small class="text-danger">Due: ৳{{ number_format($todayDue ?? 0, 2) }}</small>
+                            <div class="stat-sub">Revenue: ৳{{ number_format($todayRevenue, 0) }}</div>
+                            <small class="text-success">Paid: ৳{{ number_format($todayPaid ?? 0, 0) }}</small><br>
+                            <small class="text-danger">Due: ৳{{ number_format($todayDue ?? 0, 0) }}</small>
                             @if(isset($todayQuantity))
                             <small class="d-block text-muted">Qty: {{ number_format($todayQuantity) }}</small>
                             @endif
@@ -82,9 +82,9 @@
                         <div class="stat-content dib">
                             <div class="stat-text">This Month</div>
                             <div class="stat-digit">{{ $monthlyInvoices }}</div>
-                            <div class="stat-sub">Revenue: ৳{{ number_format($monthlyRevenue, 2) }}</div>
-                            <small class="text-success">Paid: ৳{{ number_format($monthlyPaid ?? 0, 2) }}</small><br>
-                            <small class="text-danger">Due: ৳{{ number_format($monthlyDue ?? 0, 2) }}</small>
+                            <div class="stat-sub">Revenue: ৳{{ number_format($monthlyRevenue, 0) }}</div>
+                            <small class="text-success">Paid: ৳{{ number_format($monthlyPaid ?? 0, 0) }}</small><br>
+                            <small class="text-danger">Due: ৳{{ number_format($monthlyDue ?? 0, 0) }}</small>
                             @if(isset($monthlyQuantity))
                             <small class="d-block text-muted">Qty: {{ number_format($monthlyQuantity) }}</small>
                             @endif
@@ -105,9 +105,9 @@
                         <div class="stat-content dib">
                             <div class="stat-text">Total {{ $hasFullAccess ? 'Revenue' : 'My Performance' }}</div>
                             <div class="stat-digit">{{ $totalInvoices }}</div>
-                            <div class="stat-sub">Amount: ৳{{ number_format($totalRevenue ?? $totalRevenue, 2) }}</div>
-                            <small class="text-success">Paid: ৳{{ number_format($totalPaidAmount ?? $totalPaid ?? 0, 2) }}</small><br>
-                            <small class="text-danger">Due: ৳{{ number_format($totalDueAmount ?? $totalDue ?? 0, 2) }}</small>
+                            <div class="stat-sub">Amount: ৳{{ number_format($totalRevenue ?? $totalRevenue, 0) }}</div>
+                            <small class="text-success">Paid: ৳{{ number_format($totalPaidAmount ?? $totalPaid ?? 0, 0) }}</small><br>
+                            <small class="text-danger">Due: ৳{{ number_format($totalDueAmount ?? $totalDue ?? 0, 0) }}</small>
                             @if(isset($totalQuantity))
                             <small class="d-block text-muted">Total Qty: {{ number_format($totalQuantity) }}</small>
                             @endif
@@ -178,7 +178,7 @@
                         <div class="stat-content dib">
                             <div class="stat-text">This Year</div>
                             <div class="stat-digit">{{ number_format($yearlyInvoices) }}</div>
-                            <div class="stat-sub">৳{{ number_format($yearlyRevenue, 2) }}</div>
+                            <div class="stat-sub">৳{{ number_format($yearlyRevenue, 0) }}</div>
                         </div>
                     </div>
                 </div>
@@ -224,11 +224,11 @@
                                         <td><strong>{{ $monthName }}</strong></td>
                                         <td class="text-center">{{ $stats ? number_format($stats->total_invoices) : '0' }}</td>
                                         <td class="text-center">{{ $stats ? number_format($stats->total_quantity ?? 0) : '0' }}</td>
-                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_subtotal ?? 0, 2) : '0.00' }}</td>
-                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_delivery ?? 0, 2) : '0.00' }}</td>
-                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_revenue, 2) : '0.00' }}</td>
-                                        <td class="text-end text-success">৳{{ $stats ? number_format($stats->total_paid, 2) : '0.00' }}</td>
-                                        <td class="text-end text-danger">৳{{ $stats ? number_format($stats->total_due, 2) : '0.00' }}</td>
+                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_subtotal ?? 0, 0) : '0' }}</td>
+                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_delivery ?? 0, 0) : '0' }}</td>
+                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_revenue, 0) : '0' }}</td>
+                                        <td class="text-end text-success">৳{{ $stats ? number_format($stats->total_paid, 0) : '0' }}</td>
+                                        <td class="text-end text-danger">৳{{ $stats ? number_format($stats->total_due, 0) : '0' }}</td>
                                         <td class="text-center">
                                             @if($stats)
                                                 <span class="badge bg-{{ $collectionRate >= 80 ? 'success' : ($collectionRate >= 50 ? 'warning' : 'danger') }}">
@@ -253,11 +253,11 @@
                                     <th>Year Total</th>
                                     <th class="text-center">{{ collect($monthlyStats)->sum('total_invoices') }}</th>
                                     <th class="text-center">{{ number_format($yearQuantity) }}</th>
-                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_subtotal'), 2) }}</th>
-                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_delivery'), 2) }}</th>
-                                    <th class="text-end">৳{{ number_format($yearTotal, 2) }}</th>
-                                    <th class="text-end text-success">৳{{ number_format($yearPaid, 2) }}</th>
-                                    <th class="text-end text-danger">৳{{ number_format($yearDue, 2) }}</th>
+                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_subtotal'), 0) }}</th>
+                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_delivery'), 0) }}</th>
+                                    <th class="text-end">৳{{ number_format($yearTotal, 0) }}</th>
+                                    <th class="text-end text-success">৳{{ number_format($yearPaid, 0) }}</th>
+                                    <th class="text-end text-danger">৳{{ number_format($yearDue, 0) }}</th>
                                     <th class="text-center">
                                         <span class="badge bg-{{ $yearCollectionRate >= 80 ? 'success' : ($yearCollectionRate >= 50 ? 'warning' : 'danger') }}">
                                             {{ number_format($yearCollectionRate, 1) }}%
@@ -304,9 +304,9 @@
                                     <td>{{ $day['date'] }}</td>
                                     <td class="text-center">{{ $day['count'] }}</td>
                                     <td class="text-center">{{ number_format($day['quantity']) }}</td>
-                                    <td class="text-end">৳{{ number_format($day['revenue'], 2) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($day['paid'], 2) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($day['due'], 2) }}</td>
+                                    <td class="text-end">৳{{ number_format($day['revenue'], 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($day['paid'], 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($day['due'], 0) }}</td>
                                     <td class="text-center">
                                         <span class="badge bg-{{ $dayCollectionRate >= 80 ? 'success' : ($dayCollectionRate >= 50 ? 'warning' : 'danger') }}">
                                             {{ number_format($dayCollectionRate, 1) }}%
@@ -326,9 +326,9 @@
                                     <th>10 Days Total</th>
                                     <th class="text-center">{{ collect($last10Days)->sum('count') }}</th>
                                     <th class="text-center">{{ number_format(collect($last10Days)->sum('quantity')) }}</th>
-                                    <th class="text-end">৳{{ number_format($total10DaysRevenue, 2) }}</th>
-                                    <th class="text-end text-success">৳{{ number_format($total10DaysPaid, 2) }}</th>
-                                    <th class="text-end text-danger">৳{{ number_format($total10DaysDue, 2) }}</th>
+                                    <th class="text-end">৳{{ number_format($total10DaysRevenue, 0) }}</th>
+                                    <th class="text-end text-success">৳{{ number_format($total10DaysPaid, 0) }}</th>
+                                    <th class="text-end text-danger">৳{{ number_format($total10DaysDue, 0) }}</th>
                                     <th class="text-center">
                                         <span class="badge bg-{{ $total10DaysCollectionRate >= 80 ? 'success' : ($total10DaysCollectionRate >= 50 ? 'warning' : 'danger') }}">
                                             {{ number_format($total10DaysCollectionRate, 1) }}%
@@ -385,11 +385,11 @@
                                     <td>{{ $creator->email }}</td>
                                     <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
                                     <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_quantity) }}</span></td>
-                                    <td class="text-end">৳{{ number_format($creator->total_subtotal, 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($creator->total_delivery, 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($creator->total_amount, 2) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($creator->total_paid, 2) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($creator->total_due, 2) }}</td>
+                                    <td class="text-end">৳{{ number_format($creator->total_subtotal, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($creator->total_delivery, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($creator->total_amount, 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($creator->total_paid, 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($creator->total_due, 0) }}</td>
                                     <td class="text-center">
                                         <span class="badge bg-{{ $collectionRate >= 80 ? 'success' : ($collectionRate >= 50 ? 'warning' : 'danger') }}">
                                             {{ number_format($collectionRate, 1) }}%
@@ -455,23 +455,23 @@
                     <table class="table table-sm">
                         <tr>
                             <th>Total Subtotal:</th>
-                            <td class="text-end">৳{{ number_format($totalSubtotal ?? 0, 2) }}</td>
+                            <td class="text-end">৳{{ number_format($totalSubtotal ?? 0, 0) }}</td>
                         </tr>
                         <tr>
                             <th>Total Delivery:</th>
-                            <td class="text-end">৳{{ number_format($totalDelivery ?? 0, 2) }}</td>
+                            <td class="text-end">৳{{ number_format($totalDelivery ?? 0, 0) }}</td>
                         </tr>
                         <tr class="table-primary">
                             <th>Total Amount:</th>
-                            <td class="text-end fw-bold">৳{{ number_format($totalRevenue ?? 0, 2) }}</td>
+                            <td class="text-end fw-bold">৳{{ number_format($totalRevenue ?? 0, 0) }}</td>
                         </tr>
                         <tr class="table-success">
                             <th>Total Paid:</th>
-                            <td class="text-end fw-bold">৳{{ number_format($totalPaid ?? 0, 2) }}</td>
+                            <td class="text-end fw-bold">৳{{ number_format($totalPaid ?? 0, 0) }}</td>
                         </tr>
                         <tr class="table-warning">
                             <th>Total Due:</th>
-                            <td class="text-end fw-bold">৳{{ number_format($totalDue ?? 0, 2) }}</td>
+                            <td class="text-end fw-bold">৳{{ number_format($totalDue ?? 0, 0) }}</td>
                         </tr>
                     </table>
                 </div>
@@ -531,7 +531,7 @@
                                     </a>
                                 </td>
                                 <td>{{ $invoice->customer->name ?? 'N/A' }}</td>
-                                <td>৳{{ number_format($invoice->total, 2) }}</td>
+                                <td>৳{{ number_format($invoice->total, 0) }}</td>
                                 <td>
                                     <span class="badge badge-{{ $invoice->payment_status == 'paid' ? 'success' : ($invoice->payment_status == 'partial' ? 'warning' : 'danger') }}">
                                         {{ ucfirst($invoice->payment_status) }}
@@ -571,7 +571,7 @@
                                 <td>{{ $customer->phone_number_1 }}</td>
                                 <td class="text-center">{{ $customer->invoices_count ?? 0 }}</td>
                                 <td class="text-center">{{ number_format($customer->total_quantity ?? 0) }}</td>
-                                <td class="text-end">৳{{ number_format($customer->invoices_sum_total ?? 0, 2) }}</td>
+                                <td class="text-end">৳{{ number_format($customer->invoices_sum_total ?? 0, 0) }}</td>
                             </tr>
                             @endforeach
                         </tbody>

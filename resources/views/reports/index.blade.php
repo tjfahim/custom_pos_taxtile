@@ -94,14 +94,14 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h6 class="fw-light">Total Income</h6>
-                                    <h3 class="mb-0">৳{{ number_format($summary['total_paid'], 2) }}</h3>
+                                    <h3 class="mb-0">৳{{ number_format($summary['total_paid'], 0) }}</h3>
                                 </div>
                                 <i class="fas fa-money-bill-wave fa-2x opacity-50"></i>
                             </div>
                             <small>Collected Amount</small>
                         </div>
                         <div class="card-footer  bg-dark">
-                            Subtotal: ৳{{ number_format($summary['total_subtotal'], 2) }}
+                            Subtotal: ৳{{ number_format($summary['total_subtotal'], 0) }}
                         </div>
                     </div>
                 </div>
@@ -111,7 +111,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h6 class="fw-light">Total Due</h6>
-                                    <h3 class="mb-0">৳{{ number_format($summary['total_due'], 2) }}</h3>
+                                    <h3 class="mb-0">৳{{ number_format($summary['total_due'], 0) }}</h3>
                                 </div>
                                 <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
                             </div>
@@ -152,23 +152,23 @@
                                 <table class="table table-bordered">
                                     <tr>
                                         <th width="50%">Total Subtotal (Product Value)</th>
-                                        <td class="text-end">৳{{ number_format($summary['total_subtotal'], 2) }}</td>
+                                        <td class="text-end">৳{{ number_format($summary['total_subtotal'], 0) }}</td>
                                     </tr>
                                     <tr>
                                         <th>Total Delivery Charge</th>
-                                        <td class="text-end">৳{{ number_format($summary['total_delivery_charge'], 2) }}</td>
+                                        <td class="text-end">৳{{ number_format($summary['total_delivery_charge'], 0) }}</td>
                                     </tr>
                                     <tr class="table-primary">
                                         <th>Total Invoice Amount</th>
-                                        <td class="text-end fw-bold">৳{{ number_format($summary['total_amount'], 2) }}</td>
+                                        <td class="text-end fw-bold">৳{{ number_format($summary['total_amount'], 0) }}</td>
                                     </tr>
                                     <tr class="table-success">
                                         <th>Total Paid Amount (Income)</th>
-                                        <td class="text-end fw-bold">৳{{ number_format($summary['total_paid'], 2) }}</td>
+                                        <td class="text-end fw-bold">৳{{ number_format($summary['total_paid'], 0) }}</td>
                                     </tr>
                                     <tr class="table-warning">
                                         <th>Total Due Amount (Receivable)</th>
-                                        <td class="text-end fw-bold">৳{{ number_format($summary['total_due'], 2) }}</td>
+                                        <td class="text-end fw-bold">৳{{ number_format($summary['total_due'], 0) }}</td>
                                     </tr>
                                 </table>
                             </div>
@@ -195,8 +195,8 @@
                                         <hr class="my-2">
                                         <div class="mt-2">
                                             <div><strong>Quantity:</strong> {{ number_format($paymentStatusStats['paid']['quantity']) }}</div>
-                                            <div><strong>Total:</strong> ৳{{ number_format($paymentStatusStats['paid']['total'], 2) }}</div>
-                                            <div class="text-success"><strong>Paid:</strong> ৳{{ number_format($paymentStatusStats['paid']['paid'], 2) }}</div>
+                                            <div><strong>Total:</strong> ৳{{ number_format($paymentStatusStats['paid']['total'], 0) }}</div>
+                                            <div class="text-success"><strong>Paid:</strong> ৳{{ number_format($paymentStatusStats['paid']['paid'], 0) }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -210,9 +210,9 @@
                                         <hr class="my-2">
                                         <div class="mt-2">
                                             <div><strong>Quantity:</strong> {{ number_format($paymentStatusStats['partial']['quantity']) }}</div>
-                                            <div><strong>Total:</strong> ৳{{ number_format($paymentStatusStats['partial']['total'], 2) }}</div>
-                                            <div class="text-success"><strong>Paid:</strong> ৳{{ number_format($paymentStatusStats['partial']['paid'], 2) }}</div>
-                                            <div class="text-danger"><strong>Due:</strong> ৳{{ number_format($paymentStatusStats['partial']['due'], 2) }}</div>
+                                            <div><strong>Total:</strong> ৳{{ number_format($paymentStatusStats['partial']['total'], 0) }}</div>
+                                            <div class="text-success"><strong>Paid:</strong> ৳{{ number_format($paymentStatusStats['partial']['paid'], 0) }}</div>
+                                            <div class="text-danger"><strong>Due:</strong> ৳{{ number_format($paymentStatusStats['partial']['due'], 0) }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -226,8 +226,8 @@
                                         <hr class="my-2">
                                         <div class="mt-2">
                                             <div><strong>Quantity:</strong> {{ number_format($paymentStatusStats['unpaid']['quantity']) }}</div>
-                                            <div><strong>Total:</strong> ৳{{ number_format($paymentStatusStats['unpaid']['total'], 2) }}</div>
-                                            <div class="text-danger"><strong>Due:</strong> ৳{{ number_format($paymentStatusStats['unpaid']['due'], 2) }}</div>
+                                            <div><strong>Total:</strong> ৳{{ number_format($paymentStatusStats['unpaid']['total'], 0) }}</div>
+                                            <div class="text-danger"><strong>Due:</strong> ৳{{ number_format($paymentStatusStats['unpaid']['due'], 0) }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -262,9 +262,9 @@
                                                 </td>
                                                 <td class="text-center">{{ $stats['count'] }}</td>
                                                 <td class="text-center">{{ number_format($stats['quantity']) }}</td>
-                                                <td class="text-end">৳{{ number_format($stats['total'], 2) }}</td>
-                                                <td class="text-end text-success">৳{{ number_format($stats['paid'], 2) }}</td>
-                                                <td class="text-end text-danger">৳{{ number_format($stats['due'], 2) }}</td>
+                                                <td class="text-end">৳{{ number_format($stats['total'], 0) }}</td>
+                                                <td class="text-end text-success">৳{{ number_format($stats['paid'], 0) }}</td>
+                                                <td class="text-end text-danger">৳{{ number_format($stats['due'], 0) }}</td>
                                             </tr>
                                             @endforeach
                                         </tbody>
@@ -302,9 +302,9 @@
                                     <td>{{ $day['date'] }}</td>
                                     <td class="text-center">{{ $day['count'] }}</td>
                                     <td class="text-center">{{ number_format($day['quantity'] ?? 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($day['total'], 2) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($day['paid'], 2) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($day['due'], 2) }}</td>
+                                    <td class="text-end">৳{{ number_format($day['total'], 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($day['paid'], 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($day['due'], 0) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -342,15 +342,15 @@
                                     </div>
                                     <div class="col-md-2 col-sm-6">
                                         <small>Subtotal</small>
-                                        <h5>৳{{ number_format($userSummary['total_subtotal_created'], 2) }}</h5>
+                                        <h5>৳{{ number_format($userSummary['total_subtotal_created'], 0) }}</h5>
                                     </div>
                                     <div class="col-md-2 col-sm-6">
                                         <small>Delivery Charge</small>
-                                        <h5>৳{{ number_format($userSummary['total_delivery_created'], 2) }}</h5>
+                                        <h5>৳{{ number_format($userSummary['total_delivery_created'], 0) }}</h5>
                                     </div>
                                     <div class="col-md-2 col-sm-6">
                                         <small>Total Amount</small>
-                                        <h5>৳{{ number_format($userSummary['total_amount_created'], 2) }}</h5>
+                                        <h5>৳{{ number_format($userSummary['total_amount_created'], 0) }}</h5>
                                     </div>
                                 </div>
                             </div>
@@ -390,12 +390,12 @@
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ number_format($user['quantity']) }}</span>
                                     </td>
-                                    <td class="text-end">৳{{ number_format($user['subtotal'], 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($user['delivery_charge'], 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($user['total'], 2) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($user['paid'], 2) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($user['due'], 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($user['avg_order_value'], 2) }}</td>
+                                    <td class="text-end">৳{{ number_format($user['subtotal'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($user['delivery_charge'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($user['total'], 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($user['paid'], 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($user['due'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($user['avg_order_value'], 0) }}</td>
                                     <td class="text-center">{{ number_format($user['avg_quantity_per_order'], 1) }}</td>
                                 </tr>
                                 @endforeach
@@ -406,11 +406,11 @@
                                     <th colspan="3" class="text-end">Totals:</th>
                                     <th class="text-center">{{ number_format($userSummary['total_orders_created']) }}</th>
                                     <th class="text-center">{{ number_format($userSummary['total_quantity_created']) }}</th>
-                                    <th class="text-end">৳{{ number_format($userSummary['total_subtotal_created'], 2) }}</th>
-                                    <th class="text-end">৳{{ number_format($userSummary['total_delivery_created'], 2) }}</th>
-                                    <th class="text-end">৳{{ number_format($userSummary['total_amount_created'], 2) }}</th>
-                                    <th class="text-end text-success">৳{{ number_format($userSummary['total_paid_created'], 2) }}</th>
-                                    <th class="text-end text-danger">৳{{ number_format($userSummary['total_due_created'], 2) }}</th>
+                                    <th class="text-end">৳{{ number_format($userSummary['total_subtotal_created'], 0) }}</th>
+                                    <th class="text-end">৳{{ number_format($userSummary['total_delivery_created'], 0) }}</th>
+                                    <th class="text-end">৳{{ number_format($userSummary['total_amount_created'], 0) }}</th>
+                                    <th class="text-end text-success">৳{{ number_format($userSummary['total_paid_created'], 0) }}</th>
+                                    <th class="text-end text-danger">৳{{ number_format($userSummary['total_due_created'], 0) }}</th>
                                     <th colspan="2"></th>
                                 </tr>
                             </tfoot>
@@ -451,9 +451,9 @@
                                     <td>{{ $customer['phone'] }}</td>
                                     <td class="text-center">{{ $customer['invoice_count'] }}</td>
                                     <td class="text-center">{{ number_format($customer['quantity'] ?? 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($customer['total_spent'], 2) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($customer['total_paid'], 2) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($customer['total_due'], 2) }}</td>
+                                    <td class="text-end">৳{{ number_format($customer['total_spent'], 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($customer['total_paid'], 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($customer['total_due'], 0) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -491,8 +491,8 @@
                                 <td>{{ $area ?? 'N/A' }}</td>
                                 <td class="text-center">{{ $stats['count'] }}</td>
                                 <td class="text-center">{{ number_format($stats['quantity'] ?? 0) }}</td>
-                                <td class="text-end">৳{{ number_format($stats['delivery_charge'], 2) }}</td>
-                                <td class="text-end">৳{{ number_format($stats['total'], 2) }}</td>
+                                <td class="text-end">৳{{ number_format($stats['delivery_charge'], 0) }}</td>
+                                <td class="text-end">৳{{ number_format($stats['total'], 0) }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -584,11 +584,11 @@
                                             Total: {{ $invoice->items->sum('quantity') }} items
                                         </span>
                                     </td>
-                                    <td class="text-end">৳{{ number_format($invoice->subtotal, 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($invoice->delivery_charge, 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($invoice->total, 2) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($invoice->paid_amount, 2) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 2) }}</td>
+                                    <td class="text-end">৳{{ number_format($invoice->subtotal, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($invoice->total, 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($invoice->paid_amount, 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
                                     <td>
                                         <span class="badge bg-{{ 
                                             $invoice->payment_status == 'paid' ? 'success' : 
@@ -615,11 +615,11 @@
                             <tfoot class="table-secondary fw-bold">
                                 <tr>
                                     <td colspan="6" class="text-end">Totals:</td>
-                                    <td class="text-end">৳{{ number_format($summary['total_subtotal'], 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($summary['total_delivery_charge'], 2) }}</td>
-                                    <td class="text-end">৳{{ number_format($summary['total_amount'], 2) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($summary['total_paid'], 2) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($summary['total_due'], 2) }}</td>
+                                    <td class="text-end">৳{{ number_format($summary['total_subtotal'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($summary['total_delivery_charge'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($summary['total_amount'], 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($summary['total_paid'], 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($summary['total_due'], 0) }}</td>
                                     <td colspan="3"></td>
                                 </tr>
                             </tfoot>
