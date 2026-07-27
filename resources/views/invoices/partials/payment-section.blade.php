@@ -10,7 +10,7 @@
                     <label>Advance Amount</label>
                     <input type="number" name="paid_amount" 
                            class="form-control" 
-                           value="0" min="0" step="0.01" id="paidAmount"
+                           value="0" min="0"  id="paidAmount"
                            onchange="InvoiceCalculations.updateDueAmount()">
                 </div>
             </div>
@@ -22,6 +22,7 @@
                         <option value="bkash">Bkash (Merchant)</option>
                         <option value="bkash_personal">Bkash Personal</option>
                         <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cash">Cash</option>
                     </select>
                 </div>
             </div>
@@ -60,6 +61,21 @@
                         <input type="text" name="bank_transfer_details" class="form-control" 
                                placeholder="Bank name & account details">
                     </div>
+                </div>
+
+                <!-- Cash Details -->
+                <div id="cashDetails" style="display: none;">
+                    <div class="form-group">
+                        <label>Received By</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text"></span>
+                            </div>
+                            <input type="text" name="cash_amount" class="form-control" 
+                                   placeholder="Enter amount receiver name" min="0">
+                        </div>
+                    </div>
+              
                 </div>
             </div>
         </div>

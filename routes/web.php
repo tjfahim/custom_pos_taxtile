@@ -81,6 +81,8 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     // CSV download
     Route::get('/invoices/download-today-csv', [InvoiceController::class, 'downloadTodayCSV'])
         ->name('invoices.download-today-csv');
+    Route::get('/invoices/download-today-csv-exchange', [InvoiceController::class, 'downloadTodayCSVExchange'])
+        ->name('invoices.download-today-csv-exchange');
 
     Route::get('/invoices/download-custom-csv', [InvoiceController::class, 'downloadCustomCSV'])->name('invoices.download-custom-csv');
 

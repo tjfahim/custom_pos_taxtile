@@ -8,11 +8,14 @@ const InvoicePayments = {
         $('#bkashDetails').hide();
         $('#bkashPersonalDetails').hide();
         $('#bankDetails').hide();
+        $('#cashDetails').hide();
         
         // Clear all payment detail fields
         $('[name="bkash_transaction"]').val('');
         $('[name="bkash_personal_transaction"]').val('');
         $('[name="bank_transfer_details"]').val('');
+        $('[name="cash_amount"]').val('');
+        $('[name="amount_receiver_name"]').val('');
         
         // Show relevant section based on payment method
         if (method === 'bkash') {
@@ -21,6 +24,8 @@ const InvoicePayments = {
             $('#bkashPersonalDetails').show();
         } else if (method === 'bank_transfer') {
             $('#bankDetails').show();
+        } else if (method === 'cash') {
+            $('#cashDetails').show();
         }
     }
 };

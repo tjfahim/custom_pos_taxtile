@@ -36,7 +36,7 @@ public function storePos(Request $request)
     'paid_amount' => 'nullable|numeric|min:0',
     'is_wholesale' => 'nullable|boolean',
     'is_inhouse_sale' => 'nullable|boolean',
-    'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX',
+    'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX,Exchange',
     'items' => 'required|array|min:1',
     'items.*.item_name' => 'required|string',
     'items.*.quantity' => 'required|integer|min:1',
@@ -203,6 +203,8 @@ private function getPaymentDetails($request)
             return $request->bkash_personal_transaction; // Store last 4 digits for personal bkash
         case 'bank_transfer':
             return $request->bank_transfer_details; // Store bank details
+        case 'cash':
+                return $request->cash_amount; 
         default:
             return null;
     }
@@ -696,7 +698,8 @@ public function update(Request $request, $id)
         
         // Get only CONFIRMED invoices for today with sorting by invoice number
         $invoices = Invoice::whereDate('updated_at', $today)
-            ->where('status', 'confirmed')
+        ->where('courier_name', 'Pathao')
+        ->where('status', 'confirmed')
             ->with('customer', 'items')
             ->orderBy('invoice_number', 'asc') // Add this line for sorting
             ->get();
@@ -826,6 +829,143 @@ public function update(Request $request, $id)
         ]);
     }
   
+     public function downloadTodayCSVExchange(Request $request)
+    {
+        // Get today's date
+        $today = Carbon::today()->toDateString();
+        
+        // Get only CONFIRMED invoices for today with sorting by invoice number
+        $invoices = Invoice::whereDate('updated_at', $today)
+        ->where('courier_name', 'Exchange')
+        ->where('status', 'confirmed')
+            ->with('customer', 'items')
+            ->orderBy('invoice_number', 'asc') // Add this line for sorting
+            ->get();
+        
+        
+        // Check if there are any confirmed invoices for today
+        if ($invoices->isEmpty()) {
+            return redirect()->back()->with('error', 'No confirmed invoices found for today.');
+        }
+        
+    
+        
+        foreach ($invoices as $invoice) {
+            // Only process confirmed invoices (additional safety check)
+            if ($invoice->status !== 'confirmed') {
+                continue;
+            }
+            
+            // Parse delivery_area field to extract city, zone, area
+            $cityName = '';
+            $zoneName = '';
+            $areaName = '';
+            
+            if (!empty($invoice->delivery_area)) {
+                $parts = array_map('trim', explode(',', $invoice->delivery_area));
+                
+                // Get city (first part)
+                if (isset($parts[0])) {
+                    $cityName = $parts[0];
+                }
+                
+                // Get zone (second part)
+                if (isset($parts[1])) {
+                    $zoneName = $parts[1];
+                }
+                
+                // Get area (third part and beyond, join back)
+                if (count($parts) >= 3) {
+                    $areaParts = array_slice($parts, 2);
+                    $areaName = implode(', ', $areaParts);
+                }
+            }
+            
+            // If we have Pathao IDs, use those instead (higher priority)
+            if ($invoice->pathaoCity) {
+                $cityName = $invoice->pathaoCity->city_name;
+            }
+            if ($invoice->pathaoZone) {
+                $zoneName = $invoice->pathaoZone->zone_name;
+            }
+            if ($invoice->pathaoArea) {
+                $areaName = $invoice->pathaoArea->area_name;
+            }
+            
+            // Clean up any trailing commas from area
+            $areaName = trim($areaName, ', ');
+            
+            // Calculate TOTAL quantity and weight for ALL items in this invoice
+            $totalQuantity = $invoice->items->sum('quantity');
+            $totalWeight = $totalQuantity * 0.5;
+            
+            // Get item names only (NO descriptions)
+            $itemNames = [];
+            foreach ($invoice->items as $item) {
+                if ($item->item_name) {
+                    $itemNames[] = $item->item_name;
+                }
+            }
+            
+            // Combine item names (without descriptions)
+            $itemDesc = '';
+            if (!empty($itemNames)) {
+                if (count($itemNames) == 1) {
+                    $itemDesc = $itemNames[0];
+                } else {
+                    $itemDesc = $itemNames[0];
+                }
+            } else {
+                $itemDesc = 'Items';
+            }
+            
+            // Clean fields that might contain newlines
+            $cleanAddress = str_replace(["\r", "\n"], ', ', $invoice->recipient_address);
+            $cleanAddress = trim(preg_replace('/\s+/', ' ', $cleanAddress));
+            
+            $cleanInstructions = str_replace(["\r", "\n"], ', ', $invoice->special_instructions);
+            $cleanInstructions = trim(preg_replace('/\s+/', ' ', $cleanInstructions));
+            
+            // Prepare ONE row per invoice
+            $row = [
+                'Parcel',
+                $invoice->store_location,
+                $invoice->merchant_order_id ?: '',
+                $invoice->recipient_name,
+                $invoice->recipient_phone,
+                $cleanAddress,
+                $cityName,
+                $zoneName,
+                $areaName,
+                $invoice->due_amount,
+                $totalQuantity,
+                $totalWeight,
+                $itemDesc,
+                $cleanInstructions
+            ];
+            
+            $csvData[] = $row;
+        }
+        
+        // Generate CSV using fputcsv for proper formatting
+        $filename = 'today_invoices_' . $today . '.csv';
+        
+        return response()->streamDownload(function() use ($csvData) {
+            $handle = fopen('php://output', 'w');
+            
+            // Add UTF-8 BOM for Excel
+            fwrite($handle, "\xEF\xBB\xBF");
+            
+            foreach ($csvData as $row) {
+                fputcsv($handle, $row);
+            }
+            
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
 
 public function downloadCustomCSV(Request $request)
 {
@@ -846,6 +986,8 @@ public function downloadCustomCSV(Request $request)
         // IMPORTANT: Remove the non-existent relationships (pathaoCity, pathaoZone, pathaoArea)
         $invoices = Invoice::whereBetween('updated_at', [$startTime, $endTime])
             ->where('status', 'confirmed')
+                    ->where('courier_name', 'Pathao')
+
             ->whereNull('deleted_at')
             ->with(['customer', 'items']) // Only load existing relationships
             ->orderBy('invoice_number', 'asc')

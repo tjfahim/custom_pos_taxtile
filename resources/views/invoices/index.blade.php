@@ -17,14 +17,21 @@
                         <i class="fa fa-clock-o"></i> Custom Time CSV
                     </button>
    
-                  
-                   
-                    <div class="btn-group" role="group" aria-label="CSV Download Options">
-                        <a href="{{ route('admin.invoices.download-today-csv') }}" class="btn btn-info btn-sm mr-2">
-                            <i class="fa fa-download"></i> Today's CSV (All)
+                   <div class="btn-group" role="group" aria-label="CSV Download Options">
+                        <a href="{{ route('admin.invoices.download-today-csv-exchange') }}" class="btn btn-info btn-sm mr-2">
+                            <i class="fa fa-download"></i> Today's CSV (Exchange)
                         </a>
                     </div>
               
+                   
+                    <div class="btn-group" role="group" aria-label="CSV Download Options">
+                        <a href="{{ route('admin.invoices.download-today-csv') }}" class="btn btn-info btn-sm mr-2">
+                            <i class="fa fa-download"></i> Today's CSV (Pathao)
+                        </a>
+                    </div>
+              
+                   
+                   
                     <a href="{{ route('admin.invoices.pos') }}" class="btn btn-primary btn-sm">
                         <i class="fa fa-plus"></i> Create Invoice
                     </a>

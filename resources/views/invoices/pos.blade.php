@@ -51,6 +51,7 @@
                     <option value="SUNDORBAN">SUNDORBAN</option>
                     <option value="JANONI">JANONI</option>
                     <option value="REDEX">REDEX</option>
+                    <option value="Exchange">Exchange</option>
                 </select>
             </div>
         </div>
