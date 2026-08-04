@@ -1200,7 +1200,7 @@ public function checkPhoneLastDays($phone)
             return response()->json(['error' => 'Invalid phone number'], 400);
         }
         
-        $days = request()->get('days', 3);
+        $days = request()->get('days', 4);
         
         // Get today's date
         $today = now()->format('Y-m-d');

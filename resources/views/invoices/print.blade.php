@@ -268,17 +268,17 @@
     <div style="flex: 1; text-align: center; display: flex; align-items: center; justify-content: center;">
         <div class="sale-type" style="font-size: 16px; font-weight: 500; color: #000000;">
             @if($invoice->is_wholesale)
-                <span style="font-weight: bold; color: #000000;">Whole Sale</span>
+                <span style="font-weight: 700; font-size:18px; color: #000000;">Whole Sale</span>
                 @if($invoice->is_inhouse_sale)
-                    <span style="color: #000000;"> (In House)</span>
+                    <span style="font-weight: 700; font-size:18px; color: #000000;"> (In House)</span>
                 @else
-                    <span style="color: #000000;"> ({{ $invoice->courier_name ?? 'Pathao' }})</span>
+                    <span style="font-weight: 700; font-size:18px; color: #000000;"> ({{ $invoice->courier_name ?? 'Pathao' }})</span>
                 @endif
             @else
                 @if($invoice->is_inhouse_sale)
-                    <span style="font-weight: bold; color: #000000;">In House</span>
+                    <span style="font-weight: 700; font-size:18px; color: #000000;">In House</span>
                 @else
-                    <span style="color: #000000;">{{ $invoice->courier_name ?? 'Pathao' }}</span>
+                    <span style="font-weight: 700; font-size:18px; color: #000000;">{{ $invoice->courier_name ?? 'Pathao' }}</span>
                 @endif
             @endif
         </div>
@@ -286,7 +286,7 @@
     
     <div class="invoice-info" style="flex: 0 0 auto; text-align: right;">
         <div class="invoice-no">#{{ $invoice->invoice_number }}</div>
-        <div class="invoice-date">{{ now()->format('d/m/Y h:i A') }}</div>
+        <div class="invoice-date">{{ $invoice->status == 'pending' ? $invoice->created_at->format('d/m/Y h:i A') : now()->format('d/m/Y h:i A') }}</div>
     </div>
 </div>
         

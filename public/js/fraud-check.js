@@ -184,8 +184,8 @@ class FraudChecker {
         this.showLoading('Checking recent orders...');
         
         try {
-            // Check invoices for last 3 days
-            const res = await fetch(`/check-phone-last-days/${phone}?days=3`);
+            // Check invoices for last 4 days
+            const res = await fetch(`/check-phone-last-days/${phone}?days=`);
             const data = await res.json();
             
             if (data.error) throw new Error(data.error);
@@ -323,7 +323,8 @@ class FraudChecker {
         } else if (data.day_before) {
             alertLevel = 'info';
             alertIcon = 'clock';
-        }
+        } 
+
         
         container.removeClass('alert-danger alert-warning alert-info alert-success')
                 .addClass(`alert-${alertLevel}`);
@@ -336,6 +337,8 @@ class FraudChecker {
                     ${this.getDayBadge('Today', data.today_count || 0, data.today, data.today_invoices)}
                     ${this.getDayBadge('Yesterday', data.yesterday_count || 0, data.yesterday, data.yesterday_invoices)}
                     ${this.getDayBadge('2 Days Ago', data.day_before_count || 0, data.day_before, data.day_before_invoices)}
+                    ${this.getDayBadge('3 Days Ago', data.three_days_ago_count || 0, data.three_days_ago, data.three_days_ago_invoices)}
+                      ${this.getDayBadge('4 Days Ago', data.four_days_ago_count || 0, data.four_days_ago, data.four_days_ago_invoices)}
                 </div>
                 ${this.getWarningMessage(data)}
             </div>
