@@ -33,10 +33,90 @@ class DashboardController extends Controller
     
     // Date filters
     $today = Carbon::today();
-    $startOfWeek = Carbon::now()->startOfWeek();
     $startOfMonth = Carbon::now()->startOfMonth();
-    $startOfYear = Carbon::now()->startOfYear();
+    $couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
+    $todayData = [];
+    $monthData = [];
+
+    // Process each courier
+    foreach ($couriers as $courier) {
+        // Today's data for this courier
+        $todayQuery = Invoice::where('courier_name', $courier)
+            ->where('status', 'confirmed')
+            ->whereDate('invoice_date', $today);
+        
+        $todayCount = $todayQuery->count();
+        
+        // Only add if there are invoices
+        if ($todayCount > 0) {
+            $todayData[$courier] = [
+                'invoices' => $todayCount,
+                'revenue' => $todayQuery->sum('total'),
+                'paid' => $todayQuery->sum('paid_amount'),
+                'subtotal' => $todayQuery->sum('subtotal'),
+                'delivery' => $todayQuery->sum('delivery_charge'),
+                'quantity' => $todayQuery->with('items')->get()->sum(function($invoice) {
+                    return $invoice->items->sum('quantity');
+                })
+            ];
+        }
+        
+        // Month data for this courier
+        $monthQuery = Invoice::where('courier_name', $courier)
+            ->where('status', 'confirmed')
+            ->where('invoice_date', '>=', $startOfMonth);
+        
+        $monthCount = $monthQuery->count();
+        
+        // Only add if there are invoices
+        if ($monthCount > 0) {
+            $monthData[$courier] = [
+                'invoices' => $monthCount,
+                'revenue' => $monthQuery->sum('total'),
+                'paid' => $monthQuery->sum('paid_amount'),
+                'subtotal' => $monthQuery->sum('subtotal'),
+                'delivery' => $monthQuery->sum('delivery_charge'),
+                'quantity' => $monthQuery->with('items')->get()->sum(function($invoice) {
+                    return $invoice->items->sum('quantity');
+                })
+            ];
+        }
+    }
     
+    // In-house data - Today
+    $todayInhouseQuery = Invoice::where('is_inhouse_sale', true)
+        ->where('status', 'confirmed')
+        ->whereDate('invoice_date', $today);
+    
+    $todayInhouseCount = $todayInhouseQuery->count();
+    $todayInhouse = [
+        'invoices' => $todayInhouseCount,
+        'revenue' => $todayInhouseQuery->sum('total'),
+        'paid' => $todayInhouseQuery->sum('paid_amount'),
+        'subtotal' => $todayInhouseQuery->sum('subtotal'),
+        'delivery' => $todayInhouseQuery->sum('delivery_charge'),
+        'quantity' => $todayInhouseQuery->with('items')->get()->sum(function($invoice) {
+            return $invoice->items->sum('quantity');
+        })
+    ];
+    
+    // In-house data - Month
+    $monthInhouseQuery = Invoice::where('is_inhouse_sale', true)
+        ->where('status', 'confirmed')
+        ->where('invoice_date', '>=', $startOfMonth);
+    
+    $monthInhouseCount = $monthInhouseQuery->count();
+    $monthInhouse = [
+        'invoices' => $monthInhouseCount,
+        'revenue' => $monthInhouseQuery->sum('total'),
+        'paid' => $monthInhouseQuery->sum('paid_amount'),
+        'subtotal' => $monthInhouseQuery->sum('subtotal'),
+        'delivery' => $monthInhouseQuery->sum('delivery_charge'),
+        'quantity' => $monthInhouseQuery->with('items')->get()->sum(function($invoice) {
+            return $invoice->items->sum('quantity');
+        })
+    ];
+
     // Monthly stats for current year - FIXED GROUP BY ISSUE
     $monthlyStats = DB::table('invoices')
         ->select(
@@ -61,21 +141,10 @@ class DashboardController extends Controller
         ->get()
         ->keyBy('month');
     
-    // Total counts (only confirmed invoices)
-    $totalInvoices = Invoice::where('status', 'confirmed')->count();
-    $totalCustomers = Customer::count();
-    $totalUsers = User::count();
-    $totalRevenue = Invoice::where('status', 'confirmed')->sum('total');
     $totalPaidAmount = Invoice::where('status', 'confirmed')->sum('paid_amount');
     $totalDueAmount = Invoice::where('status', 'confirmed')->sum('due_amount');
     $totalSubtotal = Invoice::where('status', 'confirmed')->sum('subtotal');
     $totalDelivery = Invoice::where('status', 'confirmed')->sum('delivery_charge');
-    $totalQuantity = Invoice::where('status', 'confirmed')
-        ->with('items')
-        ->get()
-        ->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
-        });
     
     // Today's counts (only confirmed invoices)
     $todayInvoices = Invoice::where('status', 'confirmed')
@@ -87,6 +156,13 @@ class DashboardController extends Controller
     $todayPaid = Invoice::where('status', 'confirmed')
         ->whereDate('invoice_date', $today)
         ->sum('paid_amount');
+    $todayQuantity = Invoice::where('status', 'confirmed')
+        ->whereDate('invoice_date', $today)
+        ->with('items')
+        ->get()
+        ->sum(function($invoice) {
+            return $invoice->items->sum('quantity');
+        });
     $todayDue = Invoice::where('status', 'confirmed')
         ->whereDate('invoice_date', $today)
         ->sum('due_amount');
@@ -96,41 +172,7 @@ class DashboardController extends Controller
     $todayDelivery = Invoice::where('status', 'confirmed')
         ->whereDate('invoice_date', $today)
         ->sum('delivery_charge');
-    $todayQuantity = Invoice::where('status', 'confirmed')
-        ->whereDate('invoice_date', $today)
-        ->with('items')
-        ->get()
-        ->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
-        });
-    
-    // This Week counts (only confirmed invoices)
-    $weekInvoices = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfWeek)
-        ->count();
-    $weekRevenue = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfWeek)
-        ->sum('total');
-    $weekPaid = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfWeek)
-        ->sum('paid_amount');
-    $weekDue = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfWeek)
-        ->sum('due_amount');
-    $weekSubtotal = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfWeek)
-        ->sum('subtotal');
-    $weekDelivery = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfWeek)
-        ->sum('delivery_charge');
-    $weekQuantity = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfWeek)
-        ->with('items')
-        ->get()
-        ->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
-        });
-    
+
     // Last 10 days daily breakdown (only confirmed invoices)
     $last10Days = collect();
     for ($i = 9; $i >= 0; $i--) {
@@ -182,79 +224,6 @@ class DashboardController extends Controller
             return $invoice->items->sum('quantity');
         });
     
-    // This Year counts (only confirmed invoices)
-    $yearlyInvoices = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfYear)
-        ->count();
-    $yearlyRevenue = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfYear)
-        ->sum('total');
-    $yearlyPaid = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfYear)
-        ->sum('paid_amount');
-    $yearlyDue = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfYear)
-        ->sum('due_amount');
-    $yearlySubtotal = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfYear)
-        ->sum('subtotal');
-    $yearlyDelivery = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfYear)
-        ->sum('delivery_charge');
-    $yearlyQuantity = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfYear)
-        ->with('items')
-        ->get()
-        ->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
-        });
-    
-    // Status counts (include all statuses for reference)
-    $invoiceStatusCounts = Invoice::select('status', DB::raw('count(*) as count'))
-        ->groupBy('status')
-        ->pluck('count', 'status');
-        
-    $paymentStatusCounts = Invoice::select('payment_status', DB::raw('count(*) as count'))
-        ->groupBy('payment_status')
-        ->pluck('count', 'payment_status');
-    
-    // Recent invoices (only confirmed)
-    $recentInvoices = Invoice::with(['customer', 'creator'])
-        ->where('status', 'confirmed')
-        ->latest()
-        ->limit(10)
-        ->get();
-    
-    // Top customers by total spent (only confirmed invoices)
-    $topCustomers = Customer::select([
-            'customers.*',
-            DB::raw('(SELECT COUNT(*) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_count'),
-            DB::raw('(SELECT COALESCE(SUM(total), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_total'),
-            DB::raw('(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_paid'),
-            DB::raw('(SELECT COALESCE(SUM(due_amount), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_due'),
-            DB::raw('(SELECT COALESCE(SUM(subtotal), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_subtotal'),
-            DB::raw('(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_delivery'),
-            DB::raw('(SELECT COALESCE(SUM(quantity), 0) FROM invoice_items WHERE invoice_items.invoice_id IN (SELECT id FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed")) as total_quantity')
-        ])
-        ->orderBy('invoices_sum_total', 'desc')
-        ->limit(5)
-        ->get();
-    
-     // Top customers by total spent (only confirmed invoices)
-    $topCustomers = Customer::select([
-            'customers.*',
-            DB::raw('(SELECT COUNT(*) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_count'),
-            DB::raw('(SELECT COALESCE(SUM(total), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_total'),
-            DB::raw('(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_paid'),
-            DB::raw('(SELECT COALESCE(SUM(due_amount), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_due'),
-            DB::raw('(SELECT COALESCE(SUM(subtotal), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_subtotal'),
-            DB::raw('(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed") as invoices_sum_delivery'),
-            DB::raw('(SELECT COALESCE(SUM(quantity), 0) FROM invoice_items WHERE invoice_items.invoice_id IN (SELECT id FROM invoices WHERE invoices.customer_id = customers.id AND invoices.status = "confirmed")) as total_quantity')
-        ])
-        ->orderBy('invoices_sum_total', 'desc')
-        ->limit(5)
-        ->get();
-    
     // User performance summary - NOW USING confirmed_at to credit the original creator
     $topCreators = User::select([
         'users.*',
@@ -282,16 +251,144 @@ class DashboardController extends Controller
     ->having('total_invoices', '>', 0)
     ->orderBy('total_amount', 'desc')
     ->get();
+    
+    $topCreatorsMonth = User::select([
+        'users.*',
+        DB::raw('(SELECT COUNT(*) FROM invoices WHERE invoices.created_by = users.id AND invoices.invoice_date >= "' . $startOfMonth . '" AND invoices.status = "confirmed" AND invoices.deleted_at IS NULL) as total_invoices'),
+        DB::raw('(SELECT COALESCE(SUM(total), 0) FROM invoices WHERE invoices.created_by = users.id AND invoices.invoice_date >= "' . $startOfMonth . '" AND invoices.status = "confirmed" AND invoices.deleted_at IS NULL) as total_amount'),
+        DB::raw('(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices WHERE invoices.created_by = users.id AND invoices.invoice_date >= "' . $startOfMonth . '" AND invoices.status = "confirmed" AND invoices.deleted_at IS NULL) as total_paid'),
+        DB::raw('(SELECT COALESCE(SUM(due_amount), 0) FROM invoices WHERE invoices.created_by = users.id AND invoices.invoice_date >= "' . $startOfMonth . '" AND invoices.status = "confirmed" AND invoices.deleted_at IS NULL) as total_due'),
+        DB::raw('(SELECT COALESCE(SUM(subtotal), 0) FROM invoices WHERE invoices.created_by = users.id AND invoices.invoice_date >= "' . $startOfMonth . '" AND invoices.status = "confirmed" AND invoices.deleted_at IS NULL) as total_subtotal'),
+        DB::raw('(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices WHERE invoices.created_by = users.id AND invoices.invoice_date >= "' . $startOfMonth . '" AND invoices.status = "confirmed" AND invoices.deleted_at IS NULL) as total_delivery'),
+        DB::raw('(SELECT COALESCE(SUM(quantity), 0) FROM invoice_items WHERE invoice_items.invoice_id IN (SELECT id FROM invoices WHERE invoices.created_by = users.id AND invoices.invoice_date >= "' . $startOfMonth . '" AND invoices.status = "confirmed" AND invoices.deleted_at IS NULL)) as total_quantity')
+    ])
+    ->having('total_invoices', '>', 0)
+    ->orderBy('total_amount', 'desc')
+    ->get();
+
+    $todayPaidInvoices = Invoice::where('status', 'confirmed')
+    ->whereDate('invoice_date', $today)
+    ->where('paid_amount', '>', 0)
+    ->with(['creator', 'items'])
+    ->orderBy('paid_amount', 'desc')
+    ->get();
+
+// Group by creator for summary
+$creatorPaymentSummary = $todayPaidInvoices->groupBy('created_by')->map(function($invoices, $creatorId) {
+    $creator = $invoices->first()->creator;
+    return [
+        'creator_name' => $creator ? $creator->name : 'Unknown',
+        'invoice_count' => $invoices->count(),
+        'total_paid' => $invoices->sum('paid_amount'),
+        'invoices' => $invoices
+    ];
+})->sortByDesc('total_paid');
+
+
+
+$monthlyCourierReport = [];
+
+foreach ($couriers as $courier) {
+    $query = Invoice::where('courier_name', $courier)
+        ->where('status', 'confirmed')
+        ->where('invoice_date', '>=', $startOfMonth)
+        ->where('invoice_date', '<=', Carbon::now());
+    
+    $invoices = $query->get();
+    
+    $monthlyCourierReport[$courier] = [
+        'parcels' => $invoices->count(),
+        'quantity' => $invoices->sum(function($invoice) {
+            return $invoice->items->sum('quantity');
+        }),
+        'subtotal' => $invoices->sum('subtotal'),
+        'delivery' => $invoices->sum('delivery_charge'),
+        'total' => $invoices->sum('total'),
+        'paid' => $invoices->sum('paid_amount'),
+        'due' => $invoices->sum('due_amount'),
+    ];
+}
+
+// In-house monthly report
+$inhouseQuery = Invoice::where('is_inhouse_sale', true)
+    ->where('status', 'confirmed')
+    ->where('invoice_date', '>=', $startOfMonth)
+    ->where('invoice_date', '<=', Carbon::now());
+
+$inhouseInvoices = $inhouseQuery->get();
+
+$monthlyInhouseReport = [
+    'parcels' => $inhouseInvoices->count(),
+    'quantity' => $inhouseInvoices->sum(function($invoice) {
+        return $invoice->items->sum('quantity');
+    }),
+    'subtotal' => $inhouseInvoices->sum('subtotal'),
+    'delivery' => $inhouseInvoices->sum('delivery_charge'),
+    'total' => $inhouseInvoices->sum('total'),
+    'paid' => $inhouseInvoices->sum('paid_amount'),
+    'due' => $inhouseInvoices->sum('due_amount'),
+];
+$paymentMethods = ['bkash', 'bkash_personal', 'bank_transfer', 'cash'];
+$todayPaymentMethods = [];
+foreach ($paymentMethods as $method) {
+    $query = Invoice::where('status', 'confirmed')
+        ->whereDate('invoice_date', $today)
+        ->where('payment_method', $method)
+        ->where('paid_amount', '>', 0);
+    
+    $todayPaymentMethods[$method] = [
+        'transactions' => $query->count(),
+        'total_paid' => $query->sum('paid_amount'),
+    ];
+}
+
+// This Month's Payment Method Breakdown
+$monthlyPaymentMethods = [];
+foreach ($paymentMethods as $method) {
+    $query = Invoice::where('status', 'confirmed')
+        ->where('invoice_date', '>=', $startOfMonth)
+        ->where('invoice_date', '<=', Carbon::now())
+        ->where('payment_method', $method)
+        ->where('paid_amount', '>', 0);
+    
+    $monthlyPaymentMethods[$method] = [
+        'transactions' => $query->count(),
+        'total_paid' => $query->sum('paid_amount'),
+    ];
+}
+
+// Today's Payment Details (for detailed view)
+$todayPaymentDetails = Invoice::where('status', 'confirmed')
+    ->whereDate('invoice_date', $today)
+    ->where('paid_amount', '>', 0)
+    ->whereIn('payment_method', $paymentMethods)
+    ->with('creator')
+    ->orderBy('paid_amount', 'desc')
+    ->get();
+
+// This Month's Payment Details
+$monthlyPaymentDetails = Invoice::where('status', 'confirmed')
+    ->where('invoice_date', '>=', $startOfMonth)
+    ->where('invoice_date', '<=', Carbon::now())
+    ->where('paid_amount', '>', 0)
+    ->whereIn('payment_method', $paymentMethods)
+    ->with('creator')
+    ->orderBy('paid_amount', 'desc')
+    ->get();
+
     return view('admin.dashboard', compact(
-        'totalInvoices',
-        'totalCustomers',
-        'totalUsers',
-        'totalRevenue',
+          'todayPaymentMethods',
+    'monthlyPaymentMethods',
+    'todayPaymentDetails',
+    'monthlyPaymentDetails',
+          'monthlyCourierReport',
+    'monthlyInhouseReport',
+        'todayPaidInvoices',
+        'creatorPaymentSummary',
         'totalPaidAmount',
         'totalDueAmount',
         'totalSubtotal',
         'totalDelivery',
-        'totalQuantity',
         'todayInvoices',
         'todayRevenue',
         'todayPaid',
@@ -299,13 +396,6 @@ class DashboardController extends Controller
         'todaySubtotal',
         'todayDelivery',
         'todayQuantity',
-        'weekInvoices',
-        'weekRevenue',
-        'weekPaid',
-        'weekDue',
-        'weekSubtotal',
-        'weekDelivery',
-        'weekQuantity',
         'monthlyInvoices',
         'monthlyRevenue',
         'monthlyPaid',
@@ -313,21 +403,15 @@ class DashboardController extends Controller
         'monthlySubtotal',
         'monthlyDelivery',
         'monthlyQuantity',
-        'yearlyInvoices',
-        'yearlyRevenue',
-        'yearlyPaid',
-        'yearlyDue',
-        'yearlySubtotal',
-        'yearlyDelivery',
-        'yearlyQuantity',
-        'invoiceStatusCounts',
-        'paymentStatusCounts',
-        'recentInvoices',
-        'topCustomers',
         'topCreators',
         'monthlyStats',
         'last10Days',
-        'hasFullAccess'
+        'hasFullAccess',
+        'todayData',
+        'monthData',
+        'todayInhouse',
+        'monthInhouse',
+        'topCreatorsMonth'
     ));
 }
     
@@ -339,27 +423,16 @@ private function userDashboard($user)
 {
     // Date filters
     $today = Carbon::today();
-    $startOfWeek = Carbon::now()->startOfWeek();
-    $startOfMonth = Carbon::now()->startOfMonth();
-    $startOfYear = Carbon::now()->startOfYear();
-    
+    $startOfMonth = Carbon::now()->startOfMonth();    
     // Get user's invoices (only confirmed ones)
     $userInvoices = Invoice::where('created_by', $user->id)->where('status', 'confirmed');
-    
     // Total stats
-    $totalInvoices = (clone $userInvoices)->count();
     $totalRevenue = (clone $userInvoices)->sum('total');
     $totalPaid = (clone $userInvoices)->sum('paid_amount');
     $totalDue = (clone $userInvoices)->sum('due_amount');
     $totalSubtotal = (clone $userInvoices)->sum('subtotal');
     $totalDelivery = (clone $userInvoices)->sum('delivery_charge');
-    $totalQuantity = (clone $userInvoices)
-        ->with('items')
-        ->get()
-        ->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
-        });
-    
+   
     // Today's stats - Use confirmed_at for date filtering
     $todayInvoices = (clone $userInvoices)->whereDate('confirmed_at', $today)->count();
     $todayRevenue = (clone $userInvoices)->whereDate('confirmed_at', $today)->sum('total');
@@ -369,21 +442,6 @@ private function userDashboard($user)
     $todayDelivery = (clone $userInvoices)->whereDate('confirmed_at', $today)->sum('delivery_charge');
     $todayQuantity = (clone $userInvoices)
         ->whereDate('confirmed_at', $today)
-        ->with('items')
-        ->get()
-        ->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
-        });
-    
-    // This Week stats - Use confirmed_at for date filtering
-    $weekInvoices = (clone $userInvoices)->where('confirmed_at', '>=', $startOfWeek)->count();
-    $weekRevenue = (clone $userInvoices)->where('confirmed_at', '>=', $startOfWeek)->sum('total');
-    $weekPaid = (clone $userInvoices)->where('confirmed_at', '>=', $startOfWeek)->sum('paid_amount');
-    $weekDue = (clone $userInvoices)->where('confirmed_at', '>=', $startOfWeek)->sum('due_amount');
-    $weekSubtotal = (clone $userInvoices)->where('confirmed_at', '>=', $startOfWeek)->sum('subtotal');
-    $weekDelivery = (clone $userInvoices)->where('confirmed_at', '>=', $startOfWeek)->sum('delivery_charge');
-    $weekQuantity = (clone $userInvoices)
-        ->where('confirmed_at', '>=', $startOfWeek)
         ->with('items')
         ->get()
         ->sum(function($invoice) {
@@ -405,20 +463,6 @@ private function userDashboard($user)
             return $invoice->items->sum('quantity');
         });
     
-    // This Year stats - Use confirmed_at for date filtering
-    $yearlyInvoices = (clone $userInvoices)->where('confirmed_at', '>=', $startOfYear)->count();
-    $yearlyRevenue = (clone $userInvoices)->where('confirmed_at', '>=', $startOfYear)->sum('total');
-    $yearlyPaid = (clone $userInvoices)->where('confirmed_at', '>=', $startOfYear)->sum('paid_amount');
-    $yearlyDue = (clone $userInvoices)->where('confirmed_at', '>=', $startOfYear)->sum('due_amount');
-    $yearlySubtotal = (clone $userInvoices)->where('confirmed_at', '>=', $startOfYear)->sum('subtotal');
-    $yearlyDelivery = (clone $userInvoices)->where('confirmed_at', '>=', $startOfYear)->sum('delivery_charge');
-    $yearlyQuantity = (clone $userInvoices)
-        ->where('confirmed_at', '>=', $startOfYear)
-        ->with('items')
-        ->get()
-        ->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
-        });
     
     // Monthly breakdown for current year - Use confirmed_at
     $monthlyStats = DB::table('invoices')
@@ -444,12 +488,7 @@ private function userDashboard($user)
         ->get()
         ->keyBy('month');
     
-    // Recent invoices (user's only) - ordered by confirmed_at
-    $recentInvoices = (clone $userInvoices)
-        ->with(['customer'])
-        ->orderBy('confirmed_at', 'desc')
-        ->limit(10)
-        ->get();
+    
     
     // Payment status counts for user (only confirmed)
     $paymentStatusCounts = (clone $userInvoices)
@@ -462,13 +501,11 @@ private function userDashboard($user)
     
     return view('admin.dashboard', compact(
         'user',
-        'totalInvoices',
         'totalRevenue',
         'totalPaid',
         'totalDue',
         'totalSubtotal',
         'totalDelivery',
-        'totalQuantity',
         'todayInvoices',
         'todayRevenue',
         'todayPaid',
@@ -476,13 +513,6 @@ private function userDashboard($user)
         'todaySubtotal',
         'todayDelivery',
         'todayQuantity',
-        'weekInvoices',
-        'weekRevenue',
-        'weekPaid',
-        'weekDue',
-        'weekSubtotal',
-        'weekDelivery',
-        'weekQuantity',
         'monthlyInvoices',
         'monthlyRevenue',
         'monthlyPaid',
@@ -490,15 +520,7 @@ private function userDashboard($user)
         'monthlySubtotal',
         'monthlyDelivery',
         'monthlyQuantity',
-        'yearlyInvoices',
-        'yearlyRevenue',
-        'yearlyPaid',
-        'yearlyDue',
-        'yearlySubtotal',
-        'yearlyDelivery',
-        'yearlyQuantity',
         'monthlyStats',
-        'recentInvoices',
         'paymentStatusCounts',
         'hasFullAccess'
     ));

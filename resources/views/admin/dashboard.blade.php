@@ -20,6 +20,7 @@
         </div>
     </div>
 </div>
+
 <div class="content mt-3">
     
     @if(!$hasFullAccess)
@@ -33,9 +34,6 @@
                             <h4><i class="fa fa-user-circle"></i> Welcome, {{ $user->name }}!</h4>
                             <p class="mb-0 text-white">Here's your personal performance summary. You have created {{ $totalInvoices }} confirmed invoices in total.</p>
                         </div>
-                        <div>
-                         
-                        </div>
                     </div>
                 </div>
             </div>
@@ -43,317 +41,236 @@
     </div>
     @endif
 
-    <!-- Summary Cards (All now show confirmed invoices only) -->
+    <!-- Summary Cards -->
     <div class="row">
         <!-- Today's Summary -->
-        <div class="col-xl-3 col-lg-6 col-md-6">
+        <div class="col-xl-6 col-lg-6 col-md-6">
             <div class="card">
                 <div class="card-body">
                     <div class="stat-widget-one">
                         <div class="stat-icon dib">
-                            <i class="	fa fa-calendar-o text-primary border-primary"></i>
+                            <i class="fa fa-calendar-o text-primary border-primary"></i>
                         </div>
                         <div class="stat-content dib">
-                            <div class="stat-text">Today</div>
-                            <div class="stat-digit">{{ $todayInvoices }}</div>
-                            <div class="stat-sub">Revenue: ৳{{ number_format($todayRevenue, 0) }}</div>
-                            <small class="text-success">Paid: ৳{{ number_format($todayPaid ?? 0, 0) }}</small><br>
-                            <small class="text-danger">Due: ৳{{ number_format($todayDue ?? 0, 0) }}</small>
-                            @if(isset($todayQuantity))
-                            <small class="d-block text-muted">Qty: {{ number_format($todayQuantity) }}</small>
+                            <div class="stat-text">Today's Summary</div>
+                            <div class="stat-digit">{{ array_sum(array_column($todayData, 'invoices')) + $todayInhouse['invoices'] }}</div>
+                            <div class="stat-sub">Total Qty: {{ number_format(array_sum(array_column($todayData, 'quantity')) + $todayInhouse['quantity'], 0) }} 
+                                | Subtotal: ৳{{ number_format(array_sum(array_column($todayData, 'subtotal')) + $todayInhouse['subtotal'], 0) }} 
+                                 | Delivery: ৳{{ number_format(array_sum(array_column($todayData, 'delivery')) + $todayInhouse['delivery'], 0) }} 
+                                  | Revenue: ৳{{ number_format(array_sum(array_column($todayData, 'revenue')) + $todayInhouse['revenue'], 0) }} 
+                                | Paid: ৳{{ number_format(array_sum(array_column($todayData, 'paid')) + $todayInhouse['paid'], 0) }}</div>
+                            
+                            <hr>
+                            
+                            @foreach($todayData as $courier => $data)
+                                <div class="stat-sub">
+                                    <strong>{{ $courier }}</strong> --- 
+                                    Qty: {{ number_format($data['quantity'], 0) }} | 
+                                    Subtotal: ৳{{ number_format($data['subtotal'] ?? 0, 0) }} | 
+                                    Delivery: ৳{{ number_format($data['delivery'] ?? 0, 0) }} | 
+                                    Revenue: ৳{{ number_format($data['revenue'], 0) }} | 
+                                    Paid: ৳{{ number_format($data['paid'] ?? 0, 0) }} | 
+                                    Parcels: {{ number_format($data['invoices'] ?? 0, 0) }}
+                                </div>
+                            @endforeach
+                            
+                            @if($todayInhouse['invoices'] > 0)
+                            <hr>
+                            <div class="stat-sub" style="color: #2ecc71; font-weight: bold;">
+                                <strong>In House</strong> --- 
+                                Qty: {{ number_format($todayInhouse['quantity'], 0) }} | 
+                                Subtotal: ৳{{ number_format($todayInhouse['subtotal'] ?? 0, 0) }} | 
+                                Delivery: ৳{{ number_format($todayInhouse['delivery'] ?? 0, 0) }} | 
+                                Revenue: ৳{{ number_format($todayInhouse['revenue'], 0) }} | 
+                                Paid: ৳{{ number_format($todayInhouse['paid'] ?? 0, 0) }} | 
+                                Parcels: {{ number_format($todayInhouse['invoices'] ?? 0, 0) }}
+                            </div>
                             @endif
-                            <small class="d-block text-muted mt-1"><i class="fa fa-check-circle text-success"></i> Confirmed only</small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-      
-        
-        <!-- This Month Summary -->
-        <div class="col-xl-3 col-lg-6 col-md-6">
+
+        <!-- This Month's Summary -->
+        <div class="col-xl-6 col-lg-6 col-md-6">
             <div class="card">
                 <div class="card-body">
                     <div class="stat-widget-one">
                         <div class="stat-icon dib">
-                            <i class="fa fa-calendar-check-o text-warning border-warning"></i>
+                            <i class="fa fa-calendar text-primary border-primary"></i>
                         </div>
                         <div class="stat-content dib">
-                            <div class="stat-text">This Month</div>
-                            <div class="stat-digit">{{ $monthlyInvoices }}</div>
-                            <div class="stat-sub">Revenue: ৳{{ number_format($monthlyRevenue, 0) }}</div>
-                            <small class="text-success">Paid: ৳{{ number_format($monthlyPaid ?? 0, 0) }}</small><br>
-                            <small class="text-danger">Due: ৳{{ number_format($monthlyDue ?? 0, 0) }}</small>
-                            @if(isset($monthlyQuantity))
-                            <small class="d-block text-muted">Qty: {{ number_format($monthlyQuantity) }}</small>
+                            <div class="stat-text">This Month's Summary</div>
+                            <div class="stat-digit">{{ array_sum(array_column($monthData, 'invoices')) + $monthInhouse['invoices'] }}</div>
+                            <div class="stat-sub">Total Qty: {{ number_format(array_sum(array_column($monthData, 'quantity')) + $monthInhouse['quantity'], 0) }} 
+                                | Subtotal: ৳{{ number_format(array_sum(array_column($monthData, 'subtotal')) + $monthInhouse['subtotal'], 0) }} 
+                                | Delivery: ৳{{ number_format(array_sum(array_column($monthData, 'delivery')) + $monthInhouse['delivery'], 0) }} 
+                                | Revenue: ৳{{ number_format(array_sum(array_column($monthData, 'revenue')) + $monthInhouse['revenue'], 0) }} 
+                                | Paid: ৳{{ number_format(array_sum(array_column($monthData, 'paid')) + $monthInhouse['paid'], 0) }}</div>
+                            
+                            <hr>
+                            
+                            @foreach($monthData as $courier => $data)
+                                <div class="stat-sub">
+                                    <strong>{{ $courier }}</strong> --- 
+                                    Qty: {{ number_format($data['quantity'], 0) }} | 
+                                    Subtotal: ৳{{ number_format($data['subtotal'] ?? 0, 0) }} | 
+                                    Delivery: ৳{{ number_format($data['delivery'] ?? 0, 0) }} | 
+                                    Revenue: ৳{{ number_format($data['revenue'], 0) }} | 
+                                    Paid: ৳{{ number_format($data['paid'] ?? 0, 0) }} | 
+                                    Parcels: {{ number_format($data['invoices'] ?? 0, 0) }}
+                                </div>
+                            @endforeach
+                            
+                            @if($monthInhouse['invoices'] > 0)
+                            <hr>
+                            <div class="stat-sub" style="color: #2ecc71; font-weight: bold;">
+                                <strong>In House</strong> --- 
+                                Qty: {{ number_format($monthInhouse['quantity'], 0) }} | 
+                                Subtotal: ৳{{ number_format($monthInhouse['subtotal'] ?? 0, 0) }} | 
+                                Delivery: ৳{{ number_format($monthInhouse['delivery'] ?? 0, 0) }} | 
+                                Revenue: ৳{{ number_format($monthInhouse['revenue'], 0) }} | 
+                                Paid: ৳{{ number_format($monthInhouse['paid'] ?? 0, 0) }} | 
+                                Parcels: {{ number_format($monthInhouse['invoices'] ?? 0, 0) }}
+                            </div>
                             @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Total Summary -->
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa-money text-danger border-danger"></i>
-                        </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">Total {{ $hasFullAccess ? 'Revenue' : 'My Performance' }}</div>
-                            <div class="stat-digit">{{ $totalInvoices }}</div>
-                            <div class="stat-sub">Amount: ৳{{ number_format($totalRevenue ?? $totalRevenue, 0) }}</div>
-                            <small class="text-success">Paid: ৳{{ number_format($totalPaidAmount ?? $totalPaid ?? 0, 0) }}</small><br>
-                            <small class="text-danger">Due: ৳{{ number_format($totalDueAmount ?? $totalDue ?? 0, 0) }}</small>
-                            @if(isset($totalQuantity))
-                            <small class="d-block text-muted">Total Qty: {{ number_format($totalQuantity) }}</small>
-                            @endif
-                            <small class="d-block text-muted mt-1"><i class="fa fa-check-circle text-success"></i> Confirmed only</small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Today's Payments -->
+  <!-- Today's Payments -->
+<div class="row">
+    <div class="col-xl-12 col-lg-12 col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fa fa-credit-card text-success"></i> Today's Payments
+                <span class="badge bg-success float-right">{{ $todayPaidInvoices->count() }} payments</span>
+            </div>
+            <div class="card-body">
+                <!-- Creator Summary -->
+                @if(isset($creatorPaymentSummary) && $creatorPaymentSummary->count() > 0)
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <strong><i class="fa fa-users"></i> Payment Summary by Creator:</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <strong>Total Payments:</strong> 
+                                    <span class="badge bg-primary">{{ $todayPaidInvoices->count() }}</span>
+                                </div>
+                                @foreach($creatorPaymentSummary as $creatorId => $summary)
+                                <div class="col-md-3">
+                                    <strong>{{ $summary['creator_name'] }}:</strong> 
+                                    <span class="badge bg-success">{{ $summary['invoice_count'] }}</span>
+                                    <span class="text-muted">(৳{{ number_format($summary['total_paid'], 0) }})</span>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <div style="max-height: 450px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Created By</th>
+                                <th>Merchant Id</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-end">Delivery</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-end">Paid</th>
+                                <th class="text-end">Due</th>
+                                <th class="text-center">Method</th>
+                                <th class="text-center">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($todayPaidInvoices->take(10) as $invoice)
+                            <tr>
+                                <td>
+                                    <strong>#{{ $invoice->invoice_number ?? $invoice->id }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ $invoice->creator ? $invoice->creator->name : 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-size: 12px;">
+                                        {{ $invoice->merchant_order_id ?? 'N/A' }}
+                                    </span>
+                                </td>
+                                <td class="text-end">৳{{ number_format($invoice->subtotal, 0) }}</td>
+                                <td class="text-end">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
+                                <td class="text-end fw-bold">৳{{ number_format($invoice->total, 0) }}</td>
+                                <td class="text-end text-success fw-bold">৳{{ number_format($invoice->paid_amount, 0) }}</td>
+                                <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
+                                <td class="text-center">
+                                    @if($invoice->payment_method)
+                                        <span class="badge" style="background: #3498db; color: #fff; font-size: 10px;">
+                                            {{ $invoice->payment_method }}
+                                        </span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    @if($invoice->payment_details)
+                                        <span style="font-size: 11px; color: #666;">{{ $invoice->payment_details }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-3">
+                                    <i class="fa fa-inbox" style="font-size: 20px; display: block; margin-bottom: 5px;"></i>
+                                    No payments received today
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 2px solid #e9ecef; font-weight: bold; background: #f8f9fa;">
+                                <td colspan="3" class="text-end">TOTAL:</td>
+                                <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('subtotal'), 0) }}</td>
+                                <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('delivery_charge'), 0) }}</td>
+                                <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('total'), 0) }}</td>
+                                <td class="text-end text-success">৳{{ number_format($todayPaidInvoices->sum('paid_amount'), 0) }}</td>
+                                <td class="text-end text-danger">৳{{ number_format($todayPaidInvoices->sum('due_amount'), 0) }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                @if($todayPaidInvoices->count() > 10)
+                    <div class="text-center text-muted mt-2" style="font-size: 12px;">
+                        <i class="fa fa-chevron-down"></i> Showing 10 of {{ $todayPaidInvoices->count() }} payments
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
 
     @if($hasFullAccess)
-    <!-- Additional Stats Row for Admin -->
-    <div class="row">
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa-users text-info border-info"></i>
-                        </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">Total Customers</div>
-                            <div class="stat-digit">{{ number_format($totalCustomers) }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa fa-file-archive-o text-secondary border-secondary"></i>
-                        </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">Confirmed Invoices</div>
-                            <div class="stat-digit">{{ number_format($totalInvoices) }}</div>
-                            <small class="text-muted">Total all time</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa fa-window-maximize text-primary border-primary"></i>
-                        </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">Total Quantity</div>
-                            <div class="stat-digit">{{ number_format($totalQuantity) }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa-truck text-warning border-warning"></i>
-                        </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">This Year</div>
-                            <div class="stat-digit">{{ number_format($yearlyInvoices) }}</div>
-                            <div class="stat-sub">৳{{ number_format($yearlyRevenue, 0) }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-
-    <!-- Monthly Performance Chart (Jan - Dec) - Now shows confirmed invoices only -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <strong class="card-title">{{ $hasFullAccess ? 'Monthly Performance (Confirmed Invoices) ' . date('Y') : 'My Monthly Performance (Confirmed) ' . date('Y') }}</strong>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-sm">
-                            <thead class="table-primary">
-                                <tr>
-                                    <th>Month</th>
-                                    <th class="text-center">Invoices</th>
-                                    <th class="text-center">Quantity</th>
-                                    <th class="text-end">Subtotal</th>
-                                    <th class="text-end">Delivery</th>
-                                    <th class="text-end">Total</th>
-                                    <th class="text-end">Paid</th>
-                                    <th class="text-end">Due</th>
-                                    <th class="text-center">Collection %</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php
-                                    $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                @endphp
-                                @foreach($months as $index => $monthName)
-                                    @php
-                                        $monthNum = $index + 1;
-                                        $stats = $monthlyStats[$monthNum] ?? null;
-                                        $collectionRate = $stats && $stats->total_revenue > 0 ? ($stats->total_paid / $stats->total_revenue) * 100 : 0;
-                                    @endphp
-                                    <tr>
-                                        <td><strong>{{ $monthName }}</strong></td>
-                                        <td class="text-center">{{ $stats ? number_format($stats->total_invoices) : '0' }}</td>
-                                        <td class="text-center">{{ $stats ? number_format($stats->total_quantity ?? 0) : '0' }}</td>
-                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_subtotal ?? 0, 0) : '0' }}</td>
-                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_delivery ?? 0, 0) : '0' }}</td>
-                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_revenue, 0) : '0' }}</td>
-                                        <td class="text-end text-success">৳{{ $stats ? number_format($stats->total_paid, 0) : '0' }}</td>
-                                        <td class="text-end text-danger">৳{{ $stats ? number_format($stats->total_due, 0) : '0' }}</td>
-                                        <td class="text-center">
-                                            @if($stats)
-                                                <span class="badge bg-{{ $collectionRate >= 80 ? 'success' : ($collectionRate >= 50 ? 'warning' : 'danger') }}">
-                                                    {{ number_format($collectionRate, 1) }}%
-                                                </span>
-                                            @else
-                                                <span class="badge bg-secondary">0%</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                            <tfoot class="table-secondary">
-                                @php
-                                    $yearTotal = collect($monthlyStats)->sum('total_revenue');
-                                    $yearPaid = collect($monthlyStats)->sum('total_paid');
-                                    $yearDue = collect($monthlyStats)->sum('total_due');
-                                    $yearQuantity = collect($monthlyStats)->sum('total_quantity');
-                                    $yearCollectionRate = $yearTotal > 0 ? ($yearPaid / $yearTotal) * 100 : 0;
-                                @endphp
-                                <tr>
-                                    <th>Year Total</th>
-                                    <th class="text-center">{{ collect($monthlyStats)->sum('total_invoices') }}</th>
-                                    <th class="text-center">{{ number_format($yearQuantity) }}</th>
-                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_subtotal'), 0) }}</th>
-                                    <th class="text-end">৳{{ number_format(collect($monthlyStats)->sum('total_delivery'), 0) }}</th>
-                                    <th class="text-end">৳{{ number_format($yearTotal, 0) }}</th>
-                                    <th class="text-end text-success">৳{{ number_format($yearPaid, 0) }}</th>
-                                    <th class="text-end text-danger">৳{{ number_format($yearDue, 0) }}</th>
-                                    <th class="text-center">
-                                        <span class="badge bg-{{ $yearCollectionRate >= 80 ? 'success' : ($yearCollectionRate >= 50 ? 'warning' : 'danger') }}">
-                                            {{ number_format($yearCollectionRate, 1) }}%
-                                        </span>
-                                    </th>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    @if($hasFullAccess && isset($last10Days))
-    <!-- Last 10 Days Breakdown - Updated from 7 to 10 days -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <strong class="card-title">Last 10 Days Performance (Confirmed Invoices Only)</strong>
-                    <span class="float-right badge bg-info">Paid vs Due Comparison</span>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Date</th>
-                                    <th class="text-center">Invoices</th>
-                                    <th class="text-center">Quantity</th>
-                                    <th class="text-end">Revenue</th>
-                                    <th class="text-end">Paid</th>
-                                    <th class="text-end">Due</th>
-                                    <th class="text-center">Collection %</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($last10Days as $day)
-                                @php
-                                    $dayCollectionRate = $day['revenue'] > 0 ? ($day['paid'] / $day['revenue']) * 100 : 0;
-                                @endphp
-                                <tr>
-                                    <td>{{ $day['date'] }}</td>
-                                    <td class="text-center">{{ $day['count'] }}</td>
-                                    <td class="text-center">{{ number_format($day['quantity']) }}</td>
-                                    <td class="text-end">৳{{ number_format($day['revenue'], 0) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($day['paid'], 0) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($day['due'], 0) }}</td>
-                                    <td class="text-center">
-                                        <span class="badge bg-{{ $dayCollectionRate >= 80 ? 'success' : ($dayCollectionRate >= 50 ? 'warning' : 'danger') }}">
-                                            {{ number_format($dayCollectionRate, 1) }}%
-                                        </span>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                            @php
-                                $total10DaysRevenue = collect($last10Days)->sum('revenue');
-                                $total10DaysPaid = collect($last10Days)->sum('paid');
-                                $total10DaysDue = collect($last10Days)->sum('due');
-                                $total10DaysCollectionRate = $total10DaysRevenue > 0 ? ($total10DaysPaid / $total10DaysRevenue) * 100 : 0;
-                            @endphp
-                            <tfoot class="table-info">
-                                <tr>
-                                    <th>10 Days Total</th>
-                                    <th class="text-center">{{ collect($last10Days)->sum('count') }}</th>
-                                    <th class="text-center">{{ number_format(collect($last10Days)->sum('quantity')) }}</th>
-                                    <th class="text-end">৳{{ number_format($total10DaysRevenue, 0) }}</th>
-                                    <th class="text-end text-success">৳{{ number_format($total10DaysPaid, 0) }}</th>
-                                    <th class="text-end text-danger">৳{{ number_format($total10DaysDue, 0) }}</th>
-                                    <th class="text-center">
-                                        <span class="badge bg-{{ $total10DaysCollectionRate >= 80 ? 'success' : ($total10DaysCollectionRate >= 50 ? 'warning' : 'danger') }}">
-                                            {{ number_format($total10DaysCollectionRate, 1) }}%
-                                        </span>
-                                    </th>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                    
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-
-    @if($hasFullAccess)
-    <!-- Top Creators Performance - Now shows confirmed invoices only -->
     @if(isset($topCreators) && $topCreators->count() > 0)
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <i class="fa fa-users me-1"></i>
-                    <strong>Creators Performance (Confirmed Invoices Only)</strong>
+                    <strong>Creators Performance </strong>
                     <span class="float-right badge bg-light text-dark">Today's Performance</span>
                 </div>
                 <div class="card-body">
@@ -371,14 +288,11 @@
                                     <th class="text-end">Total</th>
                                     <th class="text-end">Paid</th>
                                     <th class="text-end">Due</th>
-                                    <th class="text-center">Collection %</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($topCreators as $index => $creator)
-                                @php
-                                    $collectionRate = $creator->total_amount > 0 ? ($creator->total_paid / $creator->total_amount) * 100 : 0;
-                                @endphp
+                            
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td><strong>{{ $creator->name }}</strong></td>
@@ -390,11 +304,7 @@
                                     <td class="text-end">৳{{ number_format($creator->total_amount, 0) }}</td>
                                     <td class="text-end text-success">৳{{ number_format($creator->total_paid, 0) }}</td>
                                     <td class="text-end text-danger">৳{{ number_format($creator->total_due, 0) }}</td>
-                                    <td class="text-center">
-                                        <span class="badge bg-{{ $collectionRate >= 80 ? 'success' : ($collectionRate >= 50 ? 'warning' : 'danger') }}">
-                                            {{ number_format($collectionRate, 1) }}%
-                                        </span>
-                                    </td>
+                             
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -407,6 +317,430 @@
     @endif
     @endif
 
+ 
+
+    @if($hasFullAccess && isset($last10Days))
+    <!-- Last 10 Days Breakdown - Updated from 7 to 10 days -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <strong class="card-title">Last 10 Days Performance </strong>
+                    <span class="float-right badge bg-info">Paid vs Due Comparison</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th class="text-center">Invoices</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Subtotal</th>
+                                    <th class="text-end">Delivery</th>
+                                    <th class="text-end">Revenue</th>
+                                    <th class="text-end">Paid</th>
+                                    <th class="text-end">Due</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($last10Days as $day)
+                             
+                                <tr>
+                                    <td>{{ $day['date'] }}</td>
+                                    <td class="text-center">{{ $day['count'] }}</td>
+                                    <td class="text-center">{{ number_format($day['quantity']) }}</td>
+                                    <td class="text-end">৳{{ number_format($day['subtotal'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($day['delivery'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($day['revenue'], 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($day['paid'], 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($day['due'], 0) }}</td>
+                         
+                                </tr>
+                                @endforeach
+                            </tbody>
+                            @php
+                                $total10DaysRevenue = collect($last10Days)->sum('revenue');
+                                $total10DaysPaid = collect($last10Days)->sum('paid');
+                                $total10DaysDue = collect($last10Days)->sum('due');
+                                $total10DaysSubtotal = collect($last10Days)->sum('subtotal');
+                                $total10DaysDelivery = collect($last10Days)->sum('delivery');
+                            @endphp
+                            <tfoot class="table-info">
+                                <tr>
+                                    <th>10 Days Total</th>
+                                    <th class="text-center">{{ collect($last10Days)->sum('count') }}</th>
+                                    <th class="text-center">{{ number_format(collect($last10Days)->sum('quantity')) }}</th>
+                                    <th class="text-end">৳{{ number_format($total10DaysSubtotal, 0) }}</th>
+                                    <th class="text-end">৳{{ number_format($total10DaysDelivery, 0) }}</th>
+                                    <th class="text-end">৳{{ number_format($total10DaysRevenue, 0) }}</th>
+                                    <th class="text-end text-success">৳{{ number_format($total10DaysPaid, 0) }}</th>
+                                    <th class="text-end text-danger">৳{{ number_format($total10DaysDue, 0) }}</th>
+                              
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+       <!-- Monthly Performance Chart (Jan - Dec) - Now shows confirmed invoices only -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <strong class="card-title">{{ $hasFullAccess ? 'Monthly Performance ' . date('Y') : 'My Monthly Performance (Confirmed) ' . date('Y') }}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Month</th>
+                                    <th class="text-center">Invoices</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Subtotal</th>
+                                    <th class="text-end">Delivery</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Paid</th>
+                                    <th class="text-end">Due</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php
+                                    $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                @endphp
+                                @foreach($months as $index => $monthName)
+                                    @php
+                                        $monthNum = $index + 1;
+                                        $stats = $monthlyStats[$monthNum] ?? null;
+                                    @endphp
+                                    <tr>
+                                        <td><strong>{{ $monthName }}</strong></td>
+                                        <td class="text-center">{{ $stats ? number_format($stats->total_invoices) : '0' }}</td>
+                                        <td class="text-center">{{ $stats ? number_format($stats->total_quantity ?? 0) : '0' }}</td>
+                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_subtotal ?? 0, 0) : '0' }}</td>
+                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_delivery ?? 0, 0) : '0' }}</td>
+                                        <td class="text-end">৳{{ $stats ? number_format($stats->total_revenue, 0) : '0' }}</td>
+                                        <td class="text-end text-success">৳{{ $stats ? number_format($stats->total_paid, 0) : '0' }}</td>
+                                        <td class="text-end text-danger">৳{{ $stats ? number_format($stats->total_due, 0) : '0' }}</td>
+                                  
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="table-secondary">
+                                @php
+                                    $yearTotal = collect($monthlyStats)->sum('total_revenue');
+                                    $yearPaid = collect($monthlyStats)->sum('total_paid');
+                                    $yearDue = collect($monthlyStats)->sum('total_due');
+                                    $yearQuantity = collect($monthlyStats)->sum('total_quantity');
+                                    $yearSubtotal = collect($monthlyStats)->sum('total_subtotal');
+                                    $yearDelivery = collect($monthlyStats)->sum('total_delivery');
+                                @endphp
+                                <tr>
+                                    <th>Year Total</th>
+                                    <th class="text-center">{{ collect($monthlyStats)->sum('total_invoices') }}</th>
+                                    <th class="text-center">{{ number_format($yearQuantity) }}</th>
+                                    <th class="text-end">৳{{ number_format($yearSubtotal, 0) }}</th>
+                                    <th class="text-end">৳{{ number_format($yearDelivery, 0) }}</th>
+                                    <th class="text-end">৳{{ number_format($yearTotal, 0) }}</th>
+                                    <th class="text-end text-success">৳{{ number_format($yearPaid, 0) }}</th>
+                                    <th class="text-end text-danger">৳{{ number_format($yearDue, 0) }}</th>
+                                
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+   @if($hasFullAccess)
+    @if(isset($topCreatorsMonth) && $topCreatorsMonth->count() > 0)
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Creators Performance Monthly</strong>
+                    <span class="float-right badge bg-light text-dark">This Month Performance</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Creator Name</th>
+                                    <th>Email</th>
+                                    <th class="text-center">Orders</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Subtotal</th>
+                                    <th class="text-end">Delivery</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Paid</th>
+                                    <th class="text-end">Due</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($topCreatorsMonth as $index => $creator)
+                            
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td><strong>{{ $creator->name }}</strong></td>
+                                    <td>{{ $creator->email }}</td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
+                                    <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_quantity) }}</span></td>
+                                    <td class="text-end">৳{{ number_format($creator->total_subtotal, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($creator->total_delivery, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($creator->total_amount, 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($creator->total_paid, 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($creator->total_due, 0) }}</td>
+                             
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+    @endif
+   @if($hasFullAccess)
+    
+      <!-- Monthly Courier-wise Report -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="fa fa-truck me-1"></i>
+                <strong>Monthly Courier-wise Report - {{ date('F Y') }}</strong>
+                <span class="float-right badge bg-light text-dark">Total: {{ array_sum(array_column($monthlyCourierReport, 'parcels')) + $monthlyInhouseReport['parcels'] }} Parcels</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Courier Name</th>
+                                <th class="text-center">Parcels</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-end">Delivery</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-end">Paid</th>
+                                <th class="text-end">Due</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $counter = 1; @endphp
+                            
+                            @foreach($monthlyCourierReport as $courier => $data)
+                                @if($data['parcels'] > 0)
+                                <tr>
+                                    <td>{{ $counter++ }}</td>
+                                    <td><strong>{{ $courier }}</strong></td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ $data['parcels'] }}</span></td>
+                                    <td class="text-center"><span class="badge bg-info">{{ number_format($data['quantity']) }}</span></td>
+                                    <td class="text-end">৳{{ number_format($data['subtotal'], 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($data['delivery'], 0) }}</td>
+                                    <td class="text-end fw-bold">৳{{ number_format($data['total'], 0) }}</td>
+                                    <td class="text-end text-success fw-bold">৳{{ number_format($data['paid'], 0) }}</td>
+                                    <td class="text-end text-danger fw-bold">৳{{ number_format($data['due'], 0) }}</td>
+                                </tr>
+                                @endif
+                            @endforeach
+                            
+                            <!-- In-house Row -->
+                            @if($monthlyInhouseReport['parcels'] > 0)
+                            <tr style="background-color: #f0f8ff; border-top: 2px solid #007bff;">
+                                <td>{{ $counter++ }}</td>
+                                <td><strong style="color: #2ecc71;">🏠 In House</strong></td>
+                                <td class="text-center"><span class="badge bg-success">{{ $monthlyInhouseReport['parcels'] }}</span></td>
+                                <td class="text-center"><span class="badge bg-info">{{ number_format($monthlyInhouseReport['quantity']) }}</span></td>
+                                <td class="text-end">৳{{ number_format($monthlyInhouseReport['subtotal'], 0) }}</td>
+                                <td class="text-end">৳{{ number_format($monthlyInhouseReport['delivery'], 0) }}</td>
+                                <td class="text-end fw-bold">৳{{ number_format($monthlyInhouseReport['total'], 0) }}</td>
+                                <td class="text-end text-success fw-bold">৳{{ number_format($monthlyInhouseReport['paid'], 0) }}</td>
+                                <td class="text-end text-danger fw-bold">৳{{ number_format($monthlyInhouseReport['due'], 0) }}</td>
+                            </tr>
+                            @endif
+                        </tbody>
+                        <tfoot class="table-secondary">
+                            @php
+                                $totalParcels = array_sum(array_column($monthlyCourierReport, 'parcels')) + $monthlyInhouseReport['parcels'];
+                                $totalQuantity = array_sum(array_column($monthlyCourierReport, 'quantity')) + $monthlyInhouseReport['quantity'];
+                                $totalSubtotal = array_sum(array_column($monthlyCourierReport, 'subtotal')) + $monthlyInhouseReport['subtotal'];
+                                $totalDelivery = array_sum(array_column($monthlyCourierReport, 'delivery')) + $monthlyInhouseReport['delivery'];
+                                $totalTotal = array_sum(array_column($monthlyCourierReport, 'total')) + $monthlyInhouseReport['total'];
+                                $totalPaid = array_sum(array_column($monthlyCourierReport, 'paid')) + $monthlyInhouseReport['paid'];
+                                $totalDue = array_sum(array_column($monthlyCourierReport, 'due')) + $monthlyInhouseReport['due'];
+                            @endphp
+                            <tr>
+                                <th colspan="2" class="text-end">GRAND TOTAL</th>
+                                <th class="text-center">{{ $totalParcels }}</th>
+                                <th class="text-center">{{ number_format($totalQuantity) }}</th>
+                                <th class="text-end">৳{{ number_format($totalSubtotal, 0) }}</th>
+                                <th class="text-end">৳{{ number_format($totalDelivery, 0) }}</th>
+                                <th class="text-end">৳{{ number_format($totalTotal, 0) }}</th>
+                                <th class="text-end text-success">৳{{ number_format($totalPaid, 0) }}</th>
+                                <th class="text-end text-danger">৳{{ number_format($totalDue, 0) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    @endif
+
+
+
+   @if($hasFullAccess)
+    <!-- Payment Method Breakdown - Today & This Month -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fa fa-credit-card"></i>
+                <strong>Today's Payment Methods</strong>
+                <span class="float-right badge bg-light text-dark">
+                    Total: {{ array_sum(array_column($todayPaymentMethods, 'transactions')) }} Transactions
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Payment Method</th>
+                                <th class="text-center">Transactions</th>
+                                <th class="text-end">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $methodLabels = [
+                                'bkash' => 'bKash (Merchant)',
+                                'bkash_personal' => 'bKash (Personal)',
+                                'bank_transfer' => 'Bank Transfer',
+                                'cash' => 'Cash'
+                            ]; @endphp
+                            
+                            @foreach($todayPaymentMethods as $method => $data)
+                                @if($data['transactions'] > 0)
+                                <tr>
+                                    <td>
+                                        <span class="badge" style="background: #3498db; color: #fff; padding: 6px 10px;">
+                                            {{ $methodLabels[$method] ?? ucfirst(str_replace('_', ' ', $method)) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ $data['transactions'] }}</span>
+                                    </td>
+                                    <td class="text-end text-success fw-bold">
+                                        ৳{{ number_format($data['total_paid'], 0) }}
+                                    </td>
+                                </tr>
+                                @endif
+                            @endforeach
+                            
+                            @if(array_sum(array_column($todayPaymentMethods, 'transactions')) == 0)
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">
+                                    <i class="fa fa-inbox"></i> No payments today
+                                </td>
+                            </tr>
+                            @endif
+                        </tbody>
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <th>TOTAL</th>
+                                <th class="text-center">{{ array_sum(array_column($todayPaymentMethods, 'transactions')) }}</th>
+                                <th class="text-end">৳{{ number_format(array_sum(array_column($todayPaymentMethods, 'total_paid')), 0) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="fa fa-calendar"></i>
+                <strong>This Month's Payment Methods</strong>
+                <span class="float-right badge bg-light text-dark">
+                    Total: {{ array_sum(array_column($monthlyPaymentMethods, 'transactions')) }} Transactions
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Payment Method</th>
+                                <th class="text-center">Transactions</th>
+                                <th class="text-end">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $methodLabels = [
+                                'bkash' => 'bKash (Merchant)',
+                                'bkash_personal' => 'bKash (Personal)',
+                                'bank_transfer' => 'Bank Transfer',
+                                'cash' => 'Cash'
+                            ]; @endphp
+                            
+                            @foreach($monthlyPaymentMethods as $method => $data)
+                                @if($data['transactions'] > 0)
+                                <tr>
+                                    <td>
+                                        <span class="badge" style="background: #3498db; color: #fff; padding: 6px 10px;">
+                                            {{ $methodLabels[$method] ?? ucfirst(str_replace('_', ' ', $method)) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ $data['transactions'] }}</span>
+                                    </td>
+                                    <td class="text-end text-success fw-bold">
+                                        ৳{{ number_format($data['total_paid'], 0) }}
+                                    </td>
+                                </tr>
+                                @endif
+                            @endforeach
+                            
+                            @if(array_sum(array_column($monthlyPaymentMethods, 'transactions')) == 0)
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">
+                                    <i class="fa fa-inbox"></i> No payments this month
+                                </td>
+                            </tr>
+                            @endif
+                        </tbody>
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <th>TOTAL</th>
+                                <th class="text-center">{{ array_sum(array_column($monthlyPaymentMethods, 'transactions')) }}</th>
+                                <th class="text-end">৳{{ number_format(array_sum(array_column($monthlyPaymentMethods, 'total_paid')), 0) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    @endif
+ 
     @if(!$hasFullAccess)
     <!-- User's Payment Status Summary -->
     <div class="row">
@@ -505,80 +839,8 @@
     
     <!-- Tables Row -->
     <div class="row">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    <strong class="card-title">{{ $hasFullAccess ? 'Recent Confirmed Invoices' : 'My Recent Confirmed Invoices' }}</strong>
-                    <a href="{{ route('admin.invoices.index') }}" class="float-right btn btn-sm btn-primary">View All</a>
-                </div>
-                <div class="card-body">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Invoice #</th>
-                                <th>Customer</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($recentInvoices as $invoice)
-                            <tr>
-                                <td>
-                                    <a href="{{ route('admin.invoices.show', $invoice->id) }}">
-                                        {{ $invoice->invoice_number }}
-                                    </a>
-                                </td>
-                                <td>{{ $invoice->customer->name ?? 'N/A' }}</td>
-                                <td>৳{{ number_format($invoice->total, 0) }}</td>
-                                <td>
-                                    <span class="badge badge-{{ $invoice->payment_status == 'paid' ? 'success' : ($invoice->payment_status == 'partial' ? 'warning' : 'danger') }}">
-                                        {{ ucfirst($invoice->payment_status) }}
-                                    </span>
-                                </td>
-                                <td>{{ $invoice->invoice_date->format('d/m/Y') }}</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
         @if($hasFullAccess)
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    <strong class="card-title">Top Customers (Confirmed Invoices)</strong>
-                    <a href="{{ route('admin.customers.index') }}" class="float-right btn btn-sm btn-primary">View All</a>
-                </div>
-                <div class="card-body">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Customer</th>
-                                <th>Phone</th>
-                                <th>Invoices</th>
-                                <th>Quantity</th>
-                                <th>Total Spent</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($topCustomers as $customer)
-                            <tr>
-                                <td>{{ $customer->name }}</td>
-                                <td>{{ $customer->phone_number_1 }}</td>
-                                <td class="text-center">{{ $customer->invoices_count ?? 0 }}</td>
-                                <td class="text-center">{{ number_format($customer->total_quantity ?? 0) }}</td>
-                                <td class="text-end">৳{{ number_format($customer->invoices_sum_total ?? 0, 0) }}</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        
         @else
         <div class="col-lg-6">
             <div class="card">
@@ -599,12 +861,7 @@
                                 <small>Total Quantity</small>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <div class="text-center p-3">
-                                <h5 class="text-info">{{ number_format($weekInvoices) }}</h5>
-                                <small>This Week</small>
-                            </div>
-                        </div>
+            
                         <div class="col-6">
                             <div class="text-center p-3">
                                 <h5 class="text-warning">{{ number_format($monthlyInvoices) }}</h5>
@@ -618,70 +875,6 @@
         @endif
     </div>
 </div>
-
-<!-- Chart.js Library -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-@if($hasFullAccess)
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Invoice Status Chart
-    @if(isset($invoiceStatusCounts) && count($invoiceStatusCounts) > 0)
-    const invoiceStatusData = {
-        @foreach($invoiceStatusCounts as $status => $count)
-            "{{ $status ?: 'Unknown' }}": {{ $count }},
-        @endforeach
-    };
-    
-    new Chart(document.getElementById('invoiceStatusChart'), {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(invoiceStatusData),
-            datasets: [{
-                data: Object.values(invoiceStatusData),
-                backgroundColor: ['#36a2eb', '#ff6384', '#ffce56', '#4bc0c0', '#9966ff']
-            }]
-        },
-        options: {
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-    @endif
-    
-    // Payment Status Chart
-    @if(isset($paymentStatusCounts) && count($paymentStatusCounts) > 0)
-    const paymentStatusData = {
-        @foreach($paymentStatusCounts as $status => $count)
-            "{{ $status ?: 'Unknown' }}": {{ $count }},
-        @endforeach
-    };
-    
-    new Chart(document.getElementById('paymentStatusChart'), {
-        type: 'pie',
-        data: {
-            labels: Object.keys(paymentStatusData),
-            datasets: [{
-                data: Object.values(paymentStatusData),
-                backgroundColor: ['#4bc0c0', '#ffce56', '#ff6384', '#36a2eb']
-            }]
-        },
-        options: {
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-    @endif
-});
-</script>
-@endif
-
 <style>
 .stat-widget-one {
     padding: 15px 0;
