@@ -343,84 +343,104 @@ if (typeof InhouseSaleToggle !== 'undefined') {
     
     validateForm: function() {
 
-        const isInhouseSale = $('#isInhouseSale').is(':checked');
-        if (!isInhouseSale && !$('#deliveryArea').val().trim()) {
-            alert('Please enter delivery area');
-            $('#deliveryArea').focus();
-            return false;
-        }
-        // Check recipient name
+    if (!$('#recipientName').val().trim()) {
+        alert('Please enter recipient name');
+        $('#recipientName').focus();
+        return false;
+    }
+    
+    const phone = $('#recipientPhone').val().trim();
+    if (!phone) {
+        alert('Please enter recipient phone');
+        $('#recipientPhone').focus();
+        return false;
+    }
+    
+    const phoneRegex = /^01[3-9]\d{8}$/;
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!phoneRegex.test(cleanPhone)) {
+        alert('Please enter a valid Bangladeshi mobile number (01XXXXXXXXX)');
+        $('#recipientPhone').focus();
+        return false;
+    }
 
-        if (!$('#recipientName').val().trim()) {
-            alert('Please enter recipient name');
-            $('#recipientName').focus();
-            return false;
-        }
-        
-        // Check recipient phone
-        const phone = $('#recipientPhone').val().trim();
-        if (!phone) {
-            alert('Please enter recipient phone');
-            $('#recipientPhone').focus();
-            return false;
-        }
-        
-        // Validate phone format (Bangladeshi mobile)
-        const phoneRegex = /^01[3-9]\d{8}$/;
-        const cleanPhone = phone.replace(/\D/g, '');
-        if (!phoneRegex.test(cleanPhone)) {
-            alert('Please enter a valid Bangladeshi mobile number (01XXXXXXXXX)');
-            $('#recipientPhone').focus();
-            return false;
-        }
-        
-        // Check address
+    // NEW: in-house vs regular sale requirements
+    const isInhouse = $('#isInhouseSale').is(':checked');
+
+    if (!isInhouse) {
         if (!$('#recipientAddress').val().trim()) {
-            alert('Please enter address');
+            alert('Please enter recipient address');
             $('#recipientAddress').focus();
             return false;
         }
-        
-       
-        // Check at least one item
-        if ($('#itemsBody tr').length === 0) {
-            alert('Please add at least one item');
+    } else {
+        const paymentMethod = $('#paymentMethod').val();
+        if (!paymentMethod) {
+            alert('Please select a payment method for In-house Sale');
+            $('#paymentMethod').focus();
             return false;
         }
-        
-        // Check all items have names
-        let validItems = true;
-        $('.item-name').each(function() {
-            if (!$(this).val().trim()) {
-                validItems = false;
-                $(this).focus();
-                return false;
-            }
-        });
-        
-        if (!validItems) {
-            alert('Please enter item name for all items');
+
+        let $detailField = null;
+        let detailLabel = '';
+        if (paymentMethod === 'bkash') {
+            $detailField = $('[name="bkash_transaction"]');
+            detailLabel = 'bKash transaction ID';
+        } else if (paymentMethod === 'bkash_personal') {
+            $detailField = $('[name="bkash_personal_transaction"]');
+            detailLabel = 'bKash personal transaction ID';
+        } else if (paymentMethod === 'bank_transfer') {
+            $detailField = $('[name="bank_transfer_details"]');
+            detailLabel = 'bank transfer details';
+        } else if (paymentMethod === 'cash') {
+            $detailField = $('[name="cash_amount"]');
+            detailLabel = 'cash amount';
+        }
+
+        if ($detailField && !$detailField.val().toString().trim()) {
+            alert('Please enter ' + detailLabel + ' for In-house Sale');
+            $detailField.focus();
             return false;
         }
-        
-        // Check all items have unit price
-        let validPrices = true;
-        $('.unit-price').each(function() {
-            const price = parseFloat($(this).val()) || 0;
-            if (price <= 0) {
-                validPrices = false;
-                $(this).focus();
-                return false;
-            }
-        });
-        
-        if (!validPrices) {
-            alert('Please enter valid unit price (greater than 0) for all items');
+    }
+    // END NEW
+
+    if ($('#itemsBody tr').length === 0) {
+        alert('Please add at least one item');
+        return false;
+    }
+    
+    let validItems = true;
+    $('.item-name').each(function() {
+        if (!$(this).val().trim()) {
+            validItems = false;
+            $(this).focus();
             return false;
         }
-        
-        return true;
-    },
+    });
+    
+    if (!validItems) {
+        alert('Please enter item name for all items');
+        return false;
+    }
+    
+    let validPrices = true;
+    $('.unit-price').each(function() {
+        const price = parseFloat($(this).val()) || 0;
+        if (price <= 0) {
+            validPrices = false;
+            $(this).focus();
+            return false;
+        }
+    });
+    
+    if (!validPrices) {
+        alert('Please enter valid unit price (greater than 0) for all items');
+        return false;
+    }
+    
+    return true;
+},
     
     showLoading: function() {
         if (!$('#loadingOverlay').length) {

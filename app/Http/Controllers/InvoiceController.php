@@ -18,105 +18,103 @@ class InvoiceController extends Controller
         return view('invoices.pos', compact('customers'));
     }
 
-
 public function storePos(Request $request)
 {
     $request->validate([
-    'recipient_name' => 'required|string|max:255',
-    'merchant_order_id' => 'nullable|string|max:255',
-    'recipient_phone' => 'required|string|max:20',
-    'recipient_address' => 'required|string',
-    // Delivery area only required when NOT an in-house sale
-    'delivery_area' => 'required_unless:is_inhouse_sale,1|nullable|string',
-    'delivery_type' => 'required|string',
-    'store_location' => 'required|string',
-    'delivery_charge' => 'nullable|numeric|min:0',
-    'amount_to_collect' => 'nullable|numeric|min:0',
-    'status' => 'required|string',
-    'paid_amount' => 'nullable|numeric|min:0',
-    'is_wholesale' => 'nullable|boolean',
-    'is_inhouse_sale' => 'nullable|boolean',
-    'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX,Exchange',
-    'items' => 'required|array|min:1',
-    'items.*.item_name' => 'required|string',
-    'items.*.quantity' => 'required|integer|min:1',
-    'items.*.unit_price' => 'required|numeric|min:0',
-    'items.*.weight' => 'nullable|integer|min:0',
-    'has_return_items' => 'nullable|boolean',
-    'return_items' => 'nullable|array',
-    'return_items.*.item_name' => 'nullable|string',
-    'return_items.*.quantity' => 'nullable|integer|min:1',
-    'return_items.*.unit_price' => 'nullable|numeric|min:0',
-    'return_items.*.return_reason' => 'nullable|string',
-]);
-
-try {
-    $isInhouseSale = $request->is_inhouse_sale;
-    $isWholesale = $request->is_wholesale;
-
-    // Customer lookup/creation — unchanged
-    $customer = Customer::where('phone_number_1', $request->recipient_phone)
-        ->orWhere('phone_number_2', $request->recipient_phone)
-        ->first();
-
-    if (!$customer) {
-        $customer = Customer::create([
-            'name' => $request->recipient_name,
-            'full_address' => $request->recipient_address,
-            'merchant_order_id' => $request->merchant_order_id,
-            'phone_number_1' => $request->recipient_phone,
-            'phone_number_2' => $request->recipient_secondary_phone,
-            'delivery_area' => $request->delivery_area,
-            'note' => $request->notes,
-            'status' => 'active',
-        ]);
-    } else {
-        $customer->update([
-            'name' => $request->recipient_name,
-            'full_address' => $request->recipient_address,
-            'delivery_area' => $request->delivery_area,
-            'note' => $request->notes,
-        ]);
-
-        if ($request->recipient_secondary_phone) {
-            $customer->phone_number_2 = $request->recipient_secondary_phone;
-            $customer->save();
-        }
-    }
-
-    $hasReturnItems = $request->has_return_items == '1' || $request->has_return_items === true;
-
-    $invoice = Invoice::create([
-        'customer_id' => $customer->id,
-        'recipient_name' => $request->recipient_name,
-        'merchant_order_id' => $request->merchant_order_id,
-        'recipient_phone' => $request->recipient_phone,
-        'recipient_secondary_phone' => $request->recipient_secondary_phone,
-        'recipient_address' => $request->recipient_address,
-        // No delivery area on in-house sales
-        'delivery_area' => $isInhouseSale ? null : $request->delivery_area,
-        'delivery_type' => $request->delivery_type,
-        'store_location' => $request->store_location,
-        'delivery_charge' => $isInhouseSale ? 0 : ($request->delivery_charge ?? 60),
-        'special_instructions' => $request->special_instructions,
-        'product_type' => $request->product_type,
-        'amount_to_collect' => $request->amount_to_collect ?? 0,
-        'paid_amount' => $request->paid_amount ?? 0,
-        'payment_method' => $request->payment_method,
-        'payment_details' => $this->getPaymentDetails($request),
-        'notes' => $request->notes,
-        'pathao_city_id' => $isInhouseSale ? null : $request->delivery_city_id,
-        'pathao_zone_id' => $isInhouseSale ? null : $request->delivery_zone_id,
-        'pathao_area_id' => $isInhouseSale ? null : $request->delivery_area_id,
-        'status' => $request->status,
-        'invoice_date' => now(),
-        'created_by' => auth()->id(),
-        'confirmed_at' => now(),
-        'has_return_items' => $hasReturnItems,
-        'is_wholesale' => $isWholesale,
-        'is_inhouse_sale' => $isInhouseSale,
-        'courier_name' => $isInhouseSale ? 'Pathao' : ($request->courier_name ?? 'Pathao'),
+        'recipient_name' => 'required|string|max:255',
+        'merchant_order_id' => 'nullable|string|max:255',
+        'recipient_phone' => 'required|string|max:20',
+        'recipient_address' => 'nullable|string',
+        'delivery_area' => 'required_unless:is_inhouse_sale,1|nullable|string',
+        'delivery_type' => 'required|string',
+        'store_location' => 'required|string',
+        'delivery_charge' => 'nullable|numeric|min:0',
+        'amount_to_collect' => 'nullable|numeric|min:0',
+        'status' => 'required|string',
+        'paid_amount' => 'nullable|numeric|min:0',
+        'is_wholesale' => 'nullable|boolean',
+        'is_inhouse_sale' => 'nullable|boolean',
+        'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX,Exchange',
+        'items' => 'required|array|min:1',
+        'items.*.item_name' => 'required|string',
+        'items.*.quantity' => 'required|integer|min:1',
+        'items.*.unit_price' => 'required|numeric|min:0',
+        'items.*.weight' => 'nullable|integer|min:0',
+        'has_return_items' => 'nullable|boolean',
+        'return_items' => 'nullable|array',
+        'return_items.*.item_name' => 'nullable|string',
+        'return_items.*.quantity' => 'nullable|integer|min:1',
+        'return_items.*.unit_price' => 'nullable|numeric|min:0',
+        'return_items.*.return_reason' => 'nullable|string',
     ]);
+
+    try {
+        // FIX: Set boolean values properly - Convert checkbox values to boolean
+        $isInhouseSale = $request->has('is_inhouse_sale') ? (bool)$request->is_inhouse_sale : false;
+        $isWholesale = $request->has('is_wholesale') ? (bool)$request->is_wholesale : false;
+        $hasReturnItems = $request->has('has_return_items') && ($request->has_return_items == '1' || $request->has_return_items === true);
+
+        // Customer lookup/creation
+        $customer = Customer::where('phone_number_1', $request->recipient_phone)
+            ->orWhere('phone_number_2', $request->recipient_phone)
+            ->first();
+
+        if (!$customer) {
+            $customer = Customer::create([
+                'name' => $request->recipient_name,
+                'full_address' => $request->recipient_address,
+                'merchant_order_id' => $request->merchant_order_id,
+                'phone_number_1' => $request->recipient_phone,
+                'phone_number_2' => $request->recipient_secondary_phone,
+                'delivery_area' => $request->delivery_area,
+                'note' => $request->notes,
+                'status' => 'active',
+            ]);
+        } else {
+            $customer->update([
+                'name' => $request->recipient_name,
+                'full_address' => $request->recipient_address,
+                'delivery_area' => $request->delivery_area,
+                'note' => $request->notes,
+            ]);
+
+            if ($request->recipient_secondary_phone) {
+                $customer->phone_number_2 = $request->recipient_secondary_phone;
+                $customer->save();
+            }
+        }
+
+        // FIX: Create invoice with proper boolean values
+        $invoice = Invoice::create([
+            'customer_id' => $customer->id,
+            'recipient_name' => $request->recipient_name,
+            'merchant_order_id' => $request->merchant_order_id,
+            'recipient_phone' => $request->recipient_phone,
+            'recipient_secondary_phone' => $request->recipient_secondary_phone,
+            'recipient_address' => $request->recipient_address,
+            'delivery_area' => $isInhouseSale ? null : $request->delivery_area,
+            'delivery_type' => $request->delivery_type,
+            'store_location' => $request->store_location,
+            'delivery_charge' => $isInhouseSale ? 0 : ($request->delivery_charge ?? 60),
+            'special_instructions' => $request->special_instructions,
+            'product_type' => $request->product_type,
+            'amount_to_collect' => $request->amount_to_collect ?? 0,
+            'paid_amount' => $request->paid_amount ?? 0,
+            'payment_method' => $request->payment_method,
+            'payment_details' => $this->getPaymentDetails($request),
+            'notes' => $request->notes,
+            'pathao_city_id' => $isInhouseSale ? null : $request->delivery_city_id,
+            'pathao_zone_id' => $isInhouseSale ? null : $request->delivery_zone_id,
+            'pathao_area_id' => $isInhouseSale ? null : $request->delivery_area_id,
+            'status' => $request->status,
+            'invoice_date' => now(),
+            'created_by' => auth()->id(),
+            'confirmed_at' => now(),
+            'has_return_items' => $hasReturnItems,
+            'is_wholesale' => $isWholesale, // Now properly set to true/false
+            'is_inhouse_sale' => $isInhouseSale, // Now properly set to true/false
+            'courier_name' => $isInhouseSale ? 'Pathao' : ($request->courier_name ?? 'Pathao'),
+        ]);
 
         // Add invoice items
         foreach ($request->items as $item) {
@@ -136,7 +134,6 @@ try {
         // Add return items if has return
         if ($hasReturnItems && !empty($request->return_items)) {
             foreach ($request->return_items as $returnItem) {
-                // Skip if item_name is empty
                 if (empty($returnItem['item_name'])) {
                     continue;
                 }
@@ -180,6 +177,7 @@ try {
             ->with('success', 'Invoice created successfully!');
             
     } catch (\Exception $e) {
+        \Log::error('Invoice creation error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
         
         $isAjax = $request->ajax() || $request->wantsJson() || $request->has('is_ajax');
         
@@ -190,7 +188,7 @@ try {
             ], 500);
         }
         
-        return back()->with('error', 'Error creating invoice: ' . $e->getMessage());
+        return back()->with('error', 'Error creating invoice: ' . $e->getMessage())->withInput();
     }
 }
 

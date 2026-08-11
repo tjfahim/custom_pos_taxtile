@@ -1,7 +1,6 @@
 <!-- Summary Section -->
 <div class="row mt-3">
     <div class="col-md-8">
-      
         <!-- Delivery Charge -->
         <div class="card">
             <div class="card-header bg-light">
@@ -10,90 +9,79 @@
             <div class="card-body">
                 <div class="form-group">
                     <label>Delivery Charge (৳)</label>
-         
-                           <input type="number" name="delivery_charge" class="form-control" 
-       value="150" min="0" step="0.01" id="deliveryCharge" 
-       onchange="updateSpecialInstructions(); InvoiceCalculations.calculateTotals()"
-       oninput="updateSpecialInstructions()">
+                    <input type="number" name="delivery_charge" class="form-control" 
+                           value="150" min="0" step="0.01" id="deliveryCharge" 
+                           onchange="updateSpecialInstructions(); InvoiceCalculations.calculateTotals()"
+                           oninput="updateSpecialInstructions()">
                 </div>
             </div>
-           
         </div>
             
         <div class="form-group">
             <label>Special Instructions</label>
-            <textarea name="special_instructions" rows="2" class="form-control" value="">Return korle delivery charge 150 tk niben ( আনুষাঙ্গিক কোনো ইসু থাকলে প্যানেলে মেসেজ দিবেন। নাম্বারে যোগাযোগ করার সময় - সকাল ১১.৩০ থেকে রাত ৯ টার মধ্যে)</textarea>
+            <textarea name="special_instructions" rows="2" class="form-control"></textarea>
         </div>
         <div class="form-group">
             <label>Notes</label>
             <textarea name="notes" rows="2" class="form-control"></textarea>
         </div>
-        
     </div>
     
-    <!-- In your summary-section.blade.php -->
-<div class="col-md-4">
-    <div class="card summary-card">
-        <div class="card-body">
-            <h6 class="card-title text-center">Invoice Summary</h6>
-            <table class="table table-sm table-borderless">
-                <!-- Total Quantity Row -->
-                <tr id="totalQuantityRow">
-                    <td id="totalQuantity">                        <span class="badge badge-danger" id="totalQuantity">0</span>:
-</td>
-
-                    <td class="text-right" id="subtotal">0</td>
-                </tr>
-                <!-- Total Weight Row (in kg) -->
-                <tr id="totalWeightRow" style="display: none;">
-                    <td>Total Weight:</td>
-                    <td class="text-right" id="totalWeight">0 kg</td>
-                </tr>
+    <!-- Invoice Summary -->
+    <div class="col-md-4">
+        <div class="card summary-card">
+            <div class="card-body">
+                <h6 class="card-title text-center">Invoice Summary</h6>
+                <table class="table table-sm table-borderless">
+                    <!-- Total Items Row -->
+                    <tr id="totalQuantityRow">
+                        <td>
+                            <strong>Total Items:</strong>
+                            <span class="badge badge-primary" id="totalQuantityDisplay">0</span>
+                        </td>
+                        <td class="text-right" id="subtotalDisplay">৳0</td>
+                    </tr>
+                    
+                    <!-- Total Weight Row -->
+                    <tr id="totalWeightRow" style="display: none;">
+                        <td>Total Weight:</td>
+                        <td class="text-right" id="totalWeight">0 kg</td>
+                    </tr>
+                    
+                    <!-- Return Items Row -->
                     <tr id="returnSubtotalRow" style="display: none;" class="text-danger">
-                    <td>
-                        Return Items 
-                        <span class="badge badge-danger" id="returnItemsCount">0</span>:
-                    </td>
-                    <td class="text-right" id="returnSubtotal">৳0</td>
-                </tr>
-           
-                <tr>
-                    <td>Delivery:</td>
-                    <td class="text-right" id="deliveryAmount">৳60</td>
-                </tr>
-                <tr class="border-top">
-                    <td><strong>Total:</strong></td>
-                    <td class="text-right"><strong id="total">৳0</strong></td>
-                </tr>
-                
-                <!-- Advance Payment Row (Hidden by default) -->
-                <tr id="advancePaymentRow" style="display: none;">
-                    <td>Advance:</td>
-                    <td class="text-right text-success" id="advanceAmount">৳0</td>
-                </tr>
-                
-                <tr class="border-top">
-                    <td><strong>Due:</strong></td>
-                    <td class="text-right"><strong id="dueAmount">৳0</strong></td>
-                </tr>
-            </table>
+                        <td>
+                            Return Items: 
+                            <span class="badge badge-danger" id="returnItemsCount">0</span>
+                        </td>
+                        <td class="text-right" id="returnSubtotal">৳0</td>
+                    </tr>
+                    
+                    <!-- Delivery Row -->
+                    <tr>
+                        <td>Delivery:</td>
+                        <td class="text-right" id="deliveryAmount">৳150</td>
+                    </tr>
+                    
+                    <!-- Total Row -->
+                    <tr class="border-top">
+                        <td><strong>Total:</strong></td>
+                        <td class="text-right"><strong id="total">৳0</strong></td>
+                    </tr>
+                    
+                    <!-- Advance Payment Row -->
+                    <tr id="advancePaymentRow" style="display: none;">
+                        <td>Advance:</td>
+                        <td class="text-right text-success" id="advanceAmount">৳0</td>
+                    </tr>
+                    
+                    <!-- Due Row -->
+                    <tr class="border-top">
+                        <td><strong>Due:</strong></td>
+                        <td class="text-right"><strong id="dueAmount">৳0</strong></td>
+                    </tr>
+                </table>
+            </div>
         </div>
     </div>
 </div>
-</div>
-
-<script>
-function updateSpecialInstructions() {
-    const deliveryCharge = document.getElementById('deliveryCharge').value;
-    const specialInstructions = document.querySelector('textarea[name="special_instructions"]');
-    
-    // Update the text with the new delivery charge
-    const newText = `Return korle delivery charge ${deliveryCharge} tk niben ( আনুষাঙ্গিক কোনো ইসু থাকলে প্যানেলে মেসেজ দিবেন। নাম্বারে যোগাযোগ করার সময় - সকাল ১১.৩০ থেকে রাত ৯ টার মধ্যে)`;
-    
-    // Update the textarea value
-    specialInstructions.value = newText;
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', updateSpecialInstructions);
-</script>

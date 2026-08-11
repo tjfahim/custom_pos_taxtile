@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\PathaoController;
 use App\Http\Controllers\AuthController;
@@ -126,7 +128,13 @@ Route::get('/pathao/getUserSuccessRateByPhone', [PathaoController::class, 'getUs
     Route::post('customers/search', [CustomerController::class, 'search'])->name('customers.search');
     Route::patch('customers/{id}/restore', [CustomerController::class, 'restore'])->name('customers.restore');
     Route::delete('customers/{id}/force-delete', [CustomerController::class, 'forceDelete'])->name('customers.force-delete');
+    Route::resource('staff', StaffController::class);
     
+    Route::patch('staff/{id}/status', [StaffController::class, 'updateStatus'])->name('staff.update-status');
+      Route::resource('attendance', AttendanceController::class);
+    
+    // Additional routes
+    Route::get('attendance-report', [AttendanceController::class, 'report'])->name('attendance.report');
     // Invoices
     Route::prefix('invoices')->name('invoices.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');

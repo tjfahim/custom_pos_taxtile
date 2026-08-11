@@ -40,19 +40,19 @@ const ReturnItems = {
                 <td>
                     <input type="number" name="return_items[${this.itemCount}][weight]" 
                            class="form-control form-control-sm return-weight text-center" 
-                           value="500" min="0" step="1"
+                           value="500" min="0"
                            onchange="ReturnItems.updateReturnTotal(${this.itemCount})">
                 </td>
                 <td>
                     <input type="number" name="return_items[${this.itemCount}][quantity]" 
                            class="form-control form-control-sm return-quantity text-center" 
-                           value="1" min="1" step="1" required 
+                           value="1" min="1" required 
                            onchange="ReturnItems.updateReturnTotal(${this.itemCount})">
                 </td>
                 <td>
                     <input type="number" name="return_items[${this.itemCount}][unit_price]" 
                            class="form-control form-control-sm return-unit-price text-right" 
-                           value="" min="0" step="0.01" required 
+                           value="" min="0" required 
                            onchange="ReturnItems.updateReturnTotal(${this.itemCount})">
                 </td>
                 <td>

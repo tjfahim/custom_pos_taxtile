@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attendance;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -60,7 +62,8 @@ class DashboardController extends Controller
                 })
             ];
         }
-        
+            $totalInvoices = Invoice::where('status', 'confirmed')->count();
+
         // Month data for this courier
         $monthQuery = Invoice::where('courier_name', $courier)
             ->where('status', 'confirmed')
@@ -116,30 +119,48 @@ class DashboardController extends Controller
             return $invoice->items->sum('quantity');
         })
     ];
+$itemTotalsSql = 'SELECT invoice_id, SUM(quantity) as quantity FROM invoice_items GROUP BY invoice_id';
 
-    // Monthly stats for current year - FIXED GROUP BY ISSUE
-    $monthlyStats = DB::table('invoices')
-        ->select(
-            DB::raw('YEAR(invoices.invoice_date) as year'),
-            DB::raw('MONTH(invoices.invoice_date) as month'),
-            DB::raw('COUNT(DISTINCT invoices.id) as total_invoices'),
-            DB::raw('SUM(invoices.total) as total_revenue'),
-            DB::raw('SUM(invoices.paid_amount) as total_paid'),
-            DB::raw('SUM(invoices.due_amount) as total_due'),
-            DB::raw('SUM(invoices.subtotal) as total_subtotal'),
-            DB::raw('SUM(invoices.delivery_charge) as total_delivery'),
-            DB::raw('SUM(invoices.total_weight) as total_weight'),
-            DB::raw('COALESCE(SUM(items.quantity), 0) as total_quantity')
-        )
-        ->leftJoin('invoice_items as items', 'invoices.id', '=', 'items.invoice_id')
-        ->whereYear('invoices.invoice_date', Carbon::now()->year)
-        ->where('invoices.status', 'confirmed')
-        ->whereNull('invoices.deleted_at')
-        ->groupBy(DB::raw('YEAR(invoices.invoice_date)'), DB::raw('MONTH(invoices.invoice_date)'))
-        ->orderBy('year')
-        ->orderBy('month')
-        ->get()
-        ->keyBy('month');
+$monthlyStats = DB::table('invoices')
+    ->leftJoin(DB::raw("({$itemTotalsSql}) as item_totals"), 'item_totals.invoice_id', '=', 'invoices.id')
+    ->select(
+        DB::raw('YEAR(invoices.invoice_date) as year'),
+        DB::raw('MONTH(invoices.invoice_date) as month'),
+        DB::raw('COUNT(DISTINCT invoices.id) as total_invoices'),
+        DB::raw('SUM(invoices.total) as total_revenue'),
+        DB::raw('SUM(invoices.paid_amount) as total_paid'),
+        DB::raw('SUM(invoices.due_amount) as total_due'),
+        DB::raw('SUM(invoices.subtotal) as total_subtotal'),
+        DB::raw('SUM(invoices.delivery_charge) as total_delivery'),
+        DB::raw('SUM(invoices.total_weight) as total_weight'),
+        DB::raw('COALESCE(SUM(item_totals.quantity), 0) as total_quantity')
+    )
+    ->whereYear('invoices.invoice_date', Carbon::now()->year)
+    ->where('invoices.status', 'confirmed')
+    ->whereNull('invoices.deleted_at')
+    ->groupBy(DB::raw('YEAR(invoices.invoice_date)'), DB::raw('MONTH(invoices.invoice_date)'))
+    ->orderBy('year')
+    ->orderBy('month')
+    ->get()
+    ->keyBy('month');
+
+// For months with no data
+foreach (range(1, 12) as $month) {
+    if (!isset($monthlyStats[$month])) {
+        $stats = new \stdClass();
+        $stats->year = Carbon::now()->year;
+        $stats->month = $month;
+        $stats->total_invoices = 0;
+        $stats->total_revenue = 0;
+        $stats->total_paid = 0;
+        $stats->total_due = 0;
+        $stats->total_subtotal = 0;
+        $stats->total_delivery = 0;
+        $stats->total_weight = 0;
+        $stats->total_quantity = 0;
+        $monthlyStats[$month] = $stats;
+    }
+}
     
     $totalPaidAmount = Invoice::where('status', 'confirmed')->sum('paid_amount');
     $totalDueAmount = Invoice::where('status', 'confirmed')->sum('due_amount');
@@ -174,29 +195,36 @@ class DashboardController extends Controller
         ->sum('delivery_charge');
 
     // Last 10 days daily breakdown (only confirmed invoices)
-    $last10Days = collect();
-    for ($i = 9; $i >= 0; $i--) {
-        $date = Carbon::now()->subDays($i);
-        $dayInvoices = Invoice::where('status', 'confirmed')
-            ->whereDate('invoice_date', $date)
-            ->get();
-        
-        $last10Days->push([
-            'date' => $date->format('D, M d'),
-            'day' => $date->format('d'),
-            'full_date' => $date->format('Y-m-d'),
-            'count' => $dayInvoices->count(),
-            'revenue' => $dayInvoices->sum('total'),
-            'paid' => $dayInvoices->sum('paid_amount'),
-            'due' => $dayInvoices->sum('due_amount'),
-            'subtotal' => $dayInvoices->sum('subtotal'),
-            'delivery' => $dayInvoices->sum('delivery_charge'),
-            'quantity' => $dayInvoices->sum(function($invoice) {
-                return $invoice->items->sum('quantity');
-            }),
-        ]);
-    }
+$last10Days = collect();
+for ($i = 9; $i >= 0; $i--) {
+    $date = Carbon::now()->subDays($i);
     
+    // Get invoices for this day
+    $dayInvoices = Invoice::where('status', 'confirmed')
+        ->whereDate('invoice_date', $date)
+        ->get();
+    
+    // Calculate quantity separately to avoid duplication issues
+    $quantity = DB::table('invoices')
+        ->join('invoice_items as items', 'invoices.id', '=', 'items.invoice_id')
+        ->where('invoices.status', 'confirmed')
+        ->whereDate('invoices.invoice_date', $date)
+        ->whereNull('invoices.deleted_at')
+        ->sum('items.quantity');
+    
+    $last10Days->push([
+        'date' => $date->format('D, M d'),
+        'day' => $date->format('d'),
+        'full_date' => $date->format('Y-m-d'),
+        'count' => $dayInvoices->count(),
+        'revenue' => $dayInvoices->sum('total'),
+        'paid' => $dayInvoices->sum('paid_amount'),
+        'due' => $dayInvoices->sum('due_amount'),
+        'subtotal' => $dayInvoices->sum('subtotal'),
+        'delivery' => $dayInvoices->sum('delivery_charge'),
+        'quantity' => $quantity, // Use separately calculated quantity
+    ]);
+}
     // This Month counts (only confirmed invoices)
     $monthlyInvoices = Invoice::where('status', 'confirmed')
         ->where('invoice_date', '>=', $startOfMonth)
@@ -365,7 +393,240 @@ $todayPaymentDetails = Invoice::where('status', 'confirmed')
     ->with('creator')
     ->orderBy('paid_amount', 'desc')
     ->get();
+ 
+       $today = Carbon::today();
+        $startOfMonth = Carbon::now()->startOfMonth();
+        $couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
+        $paymentMethods = ['Cash', 'Bank', 'Mobile Banking', 'Rocket', 'bKash', 'Nagad'];
 
+        // ... [Your existing invoice queries here] ...
+
+        // ==================== ATTENDANCE DATA ====================
+        
+        // TODAY'S ATTENDANCE WITH DETAILS
+        $staffMembers = Staff::active()->orderBy('name')->get();
+        $todayTotalStaff = $staffMembers->count();
+        
+        $todayAttendance = [];
+        $todayPresent = 0;
+        $todayAbsent = 0;
+        $todayLate = 0;
+        $todayLeave = 0;
+        $todayHoliday = 0;
+        $todayFriday = 0;
+        $todayLateStaff = [];
+        $todayLeaveStaff = [];
+        $todayPresentStaff = [];
+        $todayAbsentStaff = [];
+
+        $lateThreshold = Carbon::parse('11:00:00');
+
+        foreach ($staffMembers as $staff) {
+            $attendance = Attendance::where('staff_id', $staff->id)
+                ->whereDate('attendance_date', $today)
+                ->first();
+
+            $inTime = $attendance ? $attendance->in_time : null;
+            $outTime = $attendance ? $attendance->out_time : null;
+            $status = $attendance ? $attendance->status : 'absent';
+            $isLate = false;
+            $lateMinutes = 0;
+            $lateTimeDisplay = '-';
+
+            // Check if late (after 11:00 AM)
+            if ($inTime) {
+                $inTimeParsed = Carbon::parse($inTime);
+                if ($inTimeParsed->gt($lateThreshold)) {
+                    $isLate = true;
+                    $lateMinutes = $inTimeParsed->diffInMinutes($lateThreshold);
+                    $lateTimeDisplay = $lateMinutes . ' min late';
+                } else {
+                    $lateTimeDisplay = 'On Time';
+                }
+            }
+
+            // Count statistics and categorize staff
+            if ($status == 'present' || $status == 'late') {
+                $todayPresent++;
+                if ($status == 'late' || $isLate) {
+                    $todayLate++;
+                    $todayLateStaff[] = [
+                        'name' => $staff->name,
+                        'designation' => $staff->designation,
+                        'late_minutes' => $lateMinutes,
+                        'in_time' => $inTime ? Carbon::parse($inTime)->format('h:i A') : '-',
+                    ];
+                } else {
+                    $todayPresentStaff[] = $staff->name;
+                }
+            } elseif ($status == 'absent') {
+                $todayAbsent++;
+                $todayAbsentStaff[] = $staff->name;
+            } elseif ($status == 'leave') {
+                $todayLeave++;
+                $todayLeaveStaff[] = [
+                    'name' => $staff->name,
+                    'designation' => $staff->designation,
+                    'note' => $attendance ? $attendance->note : 'On Leave',
+                ];
+            } elseif ($status == 'holiday') {
+                $todayHoliday++;
+            } elseif ($status == 'friday') {
+                $todayFriday++;
+            }
+
+            // Prepare attendance data for each staff
+            $todayAttendance[] = [
+                'staff_name' => $staff->name,
+                'designation' => $staff->designation,
+                'in_time' => $inTime ? Carbon::parse($inTime)->format('h:i A') : '-',
+                'in_time_raw' => $inTime,
+                'out_time' => $outTime ? Carbon::parse($outTime)->format('h:i A') : '-',
+                'out_time_raw' => $outTime,
+                'status' => $status,
+                'status_badge' => $attendance ? $attendance->status_badge : '<span class="badge badge-danger">Absent</span>',
+                'is_late' => $isLate,
+                'late_minutes' => $lateMinutes,
+                'late_display' => $lateTimeDisplay,
+                'is_friday' => $attendance ? $attendance->is_friday : false,
+                'is_holiday' => $attendance ? $attendance->is_govt_holiday : false,
+                'on_leave' => $attendance ? $attendance->on_leave : false,
+                'note' => $attendance ? $attendance->note : null,
+                'has_attendance' => $attendance ? true : false,
+            ];
+        }
+
+        // Today's Attendance Summary
+        $todayAttendanceSummary = [
+            'total_staff' => $todayTotalStaff,
+            'present' => $todayPresent,
+            'absent' => $todayAbsent,
+            'late' => $todayLate,
+            'leave' => $todayLeave,
+            'holiday' => $todayHoliday,
+            'friday' => $todayFriday,
+            'attendance_percentage' => $todayTotalStaff > 0 ? round(($todayPresent / $todayTotalStaff) * 100, 2) : 0,
+            'is_friday' => $today->isFriday(),
+            'late_staff' => $todayLateStaff,
+            'leave_staff' => $todayLeaveStaff,
+            'absent_staff' => $todayAbsentStaff,
+            'present_staff' => $todayPresentStaff,
+        ];
+
+        // MONTHLY ATTENDANCE REPORT WITH DETAILED STATS
+        $monthlyAttendanceReport = [];
+        $monthlyTotalPresent = 0;
+        $monthlyTotalAbsent = 0;
+        $monthlyTotalLate = 0;
+        $monthlyTotalLeave = 0;
+        $monthlyTotalHoliday = 0;
+        $monthlyTotalFriday = 0;
+        $monthlyWorkingDays = 0;
+        $monthlyLateMinutes = 0;
+        $monthlyLateStaff = [];
+        $monthlyLeaveStaff = [];
+
+        foreach ($staffMembers as $staff) {
+            $attendances = Attendance::where('staff_id', $staff->id)
+                ->whereBetween('attendance_date', [$startOfMonth, Carbon::now()])
+                ->get();
+
+            $totalDays = $attendances->count();
+            $presentDays = $attendances->where('status', 'present')->count() + $attendances->where('status', 'late')->count();
+            $absentDays = $attendances->where('status', 'absent')->count();
+            $lateDays = $attendances->where('status', 'late')->count();
+            $leaveDays = $attendances->where('status', 'leave')->count();
+            $holidayDays = $attendances->where('status', 'holiday')->count();
+            $fridayDays = $attendances->where('status', 'friday')->count();
+
+            // Calculate total late minutes
+            $staffLateMinutes = 0;
+            $lateThreshold = Carbon::parse('11:00:00');
+            foreach ($attendances as $attendance) {
+                if ($attendance->in_time) {
+                    $inTime = Carbon::parse($attendance->in_time);
+                    if ($inTime->gt($lateThreshold)) {
+                        $staffLateMinutes += $inTime->diffInMinutes($lateThreshold);
+                    }
+                }
+            }
+
+            $attendancePercentage = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 2) : 0;
+
+            // Determine performance rating
+            $rating = 'Good';
+            $ratingClass = 'success';
+            if ($attendancePercentage >= 95) {
+                $rating = 'Excellent';
+                $ratingClass = 'success';
+            } elseif ($attendancePercentage >= 85) {
+                $rating = 'Good';
+                $ratingClass = 'primary';
+            } elseif ($attendancePercentage >= 75) {
+                $rating = 'Average';
+                $ratingClass = 'warning';
+            } elseif ($attendancePercentage >= 60) {
+                $rating = 'Poor';
+                $ratingClass = 'danger';
+            } else {
+                $rating = 'Very Poor';
+                $ratingClass = 'danger';
+            }
+
+            $monthlyAttendanceReport[] = [
+                'staff_name' => $staff->name,
+                'designation' => $staff->designation,
+                'total_days' => $totalDays,
+                'present' => $presentDays,
+                'absent' => $absentDays,
+                'late' => $lateDays,
+                'leave' => $leaveDays,
+                'holiday' => $holidayDays,
+                'friday' => $fridayDays,
+                'late_minutes' => $staffLateMinutes,
+                'late_hours' => round($staffLateMinutes / 60, 2),
+                'attendance_percentage' => $attendancePercentage,
+                'rating' => $rating,
+                'rating_class' => $ratingClass,
+            ];
+
+            // Accumulate totals
+            $monthlyTotalPresent += $presentDays;
+            $monthlyTotalAbsent += $absentDays;
+            $monthlyTotalLate += $lateDays;
+            $monthlyTotalLeave += $leaveDays;
+            $monthlyTotalHoliday += $holidayDays;
+            $monthlyTotalFriday += $fridayDays;
+            $monthlyWorkingDays += $totalDays;
+            $monthlyLateMinutes += $staffLateMinutes;
+        }
+
+        // Monthly Attendance Summary
+        $monthlyAttendanceSummary = [
+            'total_staff' => $todayTotalStaff,
+            'total_working_days' => $monthlyWorkingDays,
+            'total_present' => $monthlyTotalPresent,
+            'total_absent' => $monthlyTotalAbsent,
+            'total_late' => $monthlyTotalLate,
+            'total_leave' => $monthlyTotalLeave,
+            'total_holiday' => $monthlyTotalHoliday,
+            'total_friday' => $monthlyTotalFriday,
+            'total_late_minutes' => $monthlyLateMinutes,
+            'total_late_hours' => round($monthlyLateMinutes / 60, 2),
+            'attendance_percentage' => $monthlyWorkingDays > 0 ? round(($monthlyTotalPresent / $monthlyWorkingDays) * 100, 2) : 0,
+            'month_name' => $startOfMonth->format('F Y'),
+        ];
+
+        // Get top 5 performers and bottom 5
+        $topPerformers = collect($monthlyAttendanceReport)
+            ->sortByDesc('attendance_percentage')
+            ->take(5)
+            ->values();
+
+        $poorPerformers = collect($monthlyAttendanceReport)
+            ->sortBy('attendance_percentage')
+            ->take(5)
+            ->values();
 // This Month's Payment Details
 $monthlyPaymentDetails = Invoice::where('status', 'confirmed')
     ->where('invoice_date', '>=', $startOfMonth)
@@ -377,9 +638,12 @@ $monthlyPaymentDetails = Invoice::where('status', 'confirmed')
     ->get();
 
     return view('admin.dashboard', compact(
+                'totalInvoices',
+
           'todayPaymentMethods',
     'monthlyPaymentMethods',
     'todayPaymentDetails',
+    'poorPerformers',
     'monthlyPaymentDetails',
           'monthlyCourierReport',
     'monthlyInhouseReport',
@@ -401,6 +665,7 @@ $monthlyPaymentDetails = Invoice::where('status', 'confirmed')
         'monthlyPaid',
         'monthlyDue',
         'monthlySubtotal',
+        'today',
         'monthlyDelivery',
         'monthlyQuantity',
         'topCreators',
@@ -411,7 +676,13 @@ $monthlyPaymentDetails = Invoice::where('status', 'confirmed')
         'monthData',
         'todayInhouse',
         'monthInhouse',
-        'topCreatorsMonth'
+        'topCreatorsMonth',
+          'todayAttendance',
+            'todayAttendanceSummary',
+            'monthlyAttendanceReport',
+            'monthlyAttendanceSummary',
+            'topPerformers'
+           
     ));
 }
     
@@ -427,11 +698,21 @@ private function userDashboard($user)
     // Get user's invoices (only confirmed ones)
     $userInvoices = Invoice::where('created_by', $user->id)->where('status', 'confirmed');
     // Total stats
-    $totalRevenue = (clone $userInvoices)->sum('total');
+        $totalInvoices = (clone $userInvoices)->count();
+
+$totalRevenue = (clone $userInvoices)->sum('total');
     $totalPaid = (clone $userInvoices)->sum('paid_amount');
     $totalDue = (clone $userInvoices)->sum('due_amount');
     $totalSubtotal = (clone $userInvoices)->sum('subtotal');
     $totalDelivery = (clone $userInvoices)->sum('delivery_charge');
+    $totalQuantity = (clone $userInvoices)
+        ->with('items')
+        ->get()
+        ->sum(function($invoice) {
+            return $invoice->items->sum('quantity');
+        });
+   
+    // Today's stats - Use confirmed_at for date filtering
    
     // Today's stats - Use confirmed_at for date filtering
     $todayInvoices = (clone $userInvoices)->whereDate('confirmed_at', $today)->count();
@@ -500,8 +781,11 @@ private function userDashboard($user)
     $hasFullAccess = false;
     
     return view('admin.dashboard', compact(
+                'totalInvoices',
+
         'user',
         'totalRevenue',
+        'totalQuantity',
         'totalPaid',
         'totalDue',
         'totalSubtotal',

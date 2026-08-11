@@ -95,8 +95,8 @@
 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Address <span class="text-danger">*</span></label>
-                                        <textarea name="recipient_address" id="recipientAddress" rows="2" class="form-control" required></textarea>
+                                        <label>Address</label>
+                                        <textarea name="recipient_address" id="recipientAddress" rows="2" class="form-control" ></textarea>
                                     </div>
                                 </div>
                                <div class="col-md-12">

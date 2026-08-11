@@ -207,11 +207,16 @@
                             <tr><td class="label">Subtotal:</td><td class="value">৳{{ number_format($invoice->items->sum('total_price'), 0) }}</td></tr>
                            
                             <tr><td class="label">Delivery:</td><td class="value">৳{{ number_format($invoice->delivery_charge, 0) }}</td></tr>
-                            <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 0) }}</td></tr>
+                            @if($invoice->paid_amount && $invoice->paid_amount > 0)
+                           <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 0) }}</td></tr>
+                        @endif
                             <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 0) }}</td></tr>
                             @if($invoice->payment_method)
                                 <tr><td class="label">Method:</td><td class="value">{{ ucfirst(str_replace('_', ' ', $invoice->payment_method)) }}</td></tr>
                             @endif
+                                   @if($invoice->payment_details)
+                        <tr><td class="label">Details:</td><td class="value">{{ $invoice->payment_details }}</td></tr>
+                        @endif
                         </table>
                     </div>
                 </div>

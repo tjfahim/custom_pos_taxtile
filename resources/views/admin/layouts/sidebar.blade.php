@@ -94,6 +94,20 @@
         <span>Inside Dhaka</span>
     </a>
 </li>
+<li class="{{ request()->routeIs('admin.staff.*') ? 'active' : '' }}">
+    <a href="{{ route('admin.staff.index') }}">
+        <i class="menu-icon fa fa-map-marker-alt"></i>
+        <span>Staff</span>
+    </a>
+</li>
+<li class="{{ request()->routeIs('admin.attendance.*') ? 'active' : '' }}">
+    <a href="{{ route('admin.attendance.index') }}">
+        <i class="menu-icon fa fa-map-marker-alt"></i>
+        <span>Attendance</span>
+    </a>
+</li>
+    
+
                 @endhasrole
                 
                 <!-- Logout -->
