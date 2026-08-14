@@ -41,10 +41,11 @@ class Invoice extends Model
         'notes',
         'created_by',
         'has_return_items',
-          'is_wholesale',     
-    'is_inhouse_sale',  
-    'courier_name',     
-        'confirmed_at'
+        'is_wholesale',     
+        'is_inhouse_sale',  
+        'courier_name',     
+        'confirmed_at',
+        'team_id' // Add this field
     ];
 
     protected $casts = [
@@ -57,14 +58,20 @@ class Invoice extends Model
         'amount_to_collect' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'due_amount' => 'decimal:2',
-        'is_wholesale',     
-    'is_inhouse_sale',  
+        'is_wholesale' => 'boolean',
+        'is_inhouse_sale' => 'boolean',
         'has_return_items' => 'boolean'
     ];
     
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+    
+    // Add relationship to team member
+    public function teamMember()
+    {
+        return $this->belongsTo(User::class, 'team_id');
     }
     
     protected static function boot()

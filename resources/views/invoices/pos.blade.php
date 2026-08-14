@@ -20,18 +20,43 @@
     </div>
     <div class="card-body" id="customerSection">
         <div class="row">
-    <div class="col-md-6 mb-3">
+    <div class="col-md-4 mb-3">
         <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#customerModal">
             <i class="fa fa-search"></i> Select Customer
         </button>
         <input type="hidden" name="customer_id" id="customerId">
         <div class="mt-2">
-            <small id="selectedCustomer" class="text-muted">No customer selected. Enter phone number to auto-detect or select manually.</small>
+            <small id="selectedCustomer" class="text-muted">No customer selected. .</small>
         </div>
     </div>
 
-    <div class="col-md-6 mb-3">
+    <div class="col-md-8 mb-3">
         <div class="d-flex flex-wrap align-items-center justify-content-md-end" style="gap: 1.25rem;">
+                <div class="form-group mb-0" style="min-width: 190px;">
+                <label class="mb-0 small text-muted">Assign to Team Member</label>
+                  <select name="team_id" id="teamMemberSelect" class="form-control">
+                                <option value="">-- Select Team Member --</option>
+                                @php
+                                    $currentUser = auth()->user();
+                                    $teamMembers = $currentUser->teamMembers()->with('defaultTeamMate')->get();
+                                    $defaultTeamMate = $currentUser->defaultTeamMate;
+                                @endphp
+                                
+                                @if($teamMembers->count() > 0)
+                                    @foreach($teamMembers as $member)
+                                        <option value="{{ $member->id }}" 
+                                            {{ old('team_id', $defaultTeamMate && $defaultTeamMate->id == $member->id ? 'selected' : '') }}>
+                                            {{ $member->name }} ({{ $member->email }})
+                                            @if($defaultTeamMate && $defaultTeamMate->id == $member->id)
+                                                ⭐ Default
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="" disabled>No team members added yet</option>
+                                @endif
+                            </select>
+            </div>
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" name="is_wholesale" id="isWholesale" value="1">
                 <label class="form-check-label" for="isWholesale">Wholesale</label>

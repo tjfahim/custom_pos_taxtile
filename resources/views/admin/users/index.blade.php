@@ -22,6 +22,8 @@
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Roles</th>
+                                <th>Team Members</th>
+                                <th>Default Team Mate</th>
                                 <th>Status</th>
                                 <th>Created At</th>
                                 <th>Actions</th>
@@ -58,6 +60,28 @@
                                             <span class="badge bg-secondary badge-sm">No Role</span>
                                         @endif
                                     </div>
+                                </td>
+                                <td>
+                                    @if($user->teamMembers->count() > 0)
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach($user->teamMembers as $member)
+                                                <span class="badge bg-info badge-sm">
+                                                    {{ $member->name }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="badge bg-secondary">No Team Members</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($user->defaultTeamMate)
+                                        <span class="badge bg-success">
+                                            {{ $user->defaultTeamMate->name }}
+                                        </span>
+                                    @else
+                                        <span class="badge bg-secondary">Not Set</span>
+                                    @endif
                                 </td>
                                 <td>
                                     @if($user->email_verified_at)

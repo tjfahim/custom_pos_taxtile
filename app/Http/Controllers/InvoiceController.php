@@ -35,6 +35,7 @@ public function storePos(Request $request)
         'is_wholesale' => 'nullable|boolean',
         'is_inhouse_sale' => 'nullable|boolean',
         'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX,Exchange',
+        'team_id' => 'nullable|exists:users,id', // Add validation
         'items' => 'required|array|min:1',
         'items.*.item_name' => 'required|string',
         'items.*.quantity' => 'required|integer|min:1',
@@ -83,8 +84,7 @@ public function storePos(Request $request)
                 $customer->save();
             }
         }
-
-        // FIX: Create invoice with proper boolean values
+        // Create invoice with team_id
         $invoice = Invoice::create([
             'customer_id' => $customer->id,
             'recipient_name' => $request->recipient_name,
@@ -111,9 +111,10 @@ public function storePos(Request $request)
             'created_by' => auth()->id(),
             'confirmed_at' => now(),
             'has_return_items' => $hasReturnItems,
-            'is_wholesale' => $isWholesale, // Now properly set to true/false
-            'is_inhouse_sale' => $isInhouseSale, // Now properly set to true/false
+            'is_wholesale' => $isWholesale,
+            'is_inhouse_sale' => $isInhouseSale,
             'courier_name' => $isInhouseSale ? 'Pathao' : ($request->courier_name ?? 'Pathao'),
+            'team_id' => $request->team_id,
         ]);
 
         // Add invoice items
@@ -460,6 +461,8 @@ public function update(Request $request, $id)
         'customer_address' => 'required|string|max:500',
         'special_instructions' => 'nullable|string|max:1000',
         // Return items validation
+                'team_id' => 'nullable|exists:users,id', // Add validation
+
         'has_return_items' => 'nullable|boolean',
         'return_items' => 'nullable|array',
         'return_items.*.item_name' => 'nullable|string',
@@ -523,6 +526,7 @@ public function update(Request $request, $id)
             'recipient_name' => $request->customer_name,
             'recipient_phone' => $request->customer_phone,
             'recipient_address' => $request->customer_address,
+            'team_id' => $request->team_id,
         ];
         
         // 4. Update invoice_date only if status has changed

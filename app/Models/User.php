@@ -7,12 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Spatie\Permission\Traits\HasRoles; 
-
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable,HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -24,7 +23,8 @@ class User extends Authenticatable
         'email',
         'password',
         'status',
-        'role'
+        'role',
+        'default_team_mate_id'
     ];
 
     /**
@@ -36,10 +36,7 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
-public function createdInvoices()
-    {
-        return $this->hasMany(Invoice::class, 'created_by');
-    }
+
     /**
      * The attributes that should be cast.
      *
@@ -49,4 +46,24 @@ public function createdInvoices()
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    // Users that this user added as team members
+    public function teamMembers()
+    {
+        return $this->belongsToMany(User::class, 'user_team_members', 'user_id', 'team_member_id')
+                    ->withTimestamps();
+    }
+
+    // Users who added this user as a team member
+    public function addedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_team_members', 'team_member_id', 'user_id')
+                    ->withTimestamps();
+    }
+
+    // Default team mate relationship
+    public function defaultTeamMate()
+    {
+        return $this->belongsTo(User::class, 'default_team_mate_id');
+    }
 }
