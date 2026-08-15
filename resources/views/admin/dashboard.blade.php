@@ -323,322 +323,7 @@
     @endif
     @endif
     @if($hasFullAccess)
-    <!-- Attendance Summary Cards -->
-    <div class="row">
-        <!-- Today's Attendance Card -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-info text-white">
-                    <i class="fa fa-calendar-day mr-2"></i>
-                    <strong>Today's Attendance - {{ $today->format('d M, Y') }}</strong>
-                    @if($todayAttendanceSummary['is_friday'])
-                        <span class="badge bg-warning text-dark ml-2">Friday</span>
-                    @endif
-                    <span class="float-right badge bg-light text-dark">
-                        {{ $todayAttendanceSummary['attendance_percentage'] }}% Present
-                    </span>
-                </div>
-                <div class="card-body">
-                    <!-- Today's Stats with Staff Lists -->
-                    <div class="row mb-3">
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">Present</h6>
-                                <h3 class="text-success">{{ $todayAttendanceSummary['present'] }}</h3>
-                                @if(count($todayAttendanceSummary['present_staff']) > 0)
-                                    <small class="text-muted">
-                                        {{ implode(', ', array_slice($todayAttendanceSummary['present_staff'], 0, 3)) }}
-                                        @if(count($todayAttendanceSummary['present_staff']) > 3)
-                                            +{{ count($todayAttendanceSummary['present_staff']) - 3 }} more
-                                        @endif
-                                    </small>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">Absent</h6>
-                                <h3 class="text-danger">{{ $todayAttendanceSummary['absent'] }}</h3>
-                                @if(count($todayAttendanceSummary['absent_staff']) > 0)
-                                    <small class="text-muted">
-                                        {{ implode(', ', array_slice($todayAttendanceSummary['absent_staff'], 0, 3)) }}
-                                        @if(count($todayAttendanceSummary['absent_staff']) > 3)
-                                            +{{ count($todayAttendanceSummary['absent_staff']) - 3 }} more
-                                        @endif
-                                    </small>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">Late</h6>
-                                <h3 class="text-warning">{{ $todayAttendanceSummary['late'] }}</h3>
-                                @if(count($todayAttendanceSummary['late_staff']) > 0)
-                                    <small class="text-muted">
-                                        @foreach(array_slice($todayAttendanceSummary['late_staff'], 0, 3) as $lateStaff)
-                                            {{ $lateStaff['name'] }} ({{ $lateStaff['late_minutes'] }}m)
-                                            @if(!$loop->last), @endif
-                                        @endforeach
-                                        @if(count($todayAttendanceSummary['late_staff']) > 3)
-                                            +{{ count($todayAttendanceSummary['late_staff']) - 3 }} more
-                                        @endif
-                                    </small>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">On Leave</h6>
-                                <h3 class="text-dark">{{ $todayAttendanceSummary['leave'] }}</h3>
-                                @if(count($todayAttendanceSummary['leave_staff']) > 0)
-                                    <small class="text-muted">
-                                        {{ implode(', ', array_column(array_slice($todayAttendanceSummary['leave_staff'], 0, 3), 'name')) }}
-                                        @if(count($todayAttendanceSummary['leave_staff']) > 3)
-                                            +{{ count($todayAttendanceSummary['leave_staff']) - 3 }} more
-                                        @endif
-                                    </small>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Today's Full Attendance Table -->
-                    <div class="table-responsive mt-3" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-bordered table-hover table-sm">
-                            <thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
-                                <tr>
-                                    <th>Staff</th>
-                                    <th>In Time</th>
-                                    <th>Out Time</th>
-                                    <th>Late</th>
-                                    <th>Status</th>
-                                    <th>Note</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($todayAttendance as $staff)
-                                    <tr class="{{ $staff['is_late'] ? 'table-warning' : '' }}">
-                                        <td>
-                                            <strong>{{ $staff['staff_name'] }}</strong>
-                                            <br><small class="text-muted">{{ $staff['designation'] }}</small>
-                                            @if($staff['on_leave'])
-                                                <span class="badge badge-dark">Leave</span>
-                                            @endif
-                                            @if($staff['is_holiday'])
-                                                <span class="badge badge-primary">Holiday</span>
-                                            @endif
-                                            @if($staff['is_friday'])
-                                                <span class="badge badge-secondary">Fri</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($staff['in_time'] != '-')
-                                                <span class="badge {{ $staff['is_late'] ? 'badge-warning' : 'badge-success' }}">
-                                                    {{ $staff['in_time'] }}
-                                                </span>
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($staff['out_time'] != '-')
-                                                <span class="badge badge-danger">{{ $staff['out_time'] }}</span>
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($staff['is_late'])
-                                                <span class="badge badge-warning">{{ $staff['late_display'] }}</span>
-                                            @elseif($staff['in_time'] != '-')
-                                                <span class="badge badge-success">On Time</span>
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td>
-                                        <td>{!! $staff['status_badge'] !!}</td>
-                                        <td>
-                                            @if($staff['note'])
-                                                <small>{{ $staff['note'] }}</small>
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted">No attendance records for today</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Monthly Attendance Card -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <i class="fa fa-calendar-alt mr-2"></i>
-                    <strong>Monthly Attendance - {{ $monthlyAttendanceSummary['month_name'] }}</strong>
-                    <span class="float-right badge bg-light text-dark">
-                        {{ $monthlyAttendanceSummary['attendance_percentage'] }}% Overall
-                    </span>
-                </div>
-                <div class="card-body">
-                    <!-- Monthly Stats -->
-                    <div class="row mb-3">
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">Present</h6>
-                                <h4 class="text-success">{{ $monthlyAttendanceSummary['total_present'] }}</h4>
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">Absent</h6>
-                                <h4 class="text-danger">{{ $monthlyAttendanceSummary['total_absent'] }}</h4>
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">Late</h6>
-                                <h4 class="text-warning">{{ $monthlyAttendanceSummary['total_late'] }}</h4>
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="text-center">
-                                <h6 class="text-muted">Leave</h6>
-                                <h4 class="text-dark">{{ $monthlyAttendanceSummary['total_leave'] }}</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-4">
-                            <div class="text-center">
-                                <h6 class="text-muted">Holiday</h6>
-                                <h5 class="text-primary">{{ $monthlyAttendanceSummary['total_holiday'] }}</h5>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="text-center">
-                                <h6 class="text-muted">Friday</h6>
-                                <h5 class="text-secondary">{{ $monthlyAttendanceSummary['total_friday'] }}</h5>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="text-center">
-                                <h6 class="text-muted">Late Hours</h6>
-                                <h5 class="text-danger">{{ $monthlyAttendanceSummary['total_late_hours'] }}h</h5>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Monthly Staff Performance List -->
-                    <div class="mt-3">
-                        <h6 class="text-primary"><i class="fa fa-users"></i> Staff Performance Summary</h6>
-                        <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                            <table class="table table-sm table-bordered">
-                                <thead class="table-light" style="position: sticky; top: 0; z-index: 10;">
-                                    <tr>
-                                        <th>Staff</th>
-                                        <th class="text-center">Days</th>
-                                        <th class="text-center">Late</th>
-                                        <th class="text-center">Leave</th>
-                                        <th class="text-center">Late Min</th>
-                                        <th class="text-center">%</th>
-                                        <th class="text-center">Rating</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($monthlyAttendanceReport as $staff)
-                                        <tr>
-                                            <td>
-                                                <strong>{{ $staff['staff_name'] }}</strong>
-                                                <br><small class="text-muted">{{ $staff['designation'] }}</small>
-                                            </td>
-                                            <td class="text-center">{{ $staff['total_days'] }}</td>
-                                            <td class="text-center">
-                                                @if($staff['late'] > 0)
-                                                    <span class="badge badge-warning">{{ $staff['late'] }}</span>
-                                                @else
-                                                    <span class="text-muted">0</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                @if($staff['leave'] > 0)
-                                                    <span class="badge badge-dark">{{ $staff['leave'] }}</span>
-                                                @else
-                                                    <span class="text-muted">0</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                @if($staff['late_minutes'] > 0)
-                                                    <span class="text-danger">{{ $staff['late_minutes'] }}m</span>
-                                                @else
-                                                    <span class="text-muted">0</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge badge-{{ $staff['rating_class'] }}">
-                                                    {{ $staff['attendance_percentage'] }}%
-                                                </span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge badge-{{ $staff['rating_class'] }}">
-                                                    {{ $staff['rating'] }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Top & Poor Performers -->
-                    <div class="row mt-2">
-                        <div class="col-6">
-                            <h6 class="text-success"><i class="fa fa-trophy"></i> Top Performers</h6>
-                            @if($topPerformers->count() > 0)
-                                @foreach($topPerformers as $performer)
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span>{{ $performer['staff_name'] }}</span>
-                                        <span class="badge badge-success">{{ $performer['attendance_percentage'] }}%</span>
-                                    </div>
-                                @endforeach
-                            @else
-                                <small class="text-muted">No data available</small>
-                            @endif
-                        </div>
-                        <div class="col-6">
-                            <h6 class="text-danger"><i class="fa fa-exclamation-triangle"></i> Needs Improvement</h6>
-                            @if($poorPerformers->count() > 0)
-                                @foreach($poorPerformers as $performer)
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span>{{ $performer['staff_name'] }}</span>
-                                        <span class="badge badge-danger">{{ $performer['attendance_percentage'] }}%</span>
-                                    </div>
-                                @endforeach
-                            @else
-                                <small class="text-muted">No data available</small>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Monthly Courier-wise Report (Your existing code) -->
-    <div class="row mt-3">
-        <div class="col-md-12">
-            <!-- Your existing courier report here -->
-        </div>
-    </div>
-
+   
     <!-- Monthly Courier-wise Report -->
     <div class="row mt-3">
         <div class="col-md-12">
@@ -924,6 +609,145 @@
     @endif
    @if($hasFullAccess)
     
+
+
+
+     <div class="row">
+        <div class="col-md-12">
+            <!-- Today's Team Performance -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Team Members Performance</strong>
+                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
+                </div>
+                <div class="card-body">
+                    @if($todayPerformance->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Team Member</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Memo</th>
+                                        <th class="text-center">Quantity</th>
+                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Delivery</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Paid</th>
+                                        <th class="text-end">Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($todayPerformance as $index => $member)
+                                    <tr>
+                                        <td>{{ $index + 1 }}</td>
+                                        <td>
+                                            <strong>{{ $member->name }}</strong>
+                                            @if($index == 0)
+                                                <span class="badge bg-warning ms-1">
+                                                    <i class="fa fa-trophy"></i> Top
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $member->email }}</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ $member->total_invoices }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($member->total_quantity) }}</span>
+                                        </td>
+                                        <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
+                                        <td class="text-end">৳{{ number_format($member->total_delivery, 0) }}</td>
+                                        <td class="text-end fw-bold">৳{{ number_format($member->total_amount, 0) }}</td>
+                                        <td class="text-end text-success">৳{{ number_format($member->total_paid, 0) }}</td>
+                                        <td class="text-end text-danger">৳{{ number_format($member->total_due, 0) }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            
+                            </table>
+                        </div>
+                        
+                     
+                    @else
+                        <div class="text-center py-4">
+                            <i class="fa fa-info-circle fa-3x text-muted"></i>
+                            <p class="text-muted mt-2">No team activity today</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Monthly Team Performance -->
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Team Members Performance Monthly</strong>
+                    <span class="float-right badge bg-light text-dark">This Month Performance</span>
+                </div>
+                <div class="card-body">
+                    @if($monthPerformance->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Team Member</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Memo</th>
+                                        <th class="text-center">Quantity</th>
+                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Delivery</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Paid</th>
+                                        <th class="text-end">Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($monthPerformance as $index => $member)
+                                    <tr>
+                                        <td>{{ $index + 1 }}</td>
+                                        <td>
+                                            <strong>{{ $member->name }}</strong>
+                                            @if($index == 0)
+                                                <span class="badge bg-warning ms-1">
+                                                    <i class="fa fa-trophy"></i> Top
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $member->email }}</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ $member->total_invoices }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($member->total_quantity) }}</span>
+                                        </td>
+                                        <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
+                                        <td class="text-end">৳{{ number_format($member->total_delivery, 0) }}</td>
+                                        <td class="text-end fw-bold">৳{{ number_format($member->total_amount, 0) }}</td>
+                                        <td class="text-end text-success">৳{{ number_format($member->total_paid, 0) }}</td>
+                                        <td class="text-end text-danger">৳{{ number_format($member->total_due, 0) }}</td>
+                                        
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                                
+                            </table>
+                        </div>
+                        
+                 
+                    @else
+                        <div class="text-center py-4">
+                            <i class="fa fa-info-circle fa-3x text-muted"></i>
+                            <p class="text-muted mt-2">No team activity this month</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
       <!-- Monthly Courier-wise Report -->
 <div class="row">
     <div class="col-md-12">

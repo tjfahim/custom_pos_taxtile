@@ -12,7 +12,7 @@ class Attendance extends Model
     use HasFactory;
 
     protected $fillable = [
-        'staff_id',
+        'user_id',
         'attendance_date',
         'in_time',
         'out_time',
@@ -32,13 +32,11 @@ class Attendance extends Model
         'out_time' => 'datetime:H:i:s',
     ];
 
-    // Relationships
-    public function staff()
+    public function user()
     {
-        return $this->belongsTo(Staff::class);
+        return $this->belongsTo(User::class);
     }
 
-    // Accessors
     public function getStatusBadgeAttribute()
     {
         $badges = [
@@ -70,20 +68,20 @@ class Attendance extends Model
         return $this->in_time ? Carbon::parse($this->in_time)->format('h:i A') : '-';
     }
 
-    public function getFormattedOutTimeAttribute()
-    {
-        return $this->out_time ? Carbon::parse($this->out_time)->format('h:i A') : '-';
-    }
-
-    // Scopes
     public function scopeForDate($query, $date)
     {
         return $query->whereDate('attendance_date', $date);
     }
 
-    public function scopeForStaff($query, $staffId)
+    public function scopeForUser($query, $userId)
     {
-        return $query->where('staff_id', $staffId);
+        return $query->where('user_id', $userId);
+    }
+
+    public function scopeForMonth($query, $year, $month)
+    {
+        return $query->whereYear('attendance_date', $year)
+                     ->whereMonth('attendance_date', $month);
     }
 
     public function scopeWithFilters($query, $filters)
@@ -92,8 +90,8 @@ class Attendance extends Model
             $query->whereDate('attendance_date', $filters['date']);
         }
         
-        if (isset($filters['staff_id'])) {
-            $query->where('staff_id', $filters['staff_id']);
+        if (isset($filters['user_id'])) {
+            $query->where('user_id', $filters['user_id']);
         }
         
         if (isset($filters['status'])) {
@@ -102,16 +100,15 @@ class Attendance extends Model
 
         if (isset($filters['search'])) {
             $search = $filters['search'];
-            $query->whereHas('staff', function($q) use ($search) {
+            $query->whereHas('user', function($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('designation', 'LIKE', "%{$search}%");
+                  ->orWhere('email', 'LIKE', "%{$search}%");
             });
         }
 
         return $query;
     }
 
-    // Helper methods
     public static function calculateWorkingHours($inTime, $outTime)
     {
         if (!$inTime || !$outTime) {
@@ -150,7 +147,6 @@ class Attendance extends Model
             }
         }
         
-        // Check if half day (working less than 4 hours)
         if ($inTime && $outTime) {
             $hours = self::calculateWorkingHours($inTime, $outTime);
             if ($hours < 4) {

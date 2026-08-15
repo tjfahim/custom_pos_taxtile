@@ -44,15 +44,7 @@
                         <span>Invoices</span>
                     </a>
                 </li>
-                <!-- Invoices -->
-                  @can('view reports')
-<li class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-    <a href="{{ route('admin.reports') }}">
-        <i class="menu-icon 	fa fa-newspaper-o"></i>
-        <span>Reports</span>
-    </a>
-</li>
-@endcan
+           
                 
                 <!-- Admin Only Section -->
                 @hasrole('admin')
@@ -94,16 +86,16 @@
         <span>Inside Dhaka</span>
     </a>
 </li>
-<li class="{{ request()->routeIs('admin.staff.*') ? 'active' : '' }}">
-    <a href="{{ route('admin.staff.index') }}">
-        <i class="menu-icon fa fa-map-marker-alt"></i>
-        <span>Staff</span>
-    </a>
-</li>
 <li class="{{ request()->routeIs('admin.attendance.*') ? 'active' : '' }}">
     <a href="{{ route('admin.attendance.index') }}">
         <i class="menu-icon fa fa-map-marker-alt"></i>
         <span>Attendance</span>
+    </a>
+</li>
+<li class="{{ request()->routeIs('admin.invoices.history.*') ? 'active' : '' }}">
+    <a href="{{ route('admin.invoices.history.list') }}">
+        <i class="menu-icon fa fa-map-marker-alt"></i>
+        <span>admin.invoices.history</span>
     </a>
 </li>
     

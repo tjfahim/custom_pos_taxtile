@@ -87,7 +87,12 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
         ->name('invoices.download-today-csv-exchange');
 
     Route::get('/invoices/download-custom-csv', [InvoiceController::class, 'downloadCustomCSV'])->name('invoices.download-custom-csv');
-
+  // Edit History Routes
+ Route::get('invoices/history', [InvoiceController::class, 'historyList'])
+        ->name('invoices.history.list');
+    
+    Route::get('invoices/{id}/history/detail', [InvoiceController::class, 'historyDetail'])
+        ->name('invoices.history.detail');
    // Pathao routes
 Route::get('/pathao', [PathaoController::class, 'index'])->name('pathao.index');
 Route::get('/issueToken', [PathaoController::class, 'issueToken'])->name('pathao.issue-token');
@@ -131,10 +136,13 @@ Route::get('/pathao/getUserSuccessRateByPhone', [PathaoController::class, 'getUs
     Route::resource('staff', StaffController::class);
     
     Route::patch('staff/{id}/status', [StaffController::class, 'updateStatus'])->name('staff.update-status');
-      Route::resource('attendance', AttendanceController::class);
-    
-    // Additional routes
-    Route::get('attendance-report', [AttendanceController::class, 'report'])->name('attendance.report');
+
+
+        Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::get('attendance/get-date', [AttendanceController::class, 'getDateAttendance'])->name('attendance.get-date');
+    Route::post('attendance/store-or-update', [AttendanceController::class, 'storeOrUpdate'])->name('attendance.store-or-update');
+    Route::delete('attendance/delete-date', [AttendanceController::class, 'deleteDate'])->name('attendance.delete-date');
+    Route::delete('attendance/{id}', [AttendanceController::class, 'destroy'])->name('attendance.destroy');
     // Invoices
     Route::prefix('invoices')->name('invoices.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
@@ -150,15 +158,6 @@ Route::get('/pathao/getUserSuccessRateByPhone', [PathaoController::class, 'getUs
         Route::patch('/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('update-status');
     });
     
-    // Reports
-    Route::get('/reports/invoices', [ReportController::class, 'invoiceReport'])->name('reports.invoices');
-    Route::get('/reports/invoices-data', [ReportController::class, 'getInvoiceData'])->name('reports.invoices.data');
-    Route::get('/reports/invoices-export', [ReportController::class, 'exportInvoices'])->name('reports.invoices.export');
-
-    Route::get('/reports', [ReportController::class, 'index'])->name('reports');
-    Route::post('/reports/generate', [ReportController::class, 'generate'])->name('reports.generate');
-    Route::post('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.export-csv');
-    Route::post('/reports/print', [ReportController::class, 'print'])->name('reports.print');
 });
 
 // Admin-only routes (User & Role Management)

@@ -84,7 +84,29 @@ class Invoice extends Model
             }
         });
     }
-    
+
+    public function editHistories()
+{
+    return $this->hasMany(InvoiceEditHistory::class)->orderBy('created_at', 'desc');
+}
+
+public function latestEditHistory()
+{
+    return $this->hasOne(InvoiceEditHistory::class)->latest();
+}
+
+
+// Get items with their changes in history
+public function getItemsWithHistory()
+{
+    return $this->items;
+}
+
+// Get return items with their changes in history
+public function getReturnItemsWithHistory()
+{
+    return $this->returnItems;
+}
     public static function generateInvoiceNumber($status = 'confirmed')
     {
         $today = date('Ymd');

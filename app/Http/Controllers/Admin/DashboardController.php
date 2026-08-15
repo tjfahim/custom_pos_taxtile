@@ -399,234 +399,8 @@ $todayPaymentDetails = Invoice::where('status', 'confirmed')
         $couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
         $paymentMethods = ['Cash', 'Bank', 'Mobile Banking', 'Rocket', 'bKash', 'Nagad'];
 
-        // ... [Your existing invoice queries here] ...
-
-        // ==================== ATTENDANCE DATA ====================
-        
-        // TODAY'S ATTENDANCE WITH DETAILS
-        $staffMembers = Staff::active()->orderBy('name')->get();
-        $todayTotalStaff = $staffMembers->count();
-        
-        $todayAttendance = [];
-        $todayPresent = 0;
-        $todayAbsent = 0;
-        $todayLate = 0;
-        $todayLeave = 0;
-        $todayHoliday = 0;
-        $todayFriday = 0;
-        $todayLateStaff = [];
-        $todayLeaveStaff = [];
-        $todayPresentStaff = [];
-        $todayAbsentStaff = [];
-
-        $lateThreshold = Carbon::parse('11:00:00');
-
-        foreach ($staffMembers as $staff) {
-            $attendance = Attendance::where('staff_id', $staff->id)
-                ->whereDate('attendance_date', $today)
-                ->first();
-
-            $inTime = $attendance ? $attendance->in_time : null;
-            $outTime = $attendance ? $attendance->out_time : null;
-            $status = $attendance ? $attendance->status : 'absent';
-            $isLate = false;
-            $lateMinutes = 0;
-            $lateTimeDisplay = '-';
-
-            // Check if late (after 11:00 AM)
-            if ($inTime) {
-                $inTimeParsed = Carbon::parse($inTime);
-                if ($inTimeParsed->gt($lateThreshold)) {
-                    $isLate = true;
-                    $lateMinutes = $inTimeParsed->diffInMinutes($lateThreshold);
-                    $lateTimeDisplay = $lateMinutes . ' min late';
-                } else {
-                    $lateTimeDisplay = 'On Time';
-                }
-            }
-
-            // Count statistics and categorize staff
-            if ($status == 'present' || $status == 'late') {
-                $todayPresent++;
-                if ($status == 'late' || $isLate) {
-                    $todayLate++;
-                    $todayLateStaff[] = [
-                        'name' => $staff->name,
-                        'designation' => $staff->designation,
-                        'late_minutes' => $lateMinutes,
-                        'in_time' => $inTime ? Carbon::parse($inTime)->format('h:i A') : '-',
-                    ];
-                } else {
-                    $todayPresentStaff[] = $staff->name;
-                }
-            } elseif ($status == 'absent') {
-                $todayAbsent++;
-                $todayAbsentStaff[] = $staff->name;
-            } elseif ($status == 'leave') {
-                $todayLeave++;
-                $todayLeaveStaff[] = [
-                    'name' => $staff->name,
-                    'designation' => $staff->designation,
-                    'note' => $attendance ? $attendance->note : 'On Leave',
-                ];
-            } elseif ($status == 'holiday') {
-                $todayHoliday++;
-            } elseif ($status == 'friday') {
-                $todayFriday++;
-            }
-
-            // Prepare attendance data for each staff
-            $todayAttendance[] = [
-                'staff_name' => $staff->name,
-                'designation' => $staff->designation,
-                'in_time' => $inTime ? Carbon::parse($inTime)->format('h:i A') : '-',
-                'in_time_raw' => $inTime,
-                'out_time' => $outTime ? Carbon::parse($outTime)->format('h:i A') : '-',
-                'out_time_raw' => $outTime,
-                'status' => $status,
-                'status_badge' => $attendance ? $attendance->status_badge : '<span class="badge badge-danger">Absent</span>',
-                'is_late' => $isLate,
-                'late_minutes' => $lateMinutes,
-                'late_display' => $lateTimeDisplay,
-                'is_friday' => $attendance ? $attendance->is_friday : false,
-                'is_holiday' => $attendance ? $attendance->is_govt_holiday : false,
-                'on_leave' => $attendance ? $attendance->on_leave : false,
-                'note' => $attendance ? $attendance->note : null,
-                'has_attendance' => $attendance ? true : false,
-            ];
-        }
-
-        // Today's Attendance Summary
-        $todayAttendanceSummary = [
-            'total_staff' => $todayTotalStaff,
-            'present' => $todayPresent,
-            'absent' => $todayAbsent,
-            'late' => $todayLate,
-            'leave' => $todayLeave,
-            'holiday' => $todayHoliday,
-            'friday' => $todayFriday,
-            'attendance_percentage' => $todayTotalStaff > 0 ? round(($todayPresent / $todayTotalStaff) * 100, 2) : 0,
-            'is_friday' => $today->isFriday(),
-            'late_staff' => $todayLateStaff,
-            'leave_staff' => $todayLeaveStaff,
-            'absent_staff' => $todayAbsentStaff,
-            'present_staff' => $todayPresentStaff,
-        ];
-
-        // MONTHLY ATTENDANCE REPORT WITH DETAILED STATS
-        $monthlyAttendanceReport = [];
-        $monthlyTotalPresent = 0;
-        $monthlyTotalAbsent = 0;
-        $monthlyTotalLate = 0;
-        $monthlyTotalLeave = 0;
-        $monthlyTotalHoliday = 0;
-        $monthlyTotalFriday = 0;
-        $monthlyWorkingDays = 0;
-        $monthlyLateMinutes = 0;
-        $monthlyLateStaff = [];
-        $monthlyLeaveStaff = [];
-
-        foreach ($staffMembers as $staff) {
-            $attendances = Attendance::where('staff_id', $staff->id)
-                ->whereBetween('attendance_date', [$startOfMonth, Carbon::now()])
-                ->get();
-
-            $totalDays = $attendances->count();
-            $presentDays = $attendances->where('status', 'present')->count() + $attendances->where('status', 'late')->count();
-            $absentDays = $attendances->where('status', 'absent')->count();
-            $lateDays = $attendances->where('status', 'late')->count();
-            $leaveDays = $attendances->where('status', 'leave')->count();
-            $holidayDays = $attendances->where('status', 'holiday')->count();
-            $fridayDays = $attendances->where('status', 'friday')->count();
-
-            // Calculate total late minutes
-            $staffLateMinutes = 0;
-            $lateThreshold = Carbon::parse('11:00:00');
-            foreach ($attendances as $attendance) {
-                if ($attendance->in_time) {
-                    $inTime = Carbon::parse($attendance->in_time);
-                    if ($inTime->gt($lateThreshold)) {
-                        $staffLateMinutes += $inTime->diffInMinutes($lateThreshold);
-                    }
-                }
-            }
-
-            $attendancePercentage = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 2) : 0;
-
-            // Determine performance rating
-            $rating = 'Good';
-            $ratingClass = 'success';
-            if ($attendancePercentage >= 95) {
-                $rating = 'Excellent';
-                $ratingClass = 'success';
-            } elseif ($attendancePercentage >= 85) {
-                $rating = 'Good';
-                $ratingClass = 'primary';
-            } elseif ($attendancePercentage >= 75) {
-                $rating = 'Average';
-                $ratingClass = 'warning';
-            } elseif ($attendancePercentage >= 60) {
-                $rating = 'Poor';
-                $ratingClass = 'danger';
-            } else {
-                $rating = 'Very Poor';
-                $ratingClass = 'danger';
-            }
-
-            $monthlyAttendanceReport[] = [
-                'staff_name' => $staff->name,
-                'designation' => $staff->designation,
-                'total_days' => $totalDays,
-                'present' => $presentDays,
-                'absent' => $absentDays,
-                'late' => $lateDays,
-                'leave' => $leaveDays,
-                'holiday' => $holidayDays,
-                'friday' => $fridayDays,
-                'late_minutes' => $staffLateMinutes,
-                'late_hours' => round($staffLateMinutes / 60, 2),
-                'attendance_percentage' => $attendancePercentage,
-                'rating' => $rating,
-                'rating_class' => $ratingClass,
-            ];
-
-            // Accumulate totals
-            $monthlyTotalPresent += $presentDays;
-            $monthlyTotalAbsent += $absentDays;
-            $monthlyTotalLate += $lateDays;
-            $monthlyTotalLeave += $leaveDays;
-            $monthlyTotalHoliday += $holidayDays;
-            $monthlyTotalFriday += $fridayDays;
-            $monthlyWorkingDays += $totalDays;
-            $monthlyLateMinutes += $staffLateMinutes;
-        }
-
-        // Monthly Attendance Summary
-        $monthlyAttendanceSummary = [
-            'total_staff' => $todayTotalStaff,
-            'total_working_days' => $monthlyWorkingDays,
-            'total_present' => $monthlyTotalPresent,
-            'total_absent' => $monthlyTotalAbsent,
-            'total_late' => $monthlyTotalLate,
-            'total_leave' => $monthlyTotalLeave,
-            'total_holiday' => $monthlyTotalHoliday,
-            'total_friday' => $monthlyTotalFriday,
-            'total_late_minutes' => $monthlyLateMinutes,
-            'total_late_hours' => round($monthlyLateMinutes / 60, 2),
-            'attendance_percentage' => $monthlyWorkingDays > 0 ? round(($monthlyTotalPresent / $monthlyWorkingDays) * 100, 2) : 0,
-            'month_name' => $startOfMonth->format('F Y'),
-        ];
-
-        // Get top 5 performers and bottom 5
-        $topPerformers = collect($monthlyAttendanceReport)
-            ->sortByDesc('attendance_percentage')
-            ->take(5)
-            ->values();
-
-        $poorPerformers = collect($monthlyAttendanceReport)
-            ->sortBy('attendance_percentage')
-            ->take(5)
-            ->values();
+      
+       
 // This Month's Payment Details
 $monthlyPaymentDetails = Invoice::where('status', 'confirmed')
     ->where('invoice_date', '>=', $startOfMonth)
@@ -637,13 +411,17 @@ $monthlyPaymentDetails = Invoice::where('status', 'confirmed')
     ->orderBy('paid_amount', 'desc')
     ->get();
 
+            $todayPerformance = User::getTopTeamMembersToday();
+        
+        $monthPerformance = User::getTopTeamMembersMonth();
+
     return view('admin.dashboard', compact(
                 'totalInvoices',
-
+'todayPerformance',
+'monthPerformance',
           'todayPaymentMethods',
     'monthlyPaymentMethods',
     'todayPaymentDetails',
-    'poorPerformers',
     'monthlyPaymentDetails',
           'monthlyCourierReport',
     'monthlyInhouseReport',
@@ -677,11 +455,7 @@ $monthlyPaymentDetails = Invoice::where('status', 'confirmed')
         'todayInhouse',
         'monthInhouse',
         'topCreatorsMonth',
-          'todayAttendance',
-            'todayAttendanceSummary',
-            'monthlyAttendanceReport',
-            'monthlyAttendanceSummary',
-            'topPerformers'
+       
            
     ));
 }

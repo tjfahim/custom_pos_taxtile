@@ -6,12 +6,15 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\ReturnItem;
+use App\Traits\TracksInvoiceEdits;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 class InvoiceController extends Controller
 {
+    use TracksInvoiceEdits;
+
     public function pos()
     {
         $customers = Customer::where('status', 'active')->latest()->get();
@@ -160,7 +163,8 @@ public function storePos(Request $request)
 
         // Determine if request is AJAX
         $isAjax = $request->ajax() || $request->wantsJson() || $request->has('is_ajax');
-        
+        $invoiceData = $this->getInvoiceDataForTracking($invoice);
+            $this->trackEdit($invoice, [], $invoiceData, 'create');
         if ($isAjax) {
             return response()->json([
                 'success' => true,
@@ -238,7 +242,6 @@ public function printMultiple($ids)
         abort(500, 'Failed to load invoices');
     }
 }
-    // app/Http/Controllers/InvoiceController.php
 
 public function index(Request $request)
 {
@@ -443,26 +446,361 @@ private function getStatusButtons($invoice)
     }
 
    public function edit($id)
+    {
+        $invoice = Invoice::with(['customer', 'items', 'returnItems'])->findOrFail($id);
+        return view('invoices.edit', compact('invoice'));
+    }
+
+/**
+ * Display history as a list with filtering
+ */   
+public function historyList(Request $request)
 {
-    $invoice = Invoice::with(['customer', 'items', 'returnItems'])->findOrFail($id);
-    return view('invoices.edit', compact('invoice'));
+    // Get all invoices that have edit history (at least 2 edits)
+    $invoices = Invoice::with(['editHistories' => function($query) {
+        $query->orderBy('created_at', 'desc');
+    }, 'editHistories.user'])
+    ->whereHas('editHistories') // Only invoices with edit history
+    ->withCount(['editHistories as total_edits'])
+    ->having('total_edits', '>=', 2) // Only invoices with 2 or more edits
+    ->orderBy('updated_at', 'desc')
+    ->paginate(20);
+
+    // Get statistics for each invoice
+    $statistics = [];
+    foreach ($invoices as $invoice) {
+        $statistics[$invoice->id] = [
+            'total_edits' => $invoice->total_edits,
+            'unique_editors' => $invoice->editHistories->unique('user_id')->count(),
+            'status_changes' => $invoice->editHistories->where('action_type', 'status_change')->count(),
+            'last_edit' => $invoice->editHistories->first()?->created_at,
+            'last_editor' => $invoice->editHistories->first()?->user_name ?? 'System',
+            'created_by' => $invoice->editHistories->where('action_type', 'create')->first()?->user_name ?? 'Unknown',
+        ];
+    }
+
+    // Filter by search
+    if ($request->has('search') && !empty($request->search)) {
+        $search = $request->search;
+        $invoices = $invoices->filter(function($invoice) use ($search) {
+            return stripos($invoice->invoice_number, $search) !== false ||
+                   stripos($invoice->recipient_name, $search) !== false ||
+                   stripos($invoice->recipient_phone, $search) !== false;
+        });
+    }
+
+    return view('invoices.history-list', compact('invoices', 'statistics'));
 }
-public function update(Request $request, $id)
+    /**
+     * Detailed history for a single invoice
+     */
+    public function historyDetail($id)
+    {
+        $invoice = Invoice::with([
+            'editHistories' => function($query) {
+                $query->orderBy('created_at', 'desc');
+            },
+            'editHistories.user'
+        ])->findOrFail($id);
+
+        // Check if invoice has edit history
+        if ($invoice->editHistories->count() === 0) {
+            return redirect()->route('admin.invoices.show', $invoice->id)
+                ->with('warning', 'This invoice has no edit history.');
+        }
+
+        // Get statistics
+        $statistics = [
+            'total_edits' => $invoice->editHistories->count(),
+            'status_changes' => $invoice->editHistories->where('action_type', 'status_change')->count(),
+            'created_by' => $invoice->editHistories->where('action_type', 'create')->first()?->user_name ?? 'Unknown',
+            'last_edited' => $invoice->editHistories->first()?->created_at,
+            'last_editor' => $invoice->editHistories->first()?->user_name ?? 'System',
+            'unique_editors' => $invoice->editHistories->unique('user_id')->count(),
+            'created_at' => $invoice->created_at,
+            'updated_at' => $invoice->updated_at,
+        ];
+
+        return view('invoices.history-detail', compact('invoice', 'statistics'));
+    }
+    public function updateold(Request $request, $id)
+    {
+        $invoice = Invoice::with(['items', 'returnItems'])->findOrFail($id);
+        $oldData = $this->getInvoiceDataForTracking($invoice);
+        $oldItems = $invoice->items->toArray();
+        $oldData['items'] = $oldItems;
+        // Manual validation to handle dynamic array indices
+        $validated = $request->validate([
+            'delivery_charge' => 'required|numeric|min:0',
+            'status' => 'required|string|in:confirmed,pending,cancelled',
+            // Add customer validation
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'customer_address' => 'required|string|max:500',
+            'special_instructions' => 'nullable|string|max:1000',
+            // Return items validation
+                    'team_id' => 'nullable|exists:users,id', // Add validation
+
+            'has_return_items' => 'nullable|boolean',
+            'return_items' => 'nullable|array',
+            'return_items.*.item_name' => 'nullable|string',
+            'return_items.*.quantity' => 'nullable|integer|min:1',
+            'return_items.*.unit_price' => 'nullable|numeric|min:0',
+            'return_items.*.return_reason' => 'nullable|string',
+        ]);
+        
+        // Validate items manually to handle dynamic keys
+        $items = $request->items;
+        if (empty($items) || !is_array($items)) {
+            return back()->with('error', 'At least one item is required.');
+        }
+        
+        foreach ($items as $key => $item) {
+            if (empty($item['item_name'])) {
+                return back()->with('error', "Item name is required for all items.");
+            }
+            if (empty($item['quantity']) || $item['quantity'] < 1) {
+                return back()->with('error', "Valid quantity (minimum 1) is required for all items.");
+            }
+            if (empty($item['unit_price']) || $item['unit_price'] < 0) {
+                return back()->with('error', "Valid unit price is required for all items.");
+            }
+        }
+        
+        try {
+            DB::beginTransaction();
+            
+            // 1. Update Customer Information
+            $customer = $invoice->customer;
+            if ($customer) {
+                $customer->update([
+                    'name' => $request->customer_name,
+                    'phone_number_1' => $request->customer_phone,
+                    'full_address' => $request->customer_address,
+                ]);
+            } else {
+                // If no customer exists, create one (fallback)
+                $customer = Customer::create([
+                    'name' => $request->customer_name,
+                    'phone_number_1' => $request->customer_phone,
+                    'full_address' => $request->customer_address,
+                    'status' => 'active',
+                ]);
+                $invoice->customer_id = $customer->id;
+                $invoice->save();
+            }
+            
+            // 2. Check if has return items
+            $hasReturnItems = $request->has_return_items == '1' || $request->has_return_items === true;
+            
+            // 3. Prepare invoice data for update
+            $invoiceData = [
+                'delivery_charge' => $request->delivery_charge,
+                'status' => $request->status,
+                'merchant_order_id' => $request->merchant_order_id,
+                'notes' => $request->notes ?? $invoice->notes,
+                'special_instructions' => $request->special_instructions ?? $invoice->special_instructions,
+                'has_return_items' => $hasReturnItems,
+                'recipient_name' => $request->customer_name,
+                'recipient_phone' => $request->customer_phone,
+                'recipient_address' => $request->customer_address,
+                'team_id' => $request->team_id,
+            ];
+            
+            // 4. Update invoice_date only if status has changed
+            $oldStatus = $invoice->status;
+            $newStatus = $request->status;
+            
+            if ($oldStatus !== $newStatus) {
+                $invoiceData['invoice_date'] = now();
+                
+                if ($newStatus === 'confirmed') {
+                    $invoiceData['confirmed_at'] = now();
+                }
+            }
+            
+            // 5. Update invoice
+            $invoice->update($invoiceData);
+            
+            // 6. Update Items
+            $existingIds = $invoice->items->pluck('id')->toArray();
+            $updatedIds = [];
+            $subtotal = 0;
+            
+            foreach ($items as $itemData) {
+                $itemId = $itemData['id'] ?? null;
+                $weight = ($itemData['quantity'] * 500);
+                $totalPrice = $itemData['quantity'] * $itemData['unit_price'];
+                $subtotal += $totalPrice;
+                
+                if ($itemId && str_starts_with($itemId, 'new_')) {
+                    $item = InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        'item_name' => $itemData['item_name'],
+                        'quantity' => $itemData['quantity'],
+                        'unit_price' => $itemData['unit_price'],
+                        'total_price' => $totalPrice,
+                        'weight' => $weight,
+                    ]);
+                    $updatedIds[] = $item->id;
+                } elseif ($itemId && is_numeric($itemId)) {
+                    $item = InvoiceItem::find($itemId);
+                    if ($item && $item->invoice_id == $invoice->id) {
+                        $item->update([
+                            'item_name' => $itemData['item_name'],
+                            'quantity' => $itemData['quantity'],
+                            'unit_price' => $itemData['unit_price'],
+                            'total_price' => $totalPrice,
+                            'weight' => $weight,
+                        ]);
+                        $updatedIds[] = $item->id;
+                    }
+                }
+            }
+            
+            // Delete items that were removed
+            if ($request->has('deleted_items')) {
+                InvoiceItem::whereIn('id', $request->deleted_items)->delete();
+            }
+            
+            $itemsToDelete = array_diff($existingIds, $updatedIds);
+            if (!empty($itemsToDelete)) {
+                InvoiceItem::whereIn('id', $itemsToDelete)->delete();
+            }
+            
+            // 7. Update Return Items
+            $existingReturnIds = $invoice->returnItems->pluck('id')->toArray();
+            $updatedReturnIds = [];
+            $returnSubtotal = 0;
+            
+            if ($hasReturnItems && !empty($request->return_items)) {
+                foreach ($request->return_items as $returnItemData) {
+                    // Skip if item_name is empty
+                    if (empty($returnItemData['item_name'])) {
+                        continue;
+                    }
+                    
+                    $returnItemId = $returnItemData['id'] ?? null;
+                    $returnWeight = ($returnItemData['quantity'] ?? 1) * 500;
+                    $returnTotalPrice = ($returnItemData['quantity'] ?? 1) * ($returnItemData['unit_price'] ?? 0);
+                    $returnSubtotal += $returnTotalPrice;
+                    
+                    if ($returnItemId && str_starts_with($returnItemId, 'new_')) {
+                        $returnItem = ReturnItem::create([
+                            'invoice_id' => $invoice->id,
+                            'item_name' => $returnItemData['item_name'],
+                            'description' => $returnItemData['description'] ?? null,
+                            'quantity' => $returnItemData['quantity'] ?? 1,
+                            'weight' => $returnWeight,
+                            'unit_price' => $returnItemData['unit_price'] ?? 0,
+                            'total_price' => $returnTotalPrice,
+                            'return_reason' => $returnItemData['return_reason'] ?? null,
+                            'return_note' => $returnItemData['return_note'] ?? null,
+                        ]);
+                        $updatedReturnIds[] = $returnItem->id;
+                    } elseif ($returnItemId && is_numeric($returnItemId)) {
+                        $returnItem = ReturnItem::find($returnItemId);
+                        if ($returnItem && $returnItem->invoice_id == $invoice->id) {
+                            $returnItem->update([
+                                'item_name' => $returnItemData['item_name'],
+                                'description' => $returnItemData['description'] ?? null,
+                                'quantity' => $returnItemData['quantity'] ?? 1,
+                                'weight' => $returnWeight,
+                                'unit_price' => $returnItemData['unit_price'] ?? 0,
+                                'total_price' => $returnTotalPrice,
+                                'return_reason' => $returnItemData['return_reason'] ?? null,
+                                'return_note' => $returnItemData['return_note'] ?? null,
+                            ]);
+                            $updatedReturnIds[] = $returnItem->id;
+                        }
+                    }
+                }
+            }
+            
+            // Delete return items that were removed
+            if ($request->has('deleted_return_items')) {
+                ReturnItem::whereIn('id', $request->deleted_return_items)->delete();
+            }
+            
+            $returnItemsToDelete = array_diff($existingReturnIds, $updatedReturnIds);
+            if (!empty($returnItemsToDelete)) {
+                ReturnItem::whereIn('id', $returnItemsToDelete)->delete();
+            }
+            
+            // 8. Calculate final totals (subtotal - return subtotal)
+            $finalSubtotal = $subtotal - $returnSubtotal;
+            $deliveryCharge = $request->delivery_charge;
+            $total = $finalSubtotal + $deliveryCharge;
+            
+            // Update invoice totals
+            $invoice->update([
+                'subtotal' => $finalSubtotal,
+                'total' => $total,
+            ]);
+            
+            // Update due_amount if needed
+            if ($invoice->payment_status !== 'paid') {
+                $amountDue = $total - $invoice->paid_amount;
+                $invoice->update(['due_amount' => $amountDue]);
+            }
+            
+            DB::commit();
+            
+            $statusMessage = '';
+            if ($oldStatus !== $newStatus) {
+                $statusMessage = " Status changed from '{$oldStatus}' to '{$newStatus}' and invoice date updated.";
+            }
+            
+            return redirect()->route('admin.invoices.show', $invoice->id)
+                ->with('success', 'Invoice and customer updated successfully!' . $statusMessage);
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Invoice update error: ' . $e->getMessage());
+            
+            return back()->withInput()
+                ->with('error', 'Failed to update invoice: ' . $e->getMessage());
+        }
+    }
+    public function update(Request $request, $id)
 {
     $invoice = Invoice::with(['items', 'returnItems'])->findOrFail($id);
-    
-    // Manual validation to handle dynamic array indices
+    $oldData = $this->getInvoiceDataForTracking($invoice);
+ 
     $validated = $request->validate([
+        // Recipient / customer
+        'recipient_name' => 'required|string|max:255',
+        'recipient_phone' => 'required|string|max:20',
+        'recipient_secondary_phone' => 'nullable|string|max:20',
+        'recipient_address' => 'nullable|string|max:500',
+        'merchant_order_id' => 'nullable|string|max:255',
+ 
+        // Delivery
+        'delivery_area' => 'required_unless:is_inhouse_sale,1|nullable|string',
+        'delivery_city' => 'nullable|string',
+        'delivery_zone' => 'nullable|string',
+        'delivery_area_id' => 'nullable|string',
+        'delivery_type' => 'required|string',
+        'store_location' => 'required|string',
         'delivery_charge' => 'required|numeric|min:0',
+        'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX,Exchange',
+ 
+        // Flags
+        'is_wholesale' => 'nullable|boolean',
+        'is_inhouse_sale' => 'nullable|boolean',
+        'team_id' => 'nullable|exists:users,id',
         'status' => 'required|string|in:confirmed,pending,cancelled',
-        // Add customer validation
-        'customer_name' => 'required|string|max:255',
-        'customer_phone' => 'required|string|max:20',
-        'customer_address' => 'required|string|max:500',
+ 
+        // Payment
+        'payment_method' => 'nullable|string|in:bkash,bkash_personal,bank_transfer,cash',
+        'paid_amount' => 'nullable|numeric|min:0',
+        'amount_to_collect' => 'nullable|numeric|min:0',
+ 
+        // Notes
         'special_instructions' => 'nullable|string|max:1000',
-        // Return items validation
-                'team_id' => 'nullable|exists:users,id', // Add validation
-
+        'notes' => 'nullable|string',
+ 
+        // Return items
         'has_return_items' => 'nullable|boolean',
         'return_items' => 'nullable|array',
         'return_items.*.item_name' => 'nullable|string',
@@ -470,95 +808,114 @@ public function update(Request $request, $id)
         'return_items.*.unit_price' => 'nullable|numeric|min:0',
         'return_items.*.return_reason' => 'nullable|string',
     ]);
-    
-    // Validate items manually to handle dynamic keys
+ 
     $items = $request->items;
     if (empty($items) || !is_array($items)) {
-        return back()->with('error', 'At least one item is required.');
+        return back()->with('error', 'At least one item is required.')->withInput();
     }
-    
-    foreach ($items as $key => $item) {
+ 
+    foreach ($items as $item) {
         if (empty($item['item_name'])) {
-            return back()->with('error', "Item name is required for all items.");
+            return back()->with('error', 'Item name is required for all items.')->withInput();
         }
         if (empty($item['quantity']) || $item['quantity'] < 1) {
-            return back()->with('error', "Valid quantity (minimum 1) is required for all items.");
+            return back()->with('error', 'Valid quantity (minimum 1) is required for all items.')->withInput();
         }
-        if (empty($item['unit_price']) || $item['unit_price'] < 0) {
-            return back()->with('error', "Valid unit price is required for all items.");
+        if (!isset($item['unit_price']) || $item['unit_price'] < 0) {
+            return back()->with('error', 'Valid unit price is required for all items.')->withInput();
         }
     }
-    
+ 
     try {
         DB::beginTransaction();
-        
-        // 1. Update Customer Information
+ 
+        $isInhouseSale = $request->has('is_inhouse_sale') ? (bool) $request->is_inhouse_sale : false;
+        $isWholesale = $request->has('is_wholesale') ? (bool) $request->is_wholesale : false;
+        $hasReturnItems = $request->has_return_items == '1' || $request->has_return_items === true;
+ 
+        // 1. Update / create linked Customer
         $customer = $invoice->customer;
         if ($customer) {
             $customer->update([
-                'name' => $request->customer_name,
-                'phone_number_1' => $request->customer_phone,
-                'full_address' => $request->customer_address,
+                'name' => $request->recipient_name,
+                'phone_number_1' => $request->recipient_phone,
+                'phone_number_2' => $request->recipient_secondary_phone,
+                'full_address' => $request->recipient_address,
+                'delivery_area' => $isInhouseSale ? $customer->delivery_area : $request->delivery_area,
+                'note' => $request->notes,
             ]);
         } else {
-            // If no customer exists, create one (fallback)
             $customer = Customer::create([
-                'name' => $request->customer_name,
-                'phone_number_1' => $request->customer_phone,
-                'full_address' => $request->customer_address,
+                'name' => $request->recipient_name,
+                'phone_number_1' => $request->recipient_phone,
+                'phone_number_2' => $request->recipient_secondary_phone,
+                'full_address' => $request->recipient_address,
+                'delivery_area' => $isInhouseSale ? null : $request->delivery_area,
                 'status' => 'active',
             ]);
             $invoice->customer_id = $customer->id;
-            $invoice->save();
         }
-        
-        // 2. Check if has return items
-        $hasReturnItems = $request->has_return_items == '1' || $request->has_return_items === true;
-        
-        // 3. Prepare invoice data for update
+ 
+        // 2. Prepare invoice data for update
         $invoiceData = [
-            'delivery_charge' => $request->delivery_charge,
-            'status' => $request->status,
+            'recipient_name' => $request->recipient_name,
+            'recipient_phone' => $request->recipient_phone,
+            'recipient_secondary_phone' => $request->recipient_secondary_phone,
+            'recipient_address' => $request->recipient_address,
             'merchant_order_id' => $request->merchant_order_id,
-            'notes' => $request->notes ?? $invoice->notes,
-            'special_instructions' => $request->special_instructions ?? $invoice->special_instructions,
-            'has_return_items' => $hasReturnItems,
-            'recipient_name' => $request->customer_name,
-            'recipient_phone' => $request->customer_phone,
-            'recipient_address' => $request->customer_address,
+            'delivery_area' => $isInhouseSale ? null : $request->delivery_area,
+            'delivery_type' => $request->delivery_type,
+            'store_location' => $request->store_location,
+            'delivery_charge' => $isInhouseSale ? 0 : $request->delivery_charge,
+            'pathao_city_id' => $isInhouseSale ? null : $request->delivery_city,
+            'pathao_zone_id' => $isInhouseSale ? null : $request->delivery_zone,
+            'pathao_area_id' => $isInhouseSale ? null : $request->delivery_area_id,
+            'courier_name' => $isInhouseSale ? 'Pathao' : ($request->courier_name ?? 'Pathao'),
+            'is_wholesale' => $isWholesale,
+            'is_inhouse_sale' => $isInhouseSale,
             'team_id' => $request->team_id,
+            'status' => $request->status,
+            'payment_method' => $request->payment_method,
+            'payment_details' => $this->getPaymentDetails($request),
+            'paid_amount' => $request->paid_amount ?? 0,
+            'amount_to_collect' => $request->amount_to_collect ?? 0,
+            'special_instructions' => $request->special_instructions,
+            'notes' => $request->notes,
+            'has_return_items' => $hasReturnItems,
         ];
-        
-        // 4. Update invoice_date only if status has changed
+ 
+        // 3. Update invoice_date / confirmed_at only if status actually changed
         $oldStatus = $invoice->status;
         $newStatus = $request->status;
-        
+ 
         if ($oldStatus !== $newStatus) {
             $invoiceData['invoice_date'] = now();
-            
+ 
             if ($newStatus === 'confirmed') {
                 $invoiceData['confirmed_at'] = now();
+            } elseif ($newStatus === 'pending') {
+                $invoiceData['confirmed_at'] = null;
             }
         }
-        
-        // 5. Update invoice
+ 
         $invoice->update($invoiceData);
-        
-        // 6. Update Items
+ 
+        // 4. Update items
         $existingIds = $invoice->items->pluck('id')->toArray();
         $updatedIds = [];
         $subtotal = 0;
-        
+ 
         foreach ($items as $itemData) {
             $itemId = $itemData['id'] ?? null;
-            $weight = ($itemData['quantity'] * 500);
+            $weight = $itemData['weight'] ?? 500;
             $totalPrice = $itemData['quantity'] * $itemData['unit_price'];
             $subtotal += $totalPrice;
-            
+ 
             if ($itemId && str_starts_with($itemId, 'new_')) {
                 $item = InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'item_name' => $itemData['item_name'],
+                    'description' => $itemData['description'] ?? null,
                     'quantity' => $itemData['quantity'],
                     'unit_price' => $itemData['unit_price'],
                     'total_price' => $totalPrice,
@@ -570,6 +927,7 @@ public function update(Request $request, $id)
                 if ($item && $item->invoice_id == $invoice->id) {
                     $item->update([
                         'item_name' => $itemData['item_name'],
+                        'description' => $itemData['description'] ?? null,
                         'quantity' => $itemData['quantity'],
                         'unit_price' => $itemData['unit_price'],
                         'total_price' => $totalPrice,
@@ -579,34 +937,31 @@ public function update(Request $request, $id)
                 }
             }
         }
-        
-        // Delete items that were removed
+ 
         if ($request->has('deleted_items')) {
             InvoiceItem::whereIn('id', $request->deleted_items)->delete();
         }
-        
         $itemsToDelete = array_diff($existingIds, $updatedIds);
         if (!empty($itemsToDelete)) {
             InvoiceItem::whereIn('id', $itemsToDelete)->delete();
         }
-        
-        // 7. Update Return Items
+ 
+        // 5. Update return items
         $existingReturnIds = $invoice->returnItems->pluck('id')->toArray();
         $updatedReturnIds = [];
         $returnSubtotal = 0;
-        
+ 
         if ($hasReturnItems && !empty($request->return_items)) {
             foreach ($request->return_items as $returnItemData) {
-                // Skip if item_name is empty
                 if (empty($returnItemData['item_name'])) {
                     continue;
                 }
-                
+ 
                 $returnItemId = $returnItemData['id'] ?? null;
-                $returnWeight = ($returnItemData['quantity'] ?? 1) * 500;
+                $returnWeight = $returnItemData['weight'] ?? 500;
                 $returnTotalPrice = ($returnItemData['quantity'] ?? 1) * ($returnItemData['unit_price'] ?? 0);
                 $returnSubtotal += $returnTotalPrice;
-                
+ 
                 if ($returnItemId && str_starts_with($returnItemId, 'new_')) {
                     $returnItem = ReturnItem::create([
                         'invoice_id' => $invoice->id,
@@ -638,48 +993,81 @@ public function update(Request $request, $id)
                 }
             }
         }
-        
-        // Delete return items that were removed
+ 
         if ($request->has('deleted_return_items')) {
             ReturnItem::whereIn('id', $request->deleted_return_items)->delete();
         }
-        
         $returnItemsToDelete = array_diff($existingReturnIds, $updatedReturnIds);
         if (!empty($returnItemsToDelete)) {
             ReturnItem::whereIn('id', $returnItemsToDelete)->delete();
         }
-        
-        // 8. Calculate final totals (subtotal - return subtotal)
+ 
+        // 6. If return items were unchecked entirely, drop any that remain
+        if (!$hasReturnItems && !empty($existingReturnIds)) {
+            ReturnItem::whereIn('id', $existingReturnIds)->delete();
+            $returnSubtotal = 0;
+        }
+ 
+        // 7. Recalculate totals, payment status
         $finalSubtotal = $subtotal - $returnSubtotal;
-        $deliveryCharge = $request->delivery_charge;
+        $deliveryCharge = $isInhouseSale ? 0 : $request->delivery_charge;
         $total = $finalSubtotal + $deliveryCharge;
-        
-        // Update invoice totals
+        $paidAmount = $request->paid_amount ?? 0;
+        $dueAmount = max(0, $total - $paidAmount);
+ 
+        $paymentStatus = 'unpaid';
+        if ($dueAmount <= 0) {
+            $paymentStatus = 'paid';
+        } elseif ($paidAmount > 0) {
+            $paymentStatus = 'partial';
+        }
+ 
         $invoice->update([
             'subtotal' => $finalSubtotal,
             'total' => $total,
+            'due_amount' => $dueAmount,
+            'payment_status' => $paymentStatus,
         ]);
-        
-        // Update due_amount if needed
-        if ($invoice->payment_status !== 'paid') {
-            $amountDue = $total - $invoice->paid_amount;
-            $invoice->update(['due_amount' => $amountDue]);
-        }
-        
+ 
+        // 8. Reload relations so tracking sees the final item/return-item
+        // state (items were mutated directly via InvoiceItem::/ReturnItem::,
+        // not through $invoice->items, so the relation is stale otherwise).
+        $invoice->load(['items', 'returnItems']);
+ 
+        $newData = $this->getInvoiceDataForTracking($invoice);
+        $actionType = ($oldData['status'] !== $newData['status']) ? 'status_change' : 'update';
+        $changedFields = $this->trackEdit($invoice, $oldData, $newData, $actionType);
+        $isAjax = $request->ajax() || $request->wantsJson() || $request->has('is_ajax');
+        $invoiceData = $this->getInvoiceDataForTracking($invoice);
+        $this->trackEdit($invoice, [], $invoiceData, 'create');
         DB::commit();
-        
+ 
         $statusMessage = '';
-        if ($oldStatus !== $newStatus) {
-            $statusMessage = " Status changed from '{$oldStatus}' to '{$newStatus}' and invoice date updated.";
+        if ($oldData['status'] !== $newData['status']) {
+            $statusMessage = " Status changed from '{$oldData['status']}' to '{$newData['status']}'.";
         }
-        
+ 
+        $scalarChangeCount = count(array_diff_key(
+            $changedFields,
+            array_flip(['items_changes', 'return_items_changes'])
+        ));
+        if ($scalarChangeCount > 0) {
+            $statusMessage .= " {$scalarChangeCount} field(s) were updated.";
+        }
+        if (!empty($changedFields['items_changes'])) {
+            $statusMessage .= " Items changed.";
+        }
+        if (!empty($changedFields['return_items_changes'])) {
+            $statusMessage .= " Return items changed.";
+        }
+ 
         return redirect()->route('admin.invoices.show', $invoice->id)
-            ->with('success', 'Invoice and customer updated successfully!' . $statusMessage);
-            
+            ->with('success', 'Invoice updated successfully!' . $statusMessage);
+ 
     } catch (\Exception $e) {
         DB::rollBack();
-        \Log::error('Invoice update error: ' . $e->getMessage());
-        
+        \Log::error('Invoice update error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+ 
         return back()->withInput()
             ->with('error', 'Failed to update invoice: ' . $e->getMessage());
     }

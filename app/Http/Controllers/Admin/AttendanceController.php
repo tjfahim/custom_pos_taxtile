@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\Staff;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -14,395 +14,292 @@ use Carbon\Carbon;
 class AttendanceController extends Controller
 {
     /**
-     * Display a listing of attendance.
+     * Display monthly attendance view
      */
     public function index(Request $request)
     {
         try {
-            $date = $request->get('date', Carbon::today()->toDateString());
-            $search = $request->get('search');
+            $year = $request->get('year', Carbon::now()->year);
+            $month = $request->get('month', Carbon::now()->month);
             
-            $attendances = Attendance::with('staff')
-                ->withFilters([
-                    'date' => $date,
-                    'search' => $search
-                ])
-                ->orderBy('attendance_date', 'desc')
-                ->paginate(15);
+            // Get all active users
+            $users = User::orderBy('name')->get();
             
-            if ($request->ajax()) {
-                return view('admin.attendance.partials.table', compact('attendances', 'date'))->render();
+            // Get attendance for the month
+            $attendances = Attendance::with('user')
+                ->forMonth($year, $month)
+                ->get()
+                ->groupBy(function($attendance) {
+                    return $attendance->user_id . '_' . $attendance->attendance_date->format('Y-m-d');
+                });
+            
+            // Get days in month
+            $daysInMonth = Carbon::create($year, $month)->daysInMonth;
+            $firstDayOfMonth = Carbon::create($year, $month, 1);
+            $monthName = $firstDayOfMonth->format('F Y');
+            
+            // Create a matrix of attendance data
+            $attendanceMatrix = [];
+            foreach ($users as $user) {
+                $userData = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'days' => []
+                ];
+                
+                for ($day = 1; $day <= $daysInMonth; $day++) {
+                    $date = Carbon::create($year, $month, $day)->format('Y-m-d');
+                    $key = $user->id . '_' . $date;
+                    
+                    if (isset($attendances[$key])) {
+                        $attendance = $attendances[$key]->first();
+                        $userData['days'][$day] = [
+                            'id' => $attendance->id,
+                            'date' => $date,
+                            'in_time' => $attendance->in_time ? Carbon::parse($attendance->in_time)->format('H:i') : null,
+                            'status' => $attendance->status,
+                            'is_friday' => $attendance->is_friday,
+                            'is_govt_holiday' => $attendance->is_govt_holiday,
+                            'on_leave' => $attendance->on_leave,
+                            'note' => $attendance->note,
+                        ];
+                    } else {
+                        $userData['days'][$day] = null;
+                    }
+                }
+                
+                $attendanceMatrix[] = $userData;
             }
             
-            return view('admin.attendance.index', compact('attendances', 'date'));
+            // Get holidays (days that are Friday or Govt Holiday for all users)
+            $holidays = [];
+            $fridays = [];
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $date = Carbon::create($year, $month, $day);
+                if ($date->isFriday()) {
+                    $fridays[] = $day;
+                }
+            }
+            
+            return view('admin.attendance.index', compact(
+                'attendanceMatrix',
+                'users',
+                'year',
+                'month',
+                'daysInMonth',
+                'monthName',
+                'fridays',
+                'holidays'
+            ));
             
         } catch (\Exception $e) {
             Log::error('Attendance index error: ' . $e->getMessage());
-            if ($request->ajax()) {
-                return response()->json(['error' => 'Failed to load attendance data'], 500);
-            }
             return back()->with('error', 'Failed to load attendance data');
         }
     }
 
     /**
-     * Show the form for creating attendance.
+     * Get attendance data for a specific date (for modal)
      */
-    public function create()
+    public function getDateAttendance(Request $request)
     {
         try {
-            // Get all active staff members
-            $staffMembers = Staff::active()->orderBy('name')->get();
+            $date = $request->get('date', Carbon::today()->format('Y-m-d'));
+            $users = User::orderBy('name')->get();
             
-            // Get today's date
-            $today = Carbon::today();
-            $isFriday = $today->isFriday();
+            $attendances = Attendance::with('user')
+                ->whereDate('attendance_date', $date)
+                ->get()
+                ->keyBy('user_id');
             
-            return view('admin.attendance.create', compact('staffMembers', 'today', 'isFriday'));
+            $isFriday = Carbon::parse($date)->isFriday();
+            
+            // Check if any attendance has is_govt_holiday = true for this date
+            $isHoliday = $attendances->contains(function($attendance) {
+                return $attendance->is_govt_holiday == true;
+            });
+            
+            return response()->json([
+                'success' => true,
+                'date' => $date,
+                'is_friday' => $isFriday,
+                'is_govt_holiday' => $isHoliday,
+                'attendances' => $attendances,
+                'users' => $users->map(function($user) use ($attendances) {
+                    $attendance = $attendances->get($user->id);
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'in_time' => $attendance ? ($attendance->in_time ? Carbon::parse($attendance->in_time)->format('H:i') : null) : null,
+                        'on_leave' => $attendance ? $attendance->on_leave : false,
+                        'note' => $attendance ? $attendance->note : null,
+                        'attendance_id' => $attendance ? $attendance->id : null,
+                    ];
+                })
+            ]);
+            
         } catch (\Exception $e) {
-            Log::error('Attendance create error: ' . $e->getMessage());
-            return redirect()->route('admin.attendance.index')
-                           ->with('error', 'Failed to load attendance creation form');
+            Log::error('Get date attendance error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load attendance data'
+            ], 500);
         }
     }
 
     /**
-     * Store attendance records.
+     * Store or update attendance for a date
      */
-    public function store(Request $request)
+    public function storeOrUpdate(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
                 'attendance_date' => 'required|date',
-                'staff_data' => 'required|array',
-                'staff_data.*.staff_id' => 'required|exists:staff,id',
-                'staff_data.*.in_time' => 'nullable|date_format:H:i',
-                'staff_data.*.out_time' => 'nullable|date_format:H:i',
-                'staff_data.*.note' => 'nullable|string|max:500',
                 'is_friday' => 'nullable|in:0,1',
                 'is_govt_holiday' => 'nullable|in:0,1',
-                'staff_on_leave' => 'nullable|array',
-                'staff_on_leave.*' => 'exists:staff,id'
+                'attendance_data' => 'required|array',
+                'attendance_data.*.user_id' => 'required|exists:users,id',
+                'attendance_data.*.in_time' => 'nullable',
+                'attendance_data.*.on_leave' => 'nullable|in:0,1',
+                'attendance_data.*.note' => 'nullable|string|max:500',
+                'attendance_data.*.attendance_id' => 'nullable|exists:attendances,id'
             ]);
 
             if ($validator->fails()) {
-                return redirect()->back()
-                                ->withErrors($validator)
-                                ->withInput();
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
             }
 
             $attendanceDate = $request->attendance_date;
-            
-            // Get checkbox values - properly check if they exist and are checked
             $isFriday = $request->has('is_friday') && $request->input('is_friday') == '1';
             $isHoliday = $request->has('is_govt_holiday') && $request->input('is_govt_holiday') == '1';
-            $staffOnLeave = $request->staff_on_leave ?? [];
-
-            // Check if attendance already exists for this date
-            $existingAttendances = Attendance::whereDate('attendance_date', $attendanceDate)->count();
-            if ($existingAttendances > 0) {
-                return redirect()->back()
-                               ->with('error', 'Attendance for this date has already been marked.')
-                               ->withInput();
-            }
-
-            $createdCount = 0;
+            
+            $savedCount = 0;
             $errors = [];
 
-            foreach ($request->staff_data as $staffData) {
+            foreach ($request->attendance_data as $data) {
                 try {
-                    $staffId = $staffData['staff_id'];
-                    $inTime = $staffData['in_time'] ?? null;
-                    $outTime = $staffData['out_time'] ?? null;
-                    $note = $staffData['note'] ?? null;
-                    
-                    // Check if this staff is on leave
-                    $onLeave = in_array($staffId, $staffOnLeave);
+                    $userId = $data['user_id'];
+                    $inTime = $data['in_time'] ?? null;
+                    $onLeave = isset($data['on_leave']) && $data['on_leave'] == '1';
+                    $note = $data['note'] ?? null;
+                    $attendanceId = $data['attendance_id'] ?? null;
                     
                     // Determine status
                     $status = Attendance::getStatusFromTimes(
                         $inTime, 
-                        $outTime, 
+                        null, 
                         $isFriday, 
                         $isHoliday, 
                         $onLeave
                     );
 
-                    // Create attendance record
-                    Attendance::create([
-                        'staff_id' => $staffId,
-                        'attendance_date' => $attendanceDate,
-                        'in_time' => $inTime,
-                        'out_time' => $outTime,
-                        'is_friday' => $isFriday,
-                        'is_govt_holiday' => $isHoliday,
-                        'on_leave' => $onLeave,
-                        'note' => $note,
-                        'status' => $status
-                    ]);
-                    
-                    $createdCount++;
-                    
-                } catch (\Exception $e) {
-                    $staff = Staff::find($staffId);
-                    $errors[] = "Failed to save attendance for " . ($staff ? $staff->name : "Staff #{$staffId}");
-                    Log::error('Attendance creation error for staff ' . $staffId . ': ' . $e->getMessage());
-                }
-            }
-
-            if ($createdCount > 0) {
-                $message = "Attendance marked successfully for {$createdCount} staff members.";
-                if (!empty($errors)) {
-                    $message .= " However, some entries failed: " . implode(', ', $errors);
-                }
-                return redirect()->route('admin.attendance.index')
-                               ->with('success', $message);
-            } else {
-                return redirect()->back()
-                               ->with('error', 'Failed to mark attendance. Please try again.')
-                               ->withInput();
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Attendance store error: ' . $e->getMessage());
-            return redirect()->back()
-                           ->with('error', 'Failed to mark attendance. Please try again.')
-                           ->withInput();
-        }
-    }
-
-    /**
-     * Show the form for editing attendance.
-     */
-    public function edit($id)
-    {
-        try {
-            // Get the specific attendance record
-            $attendance = Attendance::with('staff')->findOrFail($id);
-            
-            // Get all active staff members
-            $staffMembers = Staff::active()->orderBy('name')->get();
-            
-            // Get all attendance records for this date
-            $attendanceDate = $attendance->attendance_date;
-            $allAttendances = Attendance::with('staff')
-                ->whereDate('attendance_date', $attendanceDate)
-                ->get()
-                ->keyBy('staff_id');
-            
-            $today = Carbon::parse($attendance->attendance_date);
-            $isFriday = $today->isFriday();
-            
-            return view('admin.attendance.edit', compact('attendance', 'staffMembers', 'allAttendances', 'today', 'isFriday'));
-            
-        } catch (\Exception $e) {
-            Log::error('Attendance edit error: ' . $e->getMessage());
-            return redirect()->route('admin.attendance.index')
-                           ->with('error', 'Attendance record not found.');
-        }
-    }
-
-    /**
-     * Update ALL attendance records for a specific date.
-     */
-    public function update(Request $request, $id)
-    {
-        try {
-            // Get the current attendance record to know the date
-            $currentAttendance = Attendance::findOrFail($id);
-            $attendanceDate = $currentAttendance->attendance_date;
-            
-            $validator = Validator::make($request->all(), [
-                'staff_data' => 'required|array',
-                'staff_data.*.staff_id' => 'required|exists:staff,id',
-                'staff_data.*.in_time' => 'nullable|date_format:H:i',
-                'staff_data.*.out_time' => 'nullable|date_format:H:i',
-                'staff_data.*.note' => 'nullable|string|max:500',
-                'is_friday' => 'nullable|in:0,1',
-                'is_govt_holiday' => 'nullable|in:0,1',
-                'staff_on_leave' => 'nullable|array',
-                'staff_on_leave.*' => 'exists:staff,id'
-            ]);
-
-            if ($validator->fails()) {
-                return redirect()->back()
-                                ->withErrors($validator)
-                                ->withInput();
-            }
-
-            // Get checkbox values
-            $isFriday = $request->has('is_friday') && $request->input('is_friday') == '1';
-            $isHoliday = $request->has('is_govt_holiday') && $request->input('is_govt_holiday') == '1';
-            $staffOnLeave = $request->staff_on_leave ?? [];
-
-            $updatedCount = 0;
-            $errors = [];
-
-            // Get all existing attendance records for this date
-            $existingAttendances = Attendance::whereDate('attendance_date', $attendanceDate)
-                ->get()
-                ->keyBy('staff_id');
-
-            foreach ($request->staff_data as $staffData) {
-                try {
-                    $staffId = $staffData['staff_id'];
-                    $inTime = $staffData['in_time'] ?? null;
-                    $outTime = $staffData['out_time'] ?? null;
-                    $note = $staffData['note'] ?? null;
-                    
-                    // Check if this staff is on leave
-                    $onLeave = in_array($staffId, $staffOnLeave);
-                    
-                    // Determine status
-                    $status = Attendance::getStatusFromTimes(
-                        $inTime, 
-                        $outTime, 
-                        $isFriday, 
-                        $isHoliday, 
-                        $onLeave
-                    );
-
-                    // Check if attendance exists for this staff
-                    if ($existingAttendances->has($staffId)) {
-                        // Update existing record
-                        $existingAttendances[$staffId]->update([
-                            'in_time' => $inTime,
-                            'out_time' => $outTime,
-                            'is_friday' => $isFriday,
-                            'is_govt_holiday' => $isHoliday,
-                            'on_leave' => $onLeave,
-                            'note' => $note,
-                            'status' => $status
-                        ]);
+                    if ($attendanceId) {
+                        // Update existing
+                        $attendance = Attendance::find($attendanceId);
+                        if ($attendance) {
+                            $attendance->update([
+                                'in_time' => $inTime,
+                                'on_leave' => $onLeave,
+                                'is_friday' => $isFriday,
+                                'is_govt_holiday' => $isHoliday,
+                                'note' => $note,
+                                'status' => $status
+                            ]);
+                            $savedCount++;
+                        }
                     } else {
-                        // Create new record if it doesn't exist
+                        // Create new
                         Attendance::create([
-                            'staff_id' => $staffId,
+                            'user_id' => $userId,
                             'attendance_date' => $attendanceDate,
                             'in_time' => $inTime,
-                            'out_time' => $outTime,
+                            'out_time' => null,
                             'is_friday' => $isFriday,
                             'is_govt_holiday' => $isHoliday,
                             'on_leave' => $onLeave,
                             'note' => $note,
                             'status' => $status
                         ]);
+                        $savedCount++;
                     }
-                    
-                    $updatedCount++;
                     
                 } catch (\Exception $e) {
-                    $staff = Staff::find($staffId);
-                    $errors[] = "Failed to update attendance for " . ($staff ? $staff->name : "Staff #{$staffId}");
-                    Log::error('Attendance update error for staff ' . $staffId . ': ' . $e->getMessage());
+                    $user = User::find($userId);
+                    $errors[] = "Failed for " . ($user ? $user->name : "User #{$userId}");
+                    Log::error('Attendance save error for user ' . $userId . ': ' . $e->getMessage());
                 }
             }
 
-            // Delete attendance records for staff that are no longer active or removed
-            $submittedStaffIds = collect($request->staff_data)->pluck('staff_id')->toArray();
-            $existingAttendances->each(function($attendance) use ($submittedStaffIds, &$errors) {
-                if (!in_array($attendance->staff_id, $submittedStaffIds)) {
-                    try {
-                        $attendance->delete();
-                    } catch (\Exception $e) {
-                        $errors[] = "Failed to delete old attendance record for staff #{$attendance->staff_id}";
-                        Log::error('Attendance deletion error for staff ' . $attendance->staff_id . ': ' . $e->getMessage());
-                    }
-                }
-            });
-
-            if ($updatedCount > 0) {
-                $message = "Attendance updated successfully for {$updatedCount} staff members.";
-                if (!empty($errors)) {
-                    $message .= " However, some entries failed: " . implode(', ', $errors);
-                }
-                return redirect()->route('admin.attendance.index')
-                               ->with('success', $message);
-            } else {
-                return redirect()->back()
-                               ->with('error', 'Failed to update attendance. Please try again.')
-                               ->withInput();
-            }
+            return response()->json([
+                'success' => true,
+                'message' => "Attendance saved successfully for {$savedCount} users.",
+                'errors' => $errors
+            ]);
 
         } catch (\Exception $e) {
-            Log::error('Attendance update error: ' . $e->getMessage());
-            return redirect()->back()
-                           ->with('error', 'Failed to update attendance. Please try again.')
-                           ->withInput();
+            Log::error('Attendance store/update error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save attendance: ' . $e->getMessage()
+            ], 500);
         }
     }
 
     /**
-     * Remove attendance record.
+     * Delete attendance record
      */
     public function destroy($id)
     {
         try {
             $attendance = Attendance::findOrFail($id);
-            $staffName = $attendance->staff->name ?? 'Unknown';
-            $date = $attendance->attendance_date->format('Y-m-d');
-            
             $attendance->delete();
             
-            return redirect()->route('admin.attendance.index')
-                           ->with('success', "Attendance record for {$staffName} on {$date} deleted successfully!");
-                           
+            return response()->json([
+                'success' => true,
+                'message' => 'Attendance record deleted successfully!'
+            ]);
+            
         } catch (\Exception $e) {
             Log::error('Attendance deletion error: ' . $e->getMessage());
-            return redirect()->route('admin.attendance.index')
-                           ->with('error', 'Failed to delete attendance record.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete attendance record.'
+            ], 500);
         }
     }
 
     /**
-     * Show attendance report.
+     * Delete all attendance for a specific date
      */
-    public function report(Request $request)
+    public function deleteDate(Request $request)
     {
         try {
-            $startDate = $request->get('start_date', Carbon::now()->startOfMonth()->toDateString());
-            $endDate = $request->get('end_date', Carbon::now()->toDateString());
-            $staffId = $request->get('staff_id');
-            
-            $query = Attendance::with('staff')
-                ->whereBetween('attendance_date', [$startDate, $endDate]);
-            
-            if ($staffId) {
-                $query->where('staff_id', $staffId);
+            $date = $request->get('date');
+            if (!$date) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Date is required'
+                ], 400);
             }
             
-            $attendances = $query->orderBy('attendance_date', 'desc')->get();
+            $deleted = Attendance::whereDate('attendance_date', $date)->delete();
             
-            // Group by staff
-            $groupedData = $attendances->groupBy('staff_id');
-            
-            $staffList = Staff::active()->orderBy('name')->get();
-            
-            // Calculate summary statistics
-            $summary = [];
-            foreach ($groupedData as $staffId => $records) {
-                $staff = Staff::find($staffId);
-                if ($staff) {
-                    $summary[$staffId] = [
-                        'name' => $staff->name,
-                        'designation' => $staff->designation,
-                        'total_days' => $records->count(),
-                        'present' => $records->where('status', 'present')->count(),
-                        'absent' => $records->where('status', 'absent')->count(),
-                        'late' => $records->where('status', 'late')->count(),
-                        'half_day' => $records->where('status', 'half_day')->count(),
-                        'leave' => $records->where('status', 'leave')->count(),
-                        'holiday' => $records->where('status', 'holiday')->count(),
-                        'friday' => $records->where('status', 'friday')->count(),
-                    ];
-                }
-            }
-            
-            return view('admin.attendance.report', compact('attendances', 'groupedData', 'staffList', 'startDate', 'endDate', 'summary'));
+            return response()->json([
+                'success' => true,
+                'message' => "Deleted {$deleted} attendance records for {$date}"
+            ]);
             
         } catch (\Exception $e) {
-            Log::error('Attendance report error: ' . $e->getMessage());
-            return back()->with('error', 'Failed to load attendance report.');
+            Log::error('Delete date attendance error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete attendance records.'
+            ], 500);
         }
     }
 }

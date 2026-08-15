@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('attendances', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('staff_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->date('attendance_date');
             $table->time('in_time')->nullable();
             $table->time('out_time')->nullable();
@@ -22,8 +22,8 @@ return new class extends Migration
             $table->enum('status', ['present', 'absent', 'late', 'half_day', 'holiday', 'friday', 'leave'])->default('present');
             $table->timestamps();
             
-            // Unique constraint to prevent duplicate attendance per staff per day
-            $table->unique(['staff_id', 'attendance_date']);
+            // Unique constraint to prevent duplicate attendance per user per day
+            $table->unique(['user_id', 'attendance_date']);
             
             // Indexes for better performance
             $table->index('attendance_date');
