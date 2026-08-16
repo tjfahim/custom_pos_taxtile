@@ -46,7 +46,7 @@
                                     @foreach($teamMembers as $member)
                                         <option value="{{ $member->id }}" 
                                             {{ old('team_id', $defaultTeamMate && $defaultTeamMate->id == $member->id ? 'selected' : '') }}>
-                                            {{ $member->name }} ({{ $member->email }})
+                                            {{ $member->name }}
                                             @if($defaultTeamMate && $defaultTeamMate->id == $member->id)
                                                 ⭐ Default
                                             @endif

@@ -86,7 +86,6 @@
                                            {{ $user->teamMembers->contains($teamUser->id) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="team_{{ $teamUser->id }}">
                                         <strong>{{ $teamUser->name }}</strong>
-                                        <small class="text-muted">({{ $teamUser->email }})</small>
                                         @if($teamUser->id == auth()->id())
                                             <span class="badge bg-info">You</span>
                                         @endif

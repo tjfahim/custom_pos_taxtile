@@ -69,7 +69,7 @@
                         <td class="text-right"><strong id="total">৳0</strong></td>
                     </tr>
                     
-                    <!-- Advance Payment Row -->
+                    <!-- Advance Payment Row (Advance + 2nd Advance combined) -->
                     <tr id="advancePaymentRow" style="display: none;">
                         <td>Advance:</td>
                         <td class="text-right text-success" id="advanceAmount">৳0</td>

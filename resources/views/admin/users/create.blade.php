@@ -79,7 +79,6 @@
                                            {{ in_array($user->id, old('team_members', [])) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="team_{{ $user->id }}">
                                         <strong>{{ $user->name }}</strong>
-                                        <small class="text-muted">({{ $user->email }})</small>
                                         @if($user->id == auth()->id())
                                             <span class="badge bg-info">You</span>
                                         @endif

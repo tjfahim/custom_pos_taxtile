@@ -19,6 +19,10 @@ class Invoice extends Model
         'recipient_name',
         'recipient_phone',
         'recipient_secondary_phone',
+        'payment_date',
+'paid_amount2',
+'payment_method2',
+'payment_details2',
         'recipient_address',
         'delivery_area',
         'delivery_type',
@@ -60,7 +64,9 @@ class Invoice extends Model
         'due_amount' => 'decimal:2',
         'is_wholesale' => 'boolean',
         'is_inhouse_sale' => 'boolean',
-        'has_return_items' => 'boolean'
+        'has_return_items' => 'boolean',
+        'payment_date' => 'datetime',
+        'paid_amount2' => 'decimal:2',
     ];
     
     public function creator()
@@ -167,9 +173,10 @@ public function getReturnItemsWithHistory()
         
         // Calculate total weight from items only (returns don't affect weight)
         $this->total_weight = $this->items->sum('weight');
-        
+            $totalPaid = (float) $this->paid_amount + (float) ($this->paid_amount2 ?? 0);
+
         // Update due amount
-        $this->due_amount = $this->total - $this->paid_amount;
+    $this->due_amount = $this->total - $totalPaid;
         
         // Update payment status
         if ($this->due_amount <= 0) {

@@ -26,9 +26,12 @@ const InhouseSaleToggle = {
                 DeliveryChargeManager.reset();
             }
 
-            // NEW: address optional, payment method required
+            // address optional, (first) payment method required
             $('#recipientAddress').prop('required', false);
             $('#paymentMethod').prop('required', true);
+
+            // NEW: second payment block only exists for in-house sales
+            $('#secondPaymentSection').show();
 
         } else {
             $('#deliveryAreaCard').css('opacity', '1');
@@ -43,14 +46,25 @@ const InhouseSaleToggle = {
                 $('#deliveryAreaSelect').prop('disabled', false);
             }
 
-            // NEW: address required, payment method optional
+            // address required, payment method optional
             $('#recipientAddress').prop('required', true);
             $('#paymentMethod').prop('required', false);
+
+            // NEW: hide + clear the second payment block whenever we're
+            // not in an in-house sale, so stale values never get submitted.
+            $('#secondPaymentSection').hide();
+            $('#paidAmount2').val(0);
+            $('#paymentMethod2').val('').trigger('change');
         }
 
-        // NEW: keep the payment-detail field's required state in sync
+        // keep the payment-detail field's required state in sync
         if (typeof InvoicePayments !== 'undefined') {
             InvoicePayments.updateRequiredState();
+        }
+
+        // recalculate totals since paidAmount2 may have just been reset
+        if (typeof InvoiceCalculations !== 'undefined') {
+            InvoiceCalculations.updateDueAmount();
         }
     }
 };

@@ -20,7 +20,6 @@ class InvoiceController extends Controller
         $customers = Customer::where('status', 'active')->latest()->get();
         return view('invoices.pos', compact('customers'));
     }
-
 public function storePos(Request $request)
 {
     $request->validate([
@@ -35,10 +34,13 @@ public function storePos(Request $request)
         'amount_to_collect' => 'nullable|numeric|min:0',
         'status' => 'required|string',
         'paid_amount' => 'nullable|numeric|min:0',
+        'payment_date' => 'nullable|date',
+        'paid_amount2' => 'nullable|numeric|min:0',
+        'payment_method2' => 'nullable|string|in:bkash,bkash_personal,bank_transfer,cash',
         'is_wholesale' => 'nullable|boolean',
         'is_inhouse_sale' => 'nullable|boolean',
         'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX,Exchange',
-        'team_id' => 'nullable|exists:users,id', // Add validation
+        'team_id' => 'nullable|exists:users,id',
         'items' => 'required|array|min:1',
         'items.*.item_name' => 'required|string',
         'items.*.quantity' => 'required|integer|min:1',
@@ -51,18 +53,17 @@ public function storePos(Request $request)
         'return_items.*.unit_price' => 'nullable|numeric|min:0',
         'return_items.*.return_reason' => 'nullable|string',
     ]);
-
+ 
     try {
-        // FIX: Set boolean values properly - Convert checkbox values to boolean
         $isInhouseSale = $request->has('is_inhouse_sale') ? (bool)$request->is_inhouse_sale : false;
         $isWholesale = $request->has('is_wholesale') ? (bool)$request->is_wholesale : false;
         $hasReturnItems = $request->has('has_return_items') && ($request->has_return_items == '1' || $request->has_return_items === true);
-
+ 
         // Customer lookup/creation
         $customer = Customer::where('phone_number_1', $request->recipient_phone)
             ->orWhere('phone_number_2', $request->recipient_phone)
             ->first();
-
+ 
         if (!$customer) {
             $customer = Customer::create([
                 'name' => $request->recipient_name,
@@ -81,13 +82,14 @@ public function storePos(Request $request)
                 'delivery_area' => $request->delivery_area,
                 'note' => $request->notes,
             ]);
-
+ 
             if ($request->recipient_secondary_phone) {
                 $customer->phone_number_2 = $request->recipient_secondary_phone;
                 $customer->save();
             }
         }
-        // Create invoice with team_id
+ 
+        // Create invoice
         $invoice = Invoice::create([
             'customer_id' => $customer->id,
             'recipient_name' => $request->recipient_name,
@@ -102,9 +104,21 @@ public function storePos(Request $request)
             'special_instructions' => $request->special_instructions,
             'product_type' => $request->product_type,
             'amount_to_collect' => $request->amount_to_collect ?? 0,
+ 
+            // First (always-available) payment
             'paid_amount' => $request->paid_amount ?? 0,
             'payment_method' => $request->payment_method,
             'payment_details' => $this->getPaymentDetails($request),
+            'payment_date' => $request->payment_date
+                ? \Carbon\Carbon::parse($request->payment_date)
+                : now(),
+ 
+            // Second payment — in-house sale only. Forced to empty for a
+            // normal sale even if the form happened to submit values.
+            'paid_amount2' => $isInhouseSale ? ($request->paid_amount2 ?? 0) : 0,
+            'payment_method2' => $isInhouseSale ? $request->payment_method2 : null,
+            'payment_details2' => $isInhouseSale ? $this->getPaymentDetails2($request) : null,
+ 
             'notes' => $request->notes,
             'pathao_city_id' => $isInhouseSale ? null : $request->delivery_city_id,
             'pathao_zone_id' => $isInhouseSale ? null : $request->delivery_zone_id,
@@ -119,11 +133,11 @@ public function storePos(Request $request)
             'courier_name' => $isInhouseSale ? 'Pathao' : ($request->courier_name ?? 'Pathao'),
             'team_id' => $request->team_id,
         ]);
-
+ 
         // Add invoice items
         foreach ($request->items as $item) {
             $totalPrice = $item['quantity'] * $item['unit_price'];
-            
+ 
             InvoiceItem::create([
                 'invoice_id' => $invoice->id,
                 'item_name' => $item['item_name'],
@@ -134,16 +148,16 @@ public function storePos(Request $request)
                 'total_price' => $totalPrice,
             ]);
         }
-
+ 
         // Add return items if has return
         if ($hasReturnItems && !empty($request->return_items)) {
             foreach ($request->return_items as $returnItem) {
                 if (empty($returnItem['item_name'])) {
                     continue;
                 }
-                
+ 
                 $totalPrice = ($returnItem['quantity'] ?? 1) * ($returnItem['unit_price'] ?? 0);
-                
+ 
                 ReturnItem::create([
                     'invoice_id' => $invoice->id,
                     'item_name' => $returnItem['item_name'],
@@ -157,14 +171,18 @@ public function storePos(Request $request)
                 ]);
             }
         }
-
+ 
         // Calculate totals
         $invoice->calculateTotals();
-
+ 
+        // Reload items/returnItems so the 'create' history snapshot includes them
+        $invoice->load(['items', 'returnItems']);
+ 
         // Determine if request is AJAX
         $isAjax = $request->ajax() || $request->wantsJson() || $request->has('is_ajax');
         $invoiceData = $this->getInvoiceDataForTracking($invoice);
-            $this->trackEdit($invoice, [], $invoiceData, 'create');
+        $this->trackEdit($invoice, [], $invoiceData, 'create');
+ 
         if ($isAjax) {
             return response()->json([
                 'success' => true,
@@ -177,23 +195,42 @@ public function storePos(Request $request)
                 'message' => 'Invoice created successfully!'
             ]);
         }
-
+ 
         return redirect()->route('admin.invoices.print', $invoice->id)
             ->with('success', 'Invoice created successfully!');
-            
+ 
     } catch (\Exception $e) {
-        \Log::error('Invoice creation error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-        
+ 
         $isAjax = $request->ajax() || $request->wantsJson() || $request->has('is_ajax');
-        
+ 
         if ($isAjax) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error creating invoice: ' . $e->getMessage()
             ], 500);
         }
-        
+ 
         return back()->with('error', 'Error creating invoice: ' . $e->getMessage())->withInput();
+    }
+}
+ 
+/**
+ * Mirrors getPaymentDetails() but reads the "_2" suffixed fields for the
+ * second, in-house-sale-only payment.
+ */
+private function getPaymentDetails2($request)
+{
+    switch ($request->payment_method2) {
+        case 'bkash':
+            return $request->bkash_transaction2;
+        case 'bkash_personal':
+            return $request->bkash_personal_transaction2;
+        case 'bank_transfer':
+            return $request->bank_transfer_details2;
+        case 'cash':
+            return $request->cash_amount2;
+        default:
+            return null;
     }
 }
 
@@ -1138,10 +1175,10 @@ public function historyList(Request $request)
                 $cityName = $invoice->pathaoCity->city_name;
             }
             if ($invoice->pathaoZone) {
-                $zoneName = $invoice->pathaoZone->zone_name;
+                $zoneName = '';
             }
             if ($invoice->pathaoArea) {
-                $areaName = $invoice->pathaoArea->area_name;
+                $areaName = '';
             }
             
             // Clean up any trailing commas from area
@@ -1276,10 +1313,10 @@ public function historyList(Request $request)
                 $cityName = $invoice->pathaoCity->city_name;
             }
             if ($invoice->pathaoZone) {
-                $zoneName = $invoice->pathaoZone->zone_name;
+                $zoneName = '';
             }
             if ($invoice->pathaoArea) {
-                $areaName = $invoice->pathaoArea->area_name;
+                $areaName = '';
             }
             
             // Clean up any trailing commas from area
@@ -1416,8 +1453,6 @@ public function downloadCustomCSV(Request $request)
             ->withInput()
             ->with('error', 'Validation failed: ' . $e->getMessage());
     } catch (\Exception $e) {
-        \Log::error('CSV Download Error: ' . $e->getMessage());
-        \Log::error($e->getTraceAsString());
         
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([

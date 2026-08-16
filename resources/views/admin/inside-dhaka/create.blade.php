@@ -36,7 +36,7 @@
                             <div class="form-group">
                                 <label for="zone_id">Zone <span class="text-danger">*</span></label>
                                 <select class="form-control @error('zone_id') is-invalid @enderror" 
-                                        id="zone_id" name="zone_id" required>
+                                        id="zone_id" name="zone_id">
                                     <option value="">-- Select Zone --</option>
                                     @foreach($zones as $zone)
                                         <option value="{{ $zone->zone_id }}" 
