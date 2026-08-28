@@ -35,27 +35,25 @@
                 <div class="form-group mb-0" style="min-width: 190px;">
                 <label class="mb-0 small text-muted">Assign to Team Member</label>
                   <select name="team_id" id="teamMemberSelect" class="form-control">
-                                <option value="">-- Select Team Member --</option>
-                                @php
-                                    $currentUser = auth()->user();
-                                    $teamMembers = $currentUser->teamMembers()->with('defaultTeamMate')->get();
-                                    $defaultTeamMate = $currentUser->defaultTeamMate;
-                                @endphp
-                                
-                                @if($teamMembers->count() > 0)
-                                    @foreach($teamMembers as $member)
-                                        <option value="{{ $member->id }}" 
-                                            {{ old('team_id', $defaultTeamMate && $defaultTeamMate->id == $member->id ? 'selected' : '') }}>
-                                            {{ $member->name }}
-                                            @if($defaultTeamMate && $defaultTeamMate->id == $member->id)
-                                                ⭐ Default
-                                            @endif
-                                        </option>
-                                    @endforeach
-                                @else
-                                    <option value="" disabled>No team members added yet</option>
-                                @endif
-                            </select>
+    <option value="">-- Select Team Member --</option>
+
+    @php
+        $currentUser = auth()->user();
+        $teamMembers = $currentUser->teamMembers()->get();
+        $recentTeamMemberId = session('recent_team_member_id');
+    @endphp
+
+    @if($teamMembers->count() > 0)
+        @foreach($teamMembers as $member)
+            <option value="{{ $member->id }}"
+                {{ old('team_id', $recentTeamMemberId) == $member->id ? 'selected' : '' }}>
+                {{ $member->name }}
+            </option>
+        @endforeach
+    @else
+        <option value="" disabled>No team members added yet</option>
+    @endif
+</select>
             </div>
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" name="is_wholesale" id="isWholesale" value="1">
@@ -312,6 +310,8 @@
             InvoicePOS.FormHandler.resetForm();
         }
     }
+        const recentTeamMemberId = @json(session('recent_team_member_id'));
+
 </script>
 
 @endsection

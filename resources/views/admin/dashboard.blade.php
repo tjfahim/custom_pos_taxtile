@@ -32,7 +32,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4><i class="fa fa-user-circle"></i> Welcome, {{ $user->name }}!</h4>
-                            <p class="mb-0 text-white">Here's your personal performance summary. You have created {{ $totalInvoices }} confirmed invoices in total.</p>
+                            <p class="mb-0 text-white">Here's your personal performance summary. You have created {{ $totalInvoices ?? '0' }} confirmed invoices in total.</p>
                         </div>
                     </div>
                 </div>
@@ -40,61 +40,267 @@
         </div>
     </div>
     @endif
+@if($adminhasFullAccess)
+<!-- Summary Cards -->
+<div class="row">
+    <div class="col-xl-12 col-lg-12 col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="stat-widget-one">
 
-    @if($hasFullAccess)
-    <!-- Summary Cards -->
-    <div class="row">
-        <!-- Today's Summary -->
-        <div class="col-xl-12 col-lg-12 col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa-calendar-o text-primary border-primary"></i>
+                    <!-- Icon -->
+                   
+
+                    <div class="stat-content dib" style="width:calc(100% - 70px);">
+
+                        <!-- Title -->
+                        <div class="stat-text"
+                             style="font-size:22px; font-weight:800; color:#222; margin-bottom:8px;">
+                            Today's Summary
                         </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">Today's Summary</div>
-                            <div class="stat-sub">Total Sell: {{ number_format(array_sum(array_column($todayData, 'revenue')) + $todayInhouse['revenue'], 0) }}  ({{ number_format(array_sum(array_column($todayData, 'quantity')) + $todayInhouse['quantity'], 0) }} )
-                                | Total Parcel: {{ array_sum(array_column($todayData, 'invoices')) + $todayInhouse['invoices'] }}
-                                | Price: ৳{{ number_format(array_sum(array_column($todayData, 'subtotal')) + $todayInhouse['subtotal'], 0) }} 
-                                 | Delivery: ৳{{ number_format(array_sum(array_column($todayData, 'delivery')) + $todayInhouse['delivery'], 0) }} 
-                                | Paid: ৳{{ number_format(array_sum(array_column($todayData, 'paid')) + $todayInhouse['paid'], 0) }}</div>
-                            
-                            <hr>
-                            
-                            @foreach($todayData as $courier => $data)
-                                <div class="stat-sub">
-                                    <strong>{{ $courier }}</strong> --- 
-                                    Qty: {{ number_format($data['quantity'], 0) }} | 
-                                    Price: ৳{{ number_format($data['subtotal'] ?? 0, 0) }} | 
-                                    Delivery: ৳{{ number_format($data['delivery'] ?? 0, 0) }} | 
-                                    Total: ৳{{ number_format($data['revenue'], 0) }} | 
-                                    Paid: ৳{{ number_format($data['paid'] ?? 0, 0) }} | 
-                                    Parcels: {{ number_format($data['invoices'] ?? 0, 0) }}
-                                </div>
-                            @endforeach
-                            
-                            @if($todayInhouse['invoices'] > 0)
-                            <hr>
-                            <div class="stat-sub" style="color: #2ecc71; font-weight: bold;">
-                                <strong>In House</strong> --- 
-                                Qty: {{ number_format($todayInhouse['quantity'], 0) }} | 
-                                Price: ৳{{ number_format($todayInhouse['subtotal'] ?? 0, 0) }} | 
-                                Delivery: ৳{{ number_format($todayInhouse['delivery'] ?? 0, 0) }} | 
-                                Total: ৳{{ number_format($todayInhouse['revenue'], 0) }} | 
-                                Paid: ৳{{ number_format($todayInhouse['paid'] ?? 0, 0) }} | 
-                                Parcels: {{ number_format($todayInhouse['invoices'] ?? 0, 0) }}
+
+                        <!-- Total Summary -->
+                        <div class="stat-sub"
+                             style="font-size:17px; font-weight:700; line-height:1.9; color:#222;">
+
+                            <span style="color:#000;">
+                                Total Sell:
+                                <strong style="font-size:20px;">
+                                    {{ number_format(array_sum(array_column($todayData, 'revenue')) + $todayInhouse['revenue'], 0) }}
+                                </strong>
+                                (
+                                <strong style="font-size:20px;">
+                                    {{ number_format(array_sum(array_column($todayData, 'quantity')) + $todayInhouse['quantity'], 0) }}
+                                </strong>
+                                )
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#34495e;">
+                                Total Parcel:
+                                <strong style="font-size:20px;">
+                                    {{ array_sum(array_column($todayData, 'invoices')) + $todayInhouse['invoices'] }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#8e44ad;">
+                                Price:
+                                <strong style="font-size:20px;">
+                                    ৳{{ number_format(array_sum(array_column($todayData, 'subtotal')) + $todayInhouse['subtotal'], 0) }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#e67e22;">
+                                Delivery:
+                                <strong style="font-size:20px;">
+                                    ৳{{ number_format(array_sum(array_column($todayData, 'delivery')) + $todayInhouse['delivery'], 0) }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#27ae60;">
+                                Paid:
+                                <strong style="font-size:20px;">
+                                    ৳{{ number_format(array_sum(array_column($todayData, 'paid')) + $todayInhouse['paid'], 0) }}
+                                </strong>
+                            </span>
+                        </div>
+
+                        <hr style="margin:15px 0; border-top:2px solid #eee;">
+
+                        <!-- Courier Details -->
+                        @foreach($todayData as $courier => $data)
+
+                            @php
+                                $courierLower = strtolower($courier);
+
+                                if (strpos($courierLower, 'pathao') !== false) {
+                                    $courierColor = '#e74c3c';
+                                    $courierBg = '#fff1f0';
+                                } elseif (strpos($courierLower, 'redx') !== false) {
+                                    $courierColor = '#c0392b';
+                                    $courierBg = '#fff5f5';
+                                } else {
+                                    $courierColor = '#3498db';
+                                    $courierBg = '#f0f8ff';
+                                }
+                            @endphp
+
+                            <div class="stat-sub"
+                                 style="
+                                    font-size:17px;
+                                    font-weight:700;
+                                    line-height:2;
+                                    margin-bottom:8px;
+                                    padding:8px 12px;
+                                    background:{{ $courierBg }};
+                                    border-left:5px solid {{ $courierColor }};
+                                    border-radius:4px;
+                                 ">
+
+                                <strong style="
+                                    color:{{ $courierColor }};
+                                    font-size:20px;
+                                    font-weight:900;
+                                ">
+                                    {{ $courier }}
+                                </strong>
+
+                                <span style="color:#777;"> --- </span>
+
+                                <span style="color:#222;">
+                                    Qty:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($data['quantity'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#8e44ad;">
+                                    Price:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($data['subtotal'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#e67e22;">
+                                    Delivery:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($data['delivery'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#2c3e50;">
+                                    Total:
+                                    <strong style="font-size:20px;">
+                                        ৳{{ number_format($data['revenue'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#27ae60;">
+                                    Paid:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($data['paid'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#34495e;">
+                                    Parcels:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($data['invoices'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
                             </div>
-                            @endif
-                        </div>
+
+                        @endforeach
+
+                        <!-- In House -->
+                        @if($todayInhouse['invoices'] > 0)
+
+                            <hr style="margin:12px 0; border-top:2px solid #eee;">
+
+                            <div class="stat-sub"
+                                 style="
+                                    font-size:17px;
+                                    font-weight:700;
+                                    line-height:2;
+                                    padding:8px 12px;
+                                    background:#edfff4;
+                                    border-left:5px solid #2ecc71;
+                                    border-radius:4px;
+                                 ">
+
+                                <strong style="
+                                    color:#27ae60;
+                                    font-size:20px;
+                                    font-weight:900;
+                                ">
+                                    In House
+                                </strong>
+
+                                <span style="color:#777;"> --- </span>
+
+                                <span style="color:#222;">
+                                    Qty:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($todayInhouse['quantity'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#8e44ad;">
+                                    Price:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($todayInhouse['subtotal'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#e67e22;">
+                                    Delivery:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($todayInhouse['delivery'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#27ae60;">
+                                    Total:
+                                    <strong style="font-size:20px;">
+                                        ৳{{ number_format($todayInhouse['revenue'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#16a085;">
+                                    Paid:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($todayInhouse['paid'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <span style="color:#34495e;">
+                                    Parcels:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($todayInhouse['invoices'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+                            </div>
+
+                        @endif
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    @endif
+</div>
+@endif
 
-    @if($hasFullAccess)
+  
+
+    @if($adminhasFullAccess)
     <!-- Today's Payments -->
     <div class="row">
         <div class="col-xl-12 col-lg-12 col-md-12">
@@ -219,96 +425,8 @@
     </div>
     @endif
 
-    @if($hasFullAccess)
-    <!-- Monthly Courier-wise Report -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <i class="fa fa-truck me-1"></i>
-                    <strong>Monthly Courier-wise Report - {{ date('F Y') }}</strong>
-                    <span class="float-right badge bg-light text-dark">Total: {{ array_sum(array_column($monthlyCourierReport, 'parcels')) + $monthlyInhouseReport['parcels'] }} Parcels</span>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Courier Name</th>
-                                    <th class="text-center">Parcels</th>
-                                    <th class="text-center">Quantity</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Delivery</th>
-                                    <th class="text-end">Total</th>
-                                    <th class="text-end">Paid</th>
-                                    <th class="text-end">Due</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php $counter = 1; @endphp
-                                
-                                @foreach($monthlyCourierReport as $courier => $data)
-                                    @if($data['parcels'] > 0)
-                                    <tr>
-                                        <td>{{ $counter++ }}</td>
-                                        <td><strong>{{ $courier }}</strong></td>
-                                        <td class="text-center"><span class="badge bg-primary">{{ $data['parcels'] }}</span></td>
-                                        <td class="text-center"><span class="badge bg-info">{{ number_format($data['quantity']) }}</span></td>
-                                        <td class="text-end">৳{{ number_format($data['subtotal'], 0) }}</td>
-                                        <td class="text-end">৳{{ number_format($data['delivery'], 0) }}</td>
-                                        <td class="text-end fw-bold">৳{{ number_format($data['total'], 0) }}</td>
-                                        <td class="text-end text-success fw-bold">৳{{ number_format($data['paid'], 0) }}</td>
-                                        <td class="text-end text-danger fw-bold">৳{{ number_format($data['due'], 0) }}</td>
-                                    </tr>
-                                    @endif
-                                @endforeach
-                                
-                                <!-- In-house Row -->
-                                @if($monthlyInhouseReport['parcels'] > 0)
-                                <tr style="background-color: #f0f8ff; border-top: 2px solid #007bff;">
-                                    <td>{{ $counter++ }}</td>
-                                    <td><strong style="color: #2ecc71;">🏠 In House</strong></td>
-                                    <td class="text-center"><span class="badge bg-success">{{ $monthlyInhouseReport['parcels'] }}</span></td>
-                                    <td class="text-center"><span class="badge bg-info">{{ number_format($monthlyInhouseReport['quantity']) }}</span></td>
-                                    <td class="text-end">৳{{ number_format($monthlyInhouseReport['subtotal'], 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($monthlyInhouseReport['delivery'], 0) }}</td>
-                                    <td class="text-end fw-bold">৳{{ number_format($monthlyInhouseReport['total'], 0) }}</td>
-                                    <td class="text-end text-success fw-bold">৳{{ number_format($monthlyInhouseReport['paid'], 0) }}</td>
-                                    <td class="text-end text-danger fw-bold">৳{{ number_format($monthlyInhouseReport['due'], 0) }}</td>
-                                </tr>
-                                @endif
-                            </tbody>
-                            <tfoot class="table-secondary">
-                                @php
-                                    $totalParcels = array_sum(array_column($monthlyCourierReport, 'parcels')) + $monthlyInhouseReport['parcels'];
-                                    $totalQuantity = array_sum(array_column($monthlyCourierReport, 'quantity')) + $monthlyInhouseReport['quantity'];
-                                    $totalSubtotal = array_sum(array_column($monthlyCourierReport, 'subtotal')) + $monthlyInhouseReport['subtotal'];
-                                    $totalDelivery = array_sum(array_column($monthlyCourierReport, 'delivery')) + $monthlyInhouseReport['delivery'];
-                                    $totalTotal = array_sum(array_column($monthlyCourierReport, 'total')) + $monthlyInhouseReport['total'];
-                                    $totalPaid = array_sum(array_column($monthlyCourierReport, 'paid')) + $monthlyInhouseReport['paid'];
-                                    $totalDue = array_sum(array_column($monthlyCourierReport, 'due')) + $monthlyInhouseReport['due'];
-                                @endphp
-                                <tr>
-                                    <th colspan="2" class="text-end">GRAND TOTAL</th>
-                                    <th class="text-center">{{ $totalParcels }}</th>
-                                    <th class="text-center">{{ number_format($totalQuantity) }}</th>
-                                    <th class="text-end">৳{{ number_format($totalSubtotal, 0) }}</th>
-                                    <th class="text-end">৳{{ number_format($totalDelivery, 0) }}</th>
-                                    <th class="text-end">৳{{ number_format($totalTotal, 0) }}</th>
-                                    <th class="text-end text-success">৳{{ number_format($totalPaid, 0) }}</th>
-                                    <th class="text-end text-danger">৳{{ number_format($totalDue, 0) }}</th>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
 
-    @if($hasFullAccess)
+    @if($adminhasFullAccess)
     <!-- Payment Method Breakdown - Today & This Month -->
     <div class="row">
         <div class="col-md-6">
@@ -444,82 +562,311 @@
         </div>
     </div>
     @endif
- 
-    @if(!$hasFullAccess)
-    <!-- User's Payment Status Summary -->
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <strong>My Payment Status (Confirmed Invoices)</strong>
-                </div>
-                <div class="card-body">
-                    @if(isset($paymentStatusCounts) && count($paymentStatusCounts) > 0)
-                    <div class="row">
-                        <div class="col-md-4 text-center mb-3">
-                            <div class="p-3 border rounded bg-success bg-opacity-10">
-                                <span class="badge bg-success">Paid</span>
-                                <h4 class="mt-2">{{ $paymentStatusCounts['paid'] ?? 0 }}</h4>
-                                <small>Invoices</small>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-center mb-3">
-                            <div class="p-3 border rounded bg-warning bg-opacity-10">
-                                <span class="badge bg-warning">Partial</span>
-                                <h4 class="mt-2">{{ $paymentStatusCounts['partial'] ?? 0 }}</h4>
-                                <small>Invoices</small>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-center mb-3">
-                            <div class="p-3 border rounded bg-danger bg-opacity-10">
-                                <span class="badge bg-danger">Unpaid</span>
-                                <h4 class="mt-2">{{ $paymentStatusCounts['unpaid'] ?? 0 }}</h4>
-                                <small>Invoices</small>
-                            </div>
-                        </div>
-                    </div>
-                    @else
-                    <p class="text-center text-muted">No confirmed invoice data available</p>
+ @if($adminhasFullAccess)
+<!-- Monthly Attendance Calendar -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <strong class="card-title">
+                    <i class="fa fa-calendar mr-2"></i>
+                    Attendance - {{ $monthName }}
+                </strong>
+                <span class="float-right badge bg-info">
+                    {{ isset($attendanceMatrix) && is_array($attendanceMatrix) ? count($attendanceMatrix) : 0 }} Staff Members
+                </span>
+            </div>
+            <div class="card-body">
+                @if(isset($attendanceMatrix) && is_array($attendanceMatrix) && count($attendanceMatrix) > 0)
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm" id="attendanceTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="min-width: 100px; position: sticky; left: 0; background: #343a40; z-index: 10;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>User</span>
+                                    </div>
+                                </th>
+                                @for($day = 1; $day <= $daysInMonth; $day++)
+                                    @php
+                                        $date = Carbon\Carbon::create($attYear, $attMonth, $day);
+                                        $isFriday = $date->isFriday();
+                                        $isToday = $date->isToday();
+                                        $dayOfWeek = $date->format('D');
+                                    @endphp
+                                    <th class="text-center {{ $isFriday ? 'table-secondary' : '' }} {{ $isToday ? 'table-primary' : '' }}" 
+                                        style="min-width: 40px;">
+                                        <div>
+                                            <div>{{ $day }}</div>
+                                          
+                                        </div>
+                                    </th>
+                                @endfor
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($attendanceMatrix as $userData)
+                                <tr>
+                                    <td style="position: sticky; left: 0; background: white; z-index: 5; min-width: 180px;">
+    <div class="d-flex align-items-center">
+        <div class="avatar-circle bg-info text-white mr-2" 
+             style="width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0;">
+            {{ strtoupper(substr($userData['name'], 0, 2)) }}
+        </div>
+        <div>
+            <div class="font-weight-bold">{{ $userData['name'] ?? 'Unknown' }}</div>
+            <div style="font-size: 14px; line-height: 1.2;">
+                @if($userData['late_count'] > 0 || $userData['absent_count'] > 0)
+                    @if($userData['late_count'] > 0)
+                        <span class="text-warning">Late: {{ $userData['late_count'] }}</span>
                     @endif
-                </div>
+                    @if($userData['absent_count'] > 0)
+                        @if($userData['late_count'] > 0)
+                            <span class="text-muted"> | </span>
+                        @endif
+                        <span class="text-danger">Absent: {{ $userData['absent_count'] }}</span>
+                    @endif
+                @else
+                    <span class="text-muted">No absences</span>
+                @endif
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <strong>My Financial Summary (Confirmed)</strong>
-                </div>
-                <div class="card-body">
-                    <table class="table table-sm">
-                        <tr>
-                            <th>Total Price:</th>
-                            <td class="text-end">৳{{ number_format($totalSubtotal ?? 0, 0) }}</td>
-                        </tr>
-                        <tr>
-                            <th>Total Delivery:</th>
-                            <td class="text-end">৳{{ number_format($totalDelivery ?? 0, 0) }}</td>
-                        </tr>
-                        <tr class="table-primary">
-                            <th>Total Amount:</th>
-                            <td class="text-end fw-bold">৳{{ number_format($totalRevenue ?? 0, 0) }}</td>
-                        </tr>
-                        <tr class="table-success">
-                            <th>Total Paid:</th>
-                            <td class="text-end fw-bold">৳{{ number_format($totalPaid ?? 0, 0) }}</td>
-                        </tr>
-                        <tr class="table-warning">
-                            <th>Total Due:</th>
-                            <td class="text-end fw-bold">৳{{ number_format($totalDue ?? 0, 0) }}</td>
-                        </tr>
+    </div>
+</td>
+                                    
+                                    @for($day = 1; $day <= $daysInMonth; $day++)
+                                        @php
+                                            $date = Carbon\Carbon::create($attYear, $attMonth, $day);
+                                            $isFriday = $date->isFriday();
+                                            $dayData = $userData['days'][$day] ?? null;
+                                            $status = $dayData ? $dayData['status'] : null;
+                                            $inTime = $dayData ? $dayData['in_time'] : null;
+                                            $onLeave = $dayData ? $dayData['on_leave'] : false;
+                                            $isHoliday = $dayData ? $dayData['is_govt_holiday'] : false;
+                                            $attendanceId = $dayData ? $dayData['id'] : null;
+                                        @endphp
+                                        <td class="text-center attendance-cell {{ $isFriday ? 'bg-light' : '' }} {{ $isHoliday ? 'bg-warning bg-opacity-25' : '' }}"
+                                            style="cursor: default;">
+                                            @if($status)
+                                                @if($status == 'leave')
+                                                    <span class="badge badge-dark" title="On Leave">L</span>
+                                                @elseif($status == 'holiday')
+                                                    <span class="badge badge-primary" title="Holiday">H</span>
+                                                @elseif($status == 'friday')
+                                                    <span class="badge badge-secondary" title="Friday">F</span>
+                                                @elseif($status == 'present')
+                                                    <span class="badge badge-success" title="Present: {{ $inTime }}">
+                                                        <i class="fa fa-check"></i> {{ $inTime ? Carbon\Carbon::parse($inTime)->format('h:i A') : '' }}
+                                                    </span>
+                                                @elseif($status == 'late')
+                                                    <span class="badge badge-warning" title="Late: {{ $inTime }}">
+                                                        <i class="fa fa-clock-o"></i> {{ $inTime ? Carbon\Carbon::parse($inTime)->format('h:i A') : '' }}
+                                                    </span>
+                                                @elseif($status == 'absent')
+                                                    <span class="badge badge-danger" title="Absent">A</span>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">-</span>
+                                            @endif
+                                        </td>
+                                    @endfor
+                                </tr>
+                            @endforeach
+                        </tbody>
                     </table>
+                </div>
+                
+                <div class="mt-3">
+                    <span class="badge badge-success">P = Present</span>
+                    <span class="badge badge-warning">L = Late</span>
+                    <span class="badge badge-danger">A = Absent</span>
+                    <span class="badge badge-dark">Lv = Leave</span>
+                    <span class="badge badge-primary">H = Holiday</span>
+                    <span class="badge badge-secondary">F = Friday</span>
+                    <span class="text-muted ml-3"><small>Late after 11:30 AM</small></span>
+                </div>
+                @else
+                <div class="text-center py-4">
+                    <i class="fa fa-inbox fa-3x text-muted"></i>
+                    <p class="text-muted mt-2">No attendance data available for this month</p>
+                </div>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+    @if(!$adminhasFullAccess)
+ <div class="row">
+
+    {{-- TODAY --}}
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <strong>
+                    <i class="fa fa-calendar-day"></i>
+                    Today's Summary
+                </strong>
+            </div>
+
+            <div class="card-body">
+                <div class="row">
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-primary">
+                                {{ number_format($todayInvoices ?? 0) }}
+                            </h5>
+                            <small>Invoices</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-success">
+                                {{ number_format($todayQuantity ?? 0) }}
+                            </h5>
+                            <small>Quantity</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5>
+                                ৳{{ number_format($todaySubtotal ?? 0, 0) }}
+                            </h5>
+                            <small>Total Price</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-info">
+                                ৳{{ number_format($todayDelivery ?? 0, 0) }}
+                            </h5>
+                            <small>Delivery</small>
+                        </div>
+                    </div>
+
+                    <div class="col-12 mb-3">
+                        <div class="text-center p-3 border rounded bg-light">
+                            <h4 class="text-primary">
+                                ৳{{ number_format($todayRevenue ?? 0, 0) }}
+                            </h4>
+                            <small>Total Amount</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-success">
+                                ৳{{ number_format($todayPaid ?? 0, 0) }}
+                            </h5>
+                            <small>Total Paid</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-warning">
+                                ৳{{ number_format($todayDue ?? 0, 0) }}
+                            </h5>
+                            <small>Total Due</small>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
+
+
+    {{-- THIS MONTH --}}
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <strong>
+                    <i class="fa fa-calendar-alt"></i>
+                    This Month's Summary
+                </strong>
+            </div>
+
+            <div class="card-body">
+                <div class="row">
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-primary">
+                                {{ number_format($monthlyInvoices ?? 0) }}
+                            </h5>
+                            <small>Invoices</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-success">
+                                {{ number_format($monthlyQuantity ?? 0) }}
+                            </h5>
+                            <small>Quantity</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5>
+                                ৳{{ number_format($monthlySubtotal ?? 0, 0) }}
+                            </h5>
+                            <small>Total Price</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-info">
+                                ৳{{ number_format($monthlyDelivery ?? 0, 0) }}
+                            </h5>
+                            <small>Delivery</small>
+                        </div>
+                    </div>
+
+                    <div class="col-12 mb-3">
+                        <div class="text-center p-3 border rounded bg-light">
+                            <h4 class="text-success">
+                                ৳{{ number_format($monthlyRevenue ?? 0, 0) }}
+                            </h4>
+                            <small>Total Amount</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-success">
+                                ৳{{ number_format($monthlyPaid ?? 0, 0) }}
+                            </h5>
+                            <small>Total Paid</small>
+                        </div>
+                    </div>
+
+                    <div class="col-6">
+                        <div class="text-center p-3 border rounded">
+                            <h5 class="text-warning">
+                                ৳{{ number_format($monthlyDue ?? 0, 0) }}
+                            </h5>
+                            <small>Total Due</small>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
     @endif
 
     <!-- Status Charts Row (Only for Admin) -->
-    @if($hasFullAccess && isset($invoiceStatusCounts))
+    @if($adminhasFullAccess && isset($invoiceStatusCounts))
     <div class="row">
         <div class="col-lg-6">
             <div class="card">
@@ -541,40 +888,8 @@
     </div>
     @endif
     
-    <div class="row">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    <strong class="card-title">My Performance Summary (Confirmed)</strong>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-6">
-                            <div class="text-center p-3">
-                                <h5 class="text-primary">{{ number_format($totalInvoices) }}</h5>
-                                <small>Total Invoices</small>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-center p-3">
-                                <h5 class="text-success">{{ number_format($totalQuantity) }}</h5>
-                                <small>Total Quantity</small>
-                            </div>
-                        </div>
-            
-                        <div class="col-6">
-                            <div class="text-center p-3">
-                                <h5 class="text-warning">{{ number_format($monthlyInvoices) }}</h5>
-                                <small>This Month</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    @if($hasFullAccess)
+    @if($adminhasFullAccess)
     <div class="row">
         <div class="col-md-12">
             <!-- Today's Team Performance -->
@@ -643,7 +958,7 @@
     </div>
     @endif
 
-    @if($hasFullAccess)
+    @if($adminhasFullAccess)
     @if(isset($topCreators) && $topCreators->count() > 0)
     <div class="row">
         <div class="col-md-12">
@@ -695,7 +1010,7 @@
     @endif
     @endif
 
-    @if($hasFullAccess && isset($last10Days))
+    @if($adminhasFullAccess && isset($last10Days))
     <!-- Last 10 Days Breakdown -->
     <div class="row">
         <div class="col-md-12">
@@ -759,13 +1074,14 @@
         </div>
     </div>
     @endif
+    @if($adminhasFullAccess)
 
     <!-- Monthly Performance Chart (Jan - Dec) -->
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <strong class="card-title">{{ $hasFullAccess ? 'Monthly Performance ' . date('Y') : 'My Monthly Performance (Confirmed) ' . date('Y') }}</strong>
+                    <strong class="card-title">{{ $adminhasFullAccess ? 'Monthly Performance ' . date('Y') : 'My Monthly Performance (Confirmed) ' . date('Y') }}</strong>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -829,8 +1145,9 @@
             </div>
         </div>
     </div>
+    @endif
 
-    @if($hasFullAccess)
+    @if($adminhasFullAccess)
     @if(isset($topCreatorsMonth) && $topCreatorsMonth->count() > 0)
     <div class="row">
         <div class="col-md-12">
@@ -882,7 +1199,7 @@
     @endif
     @endif
 
-    @if($hasFullAccess)
+    @if($adminhasFullAccess)
     <div class="row">
         <div class="col-md-12">
             <!-- Monthly Team Performance -->
@@ -951,7 +1268,7 @@
     </div>
     @endif
  
-    @if($hasFullAccess)
+    @if($adminhasFullAccess)
     <!-- Monthly Courier-wise Report -->
     <div class="row mt-3">
         <div class="col-md-12">
@@ -1039,58 +1356,287 @@
         </div>
     </div>
     @endif
+@if($adminhasFullAccess)
+<!-- This Month's Summary -->
+<div class="row">
+    <div class="col-xl-12 col-lg-12 col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="stat-widget-one">
 
-    <!-- Tables Row -->
-    <div class="row">
-        <!-- This Month's Summary -->
-        <div class="col-xl-12 col-lg-12 col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="stat-widget-one">
-                        <div class="stat-icon dib">
-                            <i class="fa fa-calendar text-primary border-primary"></i>
+                    <!-- Icon -->
+                    <div class="stat-icon dib">
+                        <i class="fa fa-calendar text-primary border-primary"
+                           style="font-size:32px;"></i>
+                    </div>
+
+                    <div class="stat-content dib" style="width:calc(100% - 70px);">
+
+                        <!-- Title -->
+                        <div class="stat-text"
+                             style="font-size:22px; font-weight:800; color:#222; margin-bottom:8px;">
+                            This Month's Summary
                         </div>
-                        <div class="stat-content dib">
-                            <div class="stat-text">This Month's Summary</div>
-                            <div class="stat-digit">{{ array_sum(array_column($monthData, 'invoices')) + $monthInhouse['invoices'] }}</div>
-                            <div class="stat-sub">Total Qty: {{ number_format(array_sum(array_column($monthData, 'quantity')) + $monthInhouse['quantity'], 0) }} 
-                                | Price: ৳{{ number_format(array_sum(array_column($monthData, 'subtotal')) + $monthInhouse['subtotal'], 0) }} 
-                                | Delivery: ৳{{ number_format(array_sum(array_column($monthData, 'delivery')) + $monthInhouse['delivery'], 0) }} 
-                                | Total: ৳{{ number_format(array_sum(array_column($monthData, 'revenue')) + $monthInhouse['revenue'], 0) }} 
-                                | Paid: ৳{{ number_format(array_sum(array_column($monthData, 'paid')) + $monthInhouse['paid'], 0) }}</div>
-                            
-                            <hr>
-                            
-                            @foreach($monthData as $courier => $data)
-                                <div class="stat-sub">
-                                    <strong>{{ $courier }}</strong> --- 
-                                    Qty: {{ number_format($data['quantity'], 0) }} | 
-                                    Price: ৳{{ number_format($data['subtotal'] ?? 0, 0) }} | 
-                                    Delivery: ৳{{ number_format($data['delivery'] ?? 0, 0) }} | 
-                                    Total: ৳{{ number_format($data['revenue'], 0) }} | 
-                                    Paid: ৳{{ number_format($data['paid'] ?? 0, 0) }} | 
-                                    Parcels: {{ number_format($data['invoices'] ?? 0, 0) }}
-                                </div>
-                            @endforeach
-                            
-                            @if($monthInhouse['invoices'] > 0)
-                            <hr>
-                            <div class="stat-sub" style="color: #2ecc71; font-weight: bold;">
-                                <strong>In House</strong> --- 
-                                Qty: {{ number_format($monthInhouse['quantity'], 0) }} | 
-                                Price: ৳{{ number_format($monthInhouse['subtotal'] ?? 0, 0) }} | 
-                                Delivery: ৳{{ number_format($monthInhouse['delivery'] ?? 0, 0) }} | 
-                                Total: ৳{{ number_format($monthInhouse['revenue'], 0) }} | 
-                                Paid: ৳{{ number_format($monthInhouse['paid'] ?? 0, 0) }} | 
-                                Parcels: {{ number_format($monthInhouse['invoices'] ?? 0, 0) }}
+
+                        <!-- Total Summary -->
+                        <div class="stat-sub"
+                             style="font-size:17px; font-weight:700; line-height:1.9; color:#222;">
+
+                            <span style="color:#34495e;">
+                                Total Parcel:
+                                <strong style="font-size:20px;">
+                                    {{ array_sum(array_column($monthData, 'invoices')) + $monthInhouse['invoices'] }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#222;">
+                                Total Qty:
+                                <strong style="font-size:20px;">
+                                    {{ number_format(array_sum(array_column($monthData, 'quantity')) + $monthInhouse['quantity'], 0) }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#8e44ad;">
+                                Price:
+                                <strong style="font-size:20px;">
+                                    ৳{{ number_format(array_sum(array_column($monthData, 'subtotal')) + $monthInhouse['subtotal'], 0) }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#e67e22;">
+                                Delivery:
+                                <strong style="font-size:20px;">
+                                    ৳{{ number_format(array_sum(array_column($monthData, 'delivery')) + $monthInhouse['delivery'], 0) }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#2c3e50;">
+                                Total:
+                                <strong style="font-size:20px;">
+                                    ৳{{ number_format(array_sum(array_column($monthData, 'revenue')) + $monthInhouse['revenue'], 0) }}
+                                </strong>
+                            </span>
+
+                            <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#27ae60;">
+                                Paid:
+                                <strong style="font-size:20px;">
+                                    ৳{{ number_format(array_sum(array_column($monthData, 'paid')) + $monthInhouse['paid'], 0) }}
+                                </strong>
+                            </span>
+
+                        </div>
+
+                        <hr style="margin:15px 0; border-top:2px solid #eee;">
+
+                        <!-- Courier Details -->
+                        @foreach($monthData as $courier => $data)
+
+                            @php
+                                $courierLower = strtolower($courier);
+
+                                if (strpos($courierLower, 'pathao') !== false) {
+                                    $courierColor = '#e74c3c';
+                                    $courierBg = '#fff1f0';
+                                } elseif (strpos($courierLower, 'redx') !== false) {
+                                    $courierColor = '#c0392b';
+                                    $courierBg = '#fff5f5';
+                                } else {
+                                    $courierColor = '#3498db';
+                                    $courierBg = '#f0f8ff';
+                                }
+                            @endphp
+
+                            <div class="stat-sub"
+                                 style="
+                                    font-size:17px;
+                                    font-weight:700;
+                                    line-height:2;
+                                    margin-bottom:8px;
+                                    padding:8px 12px;
+                                    background:{{ $courierBg }};
+                                    border-left:5px solid {{ $courierColor }};
+                                    border-radius:4px;
+                                 ">
+
+                                <!-- Courier Name -->
+                                <strong style="
+                                    color:{{ $courierColor }};
+                                    font-size:20px;
+                                    font-weight:900;
+                                ">
+                                    {{ $courier }}
+                                </strong>
+
+                                <span style="color:#777;"> --- </span>
+
+                                <!-- Qty -->
+                                <span style="color:#222;">
+                                    Qty:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($data['quantity'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Price -->
+                                <span style="color:#8e44ad;">
+                                    Price:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($data['subtotal'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Delivery -->
+                                <span style="color:#e67e22;">
+                                    Delivery:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($data['delivery'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Total -->
+                                <span style="color:#2c3e50;">
+                                    Total:
+                                    <strong style="font-size:20px;">
+                                        ৳{{ number_format($data['revenue'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Paid -->
+                                <span style="color:#27ae60;">
+                                    Paid:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($data['paid'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Parcels -->
+                                <span style="color:#34495e;">
+                                    Parcels:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($data['invoices'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
                             </div>
-                            @endif
-                        </div>
+
+                        @endforeach
+
+                        <!-- In House -->
+                        @if($monthInhouse['invoices'] > 0)
+
+                            <hr style="margin:12px 0; border-top:2px solid #eee;">
+
+                            <div class="stat-sub"
+                                 style="
+                                    font-size:17px;
+                                    font-weight:700;
+                                    line-height:2;
+                                    padding:8px 12px;
+                                    background:#edfff4;
+                                    border-left:5px solid #2ecc71;
+                                    border-radius:4px;
+                                 ">
+
+                                <!-- In House Name -->
+                                <strong style="
+                                    color:#27ae60;
+                                    font-size:20px;
+                                    font-weight:900;
+                                ">
+                                    In House
+                                </strong>
+
+                                <span style="color:#777;"> --- </span>
+
+                                <!-- Qty -->
+                                <span style="color:#222;">
+                                    Qty:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($monthInhouse['quantity'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Price -->
+                                <span style="color:#8e44ad;">
+                                    Price:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($monthInhouse['subtotal'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Delivery -->
+                                <span style="color:#e67e22;">
+                                    Delivery:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($monthInhouse['delivery'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Total -->
+                                <span style="color:#27ae60;">
+                                    Total:
+                                    <strong style="font-size:20px;">
+                                        ৳{{ number_format($monthInhouse['revenue'], 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Paid -->
+                                <span style="color:#16a085;">
+                                    Paid:
+                                    <strong style="font-size:19px;">
+                                        ৳{{ number_format($monthInhouse['paid'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                                <span style="color:#aaa;"> | </span>
+
+                                <!-- Parcels -->
+                                <span style="color:#34495e;">
+                                    Parcels:
+                                    <strong style="font-size:19px;">
+                                        {{ number_format($monthInhouse['invoices'] ?? 0, 0) }}
+                                    </strong>
+                                </span>
+
+                            </div>
+
+                        @endif
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+@endif
 </div>
 
 <style>

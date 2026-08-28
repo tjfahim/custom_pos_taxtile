@@ -85,7 +85,6 @@
                                             </div>
                                             <div>
                                                 <div class="font-weight-bold">{{ $userData['name'] }}</div>
-                                                <small class="text-muted">{{ $userData['email'] }}</small>
                                             </div>
                                         </div>
                                     </td>
@@ -419,7 +418,7 @@ function renderAttendanceModal(data, date) {
             statusClass = 'text-dark';
         } else if (inTime) {
             const time = new Date('1970-01-01T' + inTime + ':00');
-            const cutoff = new Date('1970-01-01T09:30:00');
+            const cutoff = new Date('1970-01-01T11:31:00');
             if (time > cutoff) {
                 statusText = 'Late';
                 statusClass = 'text-warning';
@@ -616,7 +615,7 @@ function updateStatus(row) {
         statusClass = 'text-dark';
     } else if (inTime) {
         const time = new Date('1970-01-01T' + inTime + ':00');
-        const cutoff = new Date('1970-01-01T09:30:00');
+        const cutoff = new Date('1970-01-01T11:31:00');
         if (time > cutoff) {
             statusText = 'Late';
             statusClass = 'text-warning';

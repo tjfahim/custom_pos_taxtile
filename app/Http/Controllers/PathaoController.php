@@ -933,7 +933,7 @@ public function checkCustomerByPhone($phone)
     /**
      * Search locations by name
      */
-    public function autoSubmitLocation(Request $request)
+    public function autoSubmitLocationold(Request $request)
 {
     try {
         $search = trim($request->search);
@@ -1256,7 +1256,6 @@ public function checkCustomerByPhone($phone)
             return $this->formatSearchResponse($allResults);
 
         } catch (\Exception $e) {
-            Log::error('Search error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Search failed: ' . $e->getMessage()
@@ -1268,7 +1267,7 @@ public function checkCustomerByPhone($phone)
      * Calculate match percentage between search term and text
      * Uses Levenshtein distance and similar_text
      */
-    private function calculateMatchPercentage($search, $text)
+    private function calculateMatchPercentageOld($search, $text)
     {
         $search = trim(strtolower($search));
         $text = trim(strtolower($text));
@@ -1656,4 +1655,541 @@ public function getStatistics()
             ], 500);
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+public function autoSubmitLocation(Request $request)
+{
+    try {
+        $search = trim($request->search);
+ 
+        if (empty($search)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Search term is required'
+            ], 400);
+        }
+ 
+        $search = $this->transliterateBanglaToEnglish($search);
+ 
+        $words = preg_split('/[\s,|&\-\/.]+/', $search);
+        $words = array_values(array_filter($words, function ($w) {
+            return mb_strlen($w) >= 2 && !ctype_digit($w);
+        }));
+ 
+        if (empty($words)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Search term is too short'
+            ]);
+        }
+ 
+        $cities = PathaoCity::all();
+        $zones = PathaoZone::all();
+        $areas = PathaoArea::all();
+ 
+        // Fuzzy thresholds. Zone/area names get more tolerance for a typo
+        // (85%) since a single wrong/missing letter is common and the
+        // match is scoped enough to be safe. City names get a stricter
+        // floor (95%) since they're short/generic and a wrong city is a
+        // much worse mistake than a wrong zone guess.
+        $zoneAreaTop = 99;
+        $zoneAreaBottom = 85;
+        $cityTop = 99;
+        $cityBottom = 95;
+ 
+        $matchedCity = null;
+        $matchedZone = null;
+        $cityMatchPercent = 0;
+        $zoneMatchPercent = 0;
+ 
+        // ---------- STEP 1: exact city match ----------
+        $cityHit = $this->findExactWordMatch($words, $cities, 'city_name');
+        if ($cityHit) {
+            $matchedCity = $cityHit['item'];
+            $cityMatchPercent = 100;
+        }
+ 
+        // ---------- STEP 2: exact zone match, ACROSS ALL CITIES ----------
+        // Tried before any city guessing — most real addresses name a
+        // neighbourhood/zone, not a city, so this is usually the strongest
+        // signal available.
+        if (!$matchedCity) {
+            $zoneHit = $this->findExactWordMatch($words, $zones, 'zone_name');
+        if ($zoneHit) {
+    $city = PathaoCity::where(
+        'city_id',
+        $zoneHit['item']->city_id
+    )->first();
+
+    if ($city) {
+        $matchedCity = $city;
+
+        // City was inferred from the zone.
+        // Do NOT falsely report 100%.
+        $cityMatchPercent = $zoneHit['percent'];
+
+        $matchedZone = $zoneHit['item'];
+        $zoneMatchPercent = $zoneHit['percent'];
+    }
+}
+        }
+ 
+        // ---------- STEP 3: exact area match, ACROSS ALL CITIES ----------
+        if (!$matchedCity) {
+            $areaHit = $this->findExactWordMatch($words, $areas, 'area_name');
+            if ($areaHit) {
+                $zone = $zones->firstWhere('zone_id', $areaHit['item']->zone_id);
+                if ($zone) {
+                    $city = PathaoCity::where('city_id', $zone->city_id)->first();
+                    if ($city) {
+                        $matchedCity = $city;
+                        $cityMatchPercent = 100;
+                        $matchedZone = $zone;
+                        $zoneMatchPercent = 100;
+                    }
+                }
+            }
+        }
+ 
+        // ---------- STEP 4: fuzzy zone match, ACROSS ALL CITIES ----------
+        // This is what catches "kalyanpur" -> "Kallyanpur" (~90% similar).
+        if (!$matchedCity) {
+            $zoneHit = $this->fuzzyMatchWithLadder($words, $zones, 'zone_name', $zoneAreaTop, $zoneAreaBottom);
+            if ($zoneHit) {
+                $city = PathaoCity::where('city_id', $zoneHit['item']->city_id)->first();
+                if ($city) {
+                    $matchedCity = $city;
+                    $cityMatchPercent = 100; // city is deterministic once the zone is known
+                    $matchedZone = $zoneHit['item'];
+                    $zoneMatchPercent = $zoneHit['percent'];
+                }
+            }
+        }
+ 
+        // ---------- STEP 5: fuzzy area match, ACROSS ALL CITIES ----------
+        if (!$matchedCity) {
+            $areaHit = $this->fuzzyMatchWithLadder($words, $areas, 'area_name', $zoneAreaTop, $zoneAreaBottom);
+            if ($areaHit) {
+                $zone = $zones->firstWhere('zone_id', $areaHit['item']->zone_id);
+                if ($zone) {
+                    $city = PathaoCity::where('city_id', $zone->city_id)->first();
+                    if ($city) {
+                        $matchedCity = $city;
+                        $cityMatchPercent = 100;
+                        $matchedZone = $zone;
+                        $zoneMatchPercent = $areaHit['percent'];
+                    }
+                }
+            }
+        }
+ 
+        // ---------- STEP 6 (last resort): fuzzy CITY match ----------
+        // Only reached if the search term didn't resemble any real
+        // zone/area at all. Stricter threshold (95%) on purpose.
+        if (!$matchedCity) {
+            $cityHit = $this->fuzzyMatchWithLadder($words, $cities, 'city_name', $cityTop, $cityBottom);
+            if ($cityHit) {
+                $matchedCity = $cityHit['item'];
+                $cityMatchPercent = $cityHit['percent'];
+            }
+        }
+ 
+        if (!$matchedCity) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No confident city match'
+            ]);
+        }
+ 
+        // ---------- ZONE RESOLUTION FOR A CITY FOUND VIA STEP 1 OR 6 ----------
+        // (Steps 2-5 already resolved the zone directly, so this is
+        // skipped for those.)
+        if (!$matchedZone) {
+            $zonesInCity = $zones->where('city_id', $matchedCity->city_id)->values();
+ 
+            $zoneHit = $this->findExactWordMatch($words, $zonesInCity, 'zone_name');
+ 
+            if (!$zoneHit) {
+                $areasInCity = $areas->whereIn('zone_id', $zonesInCity->pluck('zone_id'));
+                $areaHit = $this->findExactWordMatch($words, $areasInCity, 'area_name');
+                if ($areaHit) {
+                    $zone = $zonesInCity->firstWhere('zone_id', $areaHit['item']->zone_id);
+                    if ($zone) {
+                        $zoneHit = ['item' => $zone, 'word' => $areaHit['word'], 'percent' => 100];
+                    }
+                }
+            }
+ 
+            if ($zoneHit) {
+                $matchedZone = $zoneHit['item'];
+                $zoneMatchPercent = $zoneHit['percent'] ?? 100;
+            } else {
+                $zoneHit = $this->fuzzyMatchWithLadder($words, $zonesInCity, 'zone_name', $zoneAreaTop, $zoneAreaBottom);
+                if ($zoneHit) {
+                    $matchedZone = $zoneHit['item'];
+                    $zoneMatchPercent = $zoneHit['percent'];
+                }
+            }
+        }
+ 
+        $result = [
+            'success' => true,
+            'city' => [
+                'id' => $matchedCity->city_id,
+                'name' => $matchedCity->city_name,
+                'match_percent' => $cityMatchPercent,
+            ],
+            'zone' => null,
+        ];
+ 
+        if ($matchedZone) {
+            $result['zone'] = [
+                'id' => $matchedZone->zone_id,
+                'name' => $matchedZone->zone_name,
+                'match_percent' => $zoneMatchPercent,
+            ];
+        }
+ 
+        return response()->json($result);
+ 
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Search failed: ' . $e->getMessage()
+        ], 500);
+    }
+}
+ 
+/**
+ * Replaces your existing calculateMatchPercentage(). Bounded 0-100,
+ * standard normalized Levenshtein similarity. Exact matches short-circuit
+ * to 100 without running Levenshtein at all.
+ */
+private function calculateMatchPercentage($str1, $str2)
+{
+    $str1 = mb_strtolower(trim((string) $str1));
+    $str2 = mb_strtolower(trim((string) $str2));
+ 
+    if ($str1 === $str2) {
+        return 100;
+    }
+ 
+    $len1 = mb_strlen($str1);
+    $len2 = mb_strlen($str2);
+ 
+    if ($len1 === 0 || $len2 === 0) {
+        return 0;
+    }
+ 
+    // levenshtein() works on bytes, not multibyte-safe — fine here since
+    // by this point everything has already been transliterated to Latin
+    // script (see transliterateBanglaToEnglish()).
+    $distance = levenshtein($str1, $str2);
+    $maxLen = max($len1, $len2);
+ 
+    $percent = (1 - ($distance / $maxLen)) * 100;
+ 
+    return max(0, round($percent, 2));
+}
+ 
+/**
+ * Lowercase + strip everything except letters/digits, for strict
+ * equality comparisons (step 1 / step 2 / 3a / 3b above).
+ */
+private function normalizeForMatch($str)
+{
+    $str = mb_strtolower(trim((string) $str));
+    return preg_replace('/[^\p{L}\p{N}]+/u', '', $str);
+}
+ 
+/**
+ * Scan $words IN ORDER against $collection's $nameField for an exact
+ * (normalized) match. Returns the first hit — word order beats
+ * collection order.
+ */
+private function findExactWordMatch(array $words, $collection, $nameField)
+{
+    foreach ($words as $word) {
+        foreach ($collection as $item) {
+            if ($this->normalizeForMatch($word) === $this->normalizeForMatch($item->{$nameField})) {
+                return ['item' => $item, 'word' => $word];
+            }
+        }
+    }
+    return null;
+}
+ 
+/**
+ * For a single confidence threshold: walk $words in order, and for the
+ * first word whose best fuzzy match against $collection clears
+ * $minThreshold, return that match. Does NOT keep searching for a
+ * globally-better match once one word qualifies.
+ */
+
+private function findBestWordMatch(
+    array $words,
+    $collection,
+    $nameField,
+    $minPercent = 80,
+    $minMargin = 5
+) {
+    $candidates = [];
+
+    foreach ($words as $wordIndex => $word) {
+
+        $normalizedWord = $this->normalizeForMatch($word);
+
+        if ($normalizedWord === '') {
+            continue;
+        }
+
+        foreach ($collection as $item) {
+
+            $name = $item->{$nameField};
+
+            $percent = $this->calculateMatchPercentage(
+                $normalizedWord,
+                $name
+            );
+
+            $distance = levenshtein(
+                $normalizedWord,
+                $this->normalizeForMatch($name)
+            );
+
+            $wordLength = mb_strlen($normalizedWord);
+
+            /*
+             * We only want 1-2 character errors.
+             */
+            if ($distance > 2) {
+                continue;
+            }
+
+            /*
+             * Short words need stronger confidence.
+             *
+             * Example:
+             * "mir" -> "mirpur"
+             * should NOT be accepted just because it has
+             * some similarity.
+             */
+            if ($wordLength <= 4 && $percent < 90) {
+                continue;
+            }
+
+            if ($wordLength <= 6 && $percent < 85) {
+                continue;
+            }
+
+            if ($percent < $minPercent) {
+                continue;
+            }
+
+            $candidates[] = [
+                'item' => $item,
+                'word' => $word,
+                'percent' => $percent,
+                'distance' => $distance,
+                'word_index' => $wordIndex,
+            ];
+        }
+    }
+
+    if (empty($candidates)) {
+        return null;
+    }
+
+    /*
+     * Highest percentage first.
+     * If percentage is equal, prefer fewer edits.
+     * If still equal, prefer the earlier search word.
+     */
+    usort($candidates, function ($a, $b) {
+
+        if ($a['percent'] != $b['percent']) {
+            return $b['percent'] <=> $a['percent'];
+        }
+
+        if ($a['distance'] != $b['distance']) {
+            return $a['distance'] <=> $b['distance'];
+        }
+
+        return $a['word_index'] <=> $b['word_index'];
+    });
+
+    $best = $candidates[0];
+    $second = $candidates[1] ?? null;
+
+    /*
+     * If two candidates are almost equally good,
+     * don't guess.
+     */
+    if ($second) {
+
+        $margin = $best['percent'] - $second['percent'];
+
+        if ($margin < $minMargin) {
+            return null;
+        }
+    }
+
+    return $best;
+}
+private function findBestWordMatchAtThreshold(array $words, $collection, $nameField, $minThreshold)
+{
+    foreach ($words as $word) {
+        $bestItem = null;
+        $bestPercent = 0;
+ 
+        foreach ($collection as $item) {
+            $percent = $this->calculateMatchPercentage($word, $item->{$nameField});
+            if ($percent > $bestPercent) {
+                $bestPercent = $percent;
+                $bestItem = $item;
+            }
+        }
+ 
+        if ($bestItem && $bestPercent >= $minThreshold) {
+            return ['item' => $bestItem, 'word' => $word, 'percent' => $bestPercent];
+        }
+    }
+    return null;
+}
+ 
+/**
+ * Descend thresholds from $topThreshold to $bottomThreshold (inclusive),
+ * returning the first match found at the highest threshold that
+ * produces one at all.
+ */
+private function fuzzyMatchWithLadder(
+    array $words,
+    $collection,
+    $nameField,
+    $topThreshold = 99,
+    $bottomThreshold = 80
+) {
+    return $this->findBestWordMatch(
+        $words,
+        $collection,
+        $nameField,
+        $bottomThreshold,
+        5
+    );
+}
+ 
+/**
+ * Approximate phonetic Bangla -> English (Latin) transliteration.
+ * Good enough for fuzzy-matching purposes, not meant to be a linguistically
+ * perfect romanization. Handles:
+ *  - independent vowels (অ, আ, ই, ...)
+ *  - consonants + dependent vowel signs (matras)
+ *  - hasant/virama (্) for consonant conjuncts, with a special case for
+ *    the "ya-phala" (্য) which sounds like "y" rather than "j"
+ *  - Bangla digits
+ *  - chandrabindu (ঁ), anusvara (ং), visarga (ঃ)
+ *
+ * Non-Bangla characters (including plain English, spaces, punctuation,
+ * digits already in Latin script) pass through completely unchanged.
+ */
+private function transliterateBanglaToEnglish($text)
+{
+    // Skip entirely if there's no Bangla in the string at all.
+    if (!preg_match('/\p{Bengali}/u', $text)) {
+        return $text;
+    }
+ 
+    $independentVowels = [
+        'অ' => 'o', 'আ' => 'a', 'ই' => 'i', 'ঈ' => 'i', 'উ' => 'u',
+        'ঊ' => 'u', 'ঋ' => 'ri', 'এ' => 'e', 'ঐ' => 'oi', 'ও' => 'o', 'ঔ' => 'ou',
+    ];
+ 
+    $consonants = [
+        'ক' => 'k', 'খ' => 'kh', 'গ' => 'g', 'ঘ' => 'gh', 'ঙ' => 'ng',
+        'চ' => 'ch', 'ছ' => 'chh', 'জ' => 'j', 'ঝ' => 'jh', 'ঞ' => 'n',
+        'ট' => 't', 'ঠ' => 'th', 'ড' => 'd', 'ঢ' => 'dh', 'ণ' => 'n',
+        'ত' => 't', 'থ' => 'th', 'দ' => 'd', 'ধ' => 'dh', 'ন' => 'n',
+        'প' => 'p', 'ফ' => 'ph', 'ব' => 'b', 'ভ' => 'bh', 'ম' => 'm',
+        'য' => 'j', 'র' => 'r', 'ল' => 'l', 'শ' => 'sh', 'ষ' => 'sh',
+        'স' => 's', 'হ' => 'h', 'ড়' => 'r', 'ঢ়' => 'rh', 'য়' => 'y',
+    ];
+ 
+    $vowelSigns = [
+        'া' => 'a', 'ি' => 'i', 'ী' => 'i', 'ু' => 'u', 'ূ' => 'u',
+        'ৃ' => 'ri', 'ে' => 'e', 'ৈ' => 'oi', 'ো' => 'o', 'ৌ' => 'ou',
+    ];
+ 
+    $digits = [
+        '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+        '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9',
+    ];
+ 
+    $chars = mb_str_split($text);
+    $count = count($chars);
+    $out = '';
+ 
+    for ($i = 0; $i < $count; $i++) {
+        $char = $chars[$i];
+        $next = $chars[$i + 1] ?? null;
+ 
+        if (isset($digits[$char])) {
+            $out .= $digits[$char];
+            continue;
+        }
+ 
+        if (isset($consonants[$char])) {
+            $latin = $consonants[$char];
+ 
+            // ya-phala: য directly after a hasant (্) sounds like "y",
+            // e.g. শ্যামলী -> "shyamoli", not "shjamoli".
+            if ($char === 'য' && $i > 0 && $chars[$i - 1] === '্') {
+                $latin = 'y';
+            }
+ 
+            $out .= $latin;
+ 
+            if ($next === '্') {
+                // Hasant/virama — this consonant carries no vowel sound
+                // and joins directly with the next consonant.
+                $i++; // consume the hasant, add nothing for it
+            } elseif ($next !== null && isset($vowelSigns[$next])) {
+                $out .= $vowelSigns[$next];
+                $i++; // consume the vowel sign
+            } else {
+                // No vowel sign, no hasant -> the consonant's inherent
+                // vowel sound ("o") applies.
+                $out .= 'o';
+            }
+            continue;
+        }
+ 
+        if (isset($independentVowels[$char])) {
+            $out .= $independentVowels[$char];
+            continue;
+        }
+ 
+        if ($char === 'ং') { $out .= 'ng'; continue; }
+        if ($char === 'ঃ') { $out .= 'h'; continue; }
+        if ($char === 'ৎ') { $out .= 't'; continue; }
+        if ($char === 'ঁ') { continue; } // chandrabindu — nasalization, drop
+ 
+        // Already-Latin characters, spaces, punctuation, etc.
+        $out .= $char;
+    }
+ 
+    return $out;
+}
 }

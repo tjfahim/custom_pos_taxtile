@@ -60,7 +60,8 @@ Route::get('/clear', function() {
     Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
     Route::post('/register-submit', [AuthController::class, 'registerSubmit'])->name('register.submit');
 
-
+Route::get('/admin/get-delivery-charge/{zoneId}/{totalQuantity?}', [PathaoController::class, 'getDeliveryChargeByZone'])
+    ->name('get.delivery.charge.by.zone');
 // Logout route (accessible by authenticated users)
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
@@ -186,8 +187,7 @@ Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.d
     Route::get('inside-dhaka/toggle-status/{id}', [InsideDhakaController::class, 'toggleStatus'])
         ->name('inside-dhaka.toggle-status');
 
-Route::get('/get-delivery-charge/{zoneId}/{totalQuantity?}', [PathaoController::class, 'getDeliveryChargeByZone'])
-    ->name('get.delivery.charge.by.zone');
+
  
 
 });

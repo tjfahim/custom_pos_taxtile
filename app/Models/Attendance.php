@@ -139,7 +139,7 @@ class Attendance extends Model
         }
         
         if ($inTime) {
-            $cutoffTime = Carbon::parse('09:30:00');
+            $cutoffTime = Carbon::parse('11:31:00');
             $inTimeParsed = Carbon::parse($inTime);
             
             if ($inTimeParsed->gt($cutoffTime)) {

@@ -1,4 +1,6 @@
 // Invoice Form Handler Module - Handles form submission and validation
+
+
 const InvoiceFormHandler = {
     
     selectCustomer: function(button) {
@@ -214,9 +216,13 @@ $('#courierName').val('Pathao').prop('disabled', false);
 if (typeof InhouseSaleToggle !== 'undefined') {
     InhouseSaleToggle.apply();
 }
+const selectedTeamMemberId = $('#teamMemberSelect').val();
+
         // Reset the form
         $('#posForm')[0].reset();
-        
+if (selectedTeamMemberId) {
+    $('#teamMemberSelect').val(selectedTeamMemberId);
+}
         // Clear items table
         $('#itemsBody').empty();
         

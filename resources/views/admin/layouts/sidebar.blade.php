@@ -16,7 +16,7 @@
                 <!-- Dashboard -->
                 <li class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                     <a href="{{ route('admin.dashboard') }}">
-                        <i class="menu-icon 	fa fa-building"></i>
+                        <i class="menu-icon fa fa-building"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
@@ -44,7 +44,12 @@
                         <span>Invoices</span>
                     </a>
                 </li>
-           
+           <li class="{{ request()->routeIs('admin.attendance.*') ? 'active' : '' }}">
+    <a href="{{ route('admin.attendance.index') }}">
+        <i class="menu-icon fa fa-map-marker-alt"></i>
+        <span>Attendance</span>
+    </a>
+</li>
                 
                 <!-- Admin Only Section -->
                 @hasrole('admin')
@@ -193,5 +198,9 @@
     font-size: 14px;
     line-height: 30px;
     padding: 7px 0 !important;
+    }
+    .navbar-nav li a i {
+ 
+    margin-right: 0px !important;
     }
 </style>
