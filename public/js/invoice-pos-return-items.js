@@ -43,12 +43,13 @@ const ReturnItems = {
                            value="500" min="0"
                            onchange="ReturnItems.updateReturnTotal(${this.itemCount})">
                 </td>
-                <td>
-                    <input type="number" name="return_items[${this.itemCount}][quantity]" 
-                           class="form-control form-control-sm return-quantity text-center" 
-                           value="1" min="1" required 
-                           onchange="ReturnItems.updateReturnTotal(${this.itemCount})">
-                </td>
+              <td>
+    <input type="number" name="return_items[${this.itemCount}][quantity]" 
+           class="form-control form-control-sm return-quantity text-center" 
+           value="1" min="1" required 
+           onchange="ReturnItems.updateReturnTotal(${this.itemCount})"
+           onfocus="this.select()">
+</td>
                 <td>
                     <input type="number" name="return_items[${this.itemCount}][unit_price]" 
                            class="form-control form-control-sm return-unit-price text-right" 

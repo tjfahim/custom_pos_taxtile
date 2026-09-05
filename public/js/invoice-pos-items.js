@@ -19,13 +19,13 @@ const InvoiceItems = {
                 <td>
                     <input type="number" name="items[${this.itemCount}][weight]" 
                            class="form-control form-control-sm weight text-center" 
-                           value="500" min="0" step="1"
+                           value="500" min="0" 
                            onchange="InvoiceItems.updateItemTotal(${this.itemCount})">
                 </td>
               <td>
     <input type="number" name="items[${this.itemCount}][quantity]" 
            class="form-control form-control-sm quantity text-center" 
-           value="1" min="1" step="1" required 
+           value="1" min="1" required 
            onchange="InvoiceItems.updateItemTotal(${this.itemCount})"
            onfocus="this.select()">
 </td>

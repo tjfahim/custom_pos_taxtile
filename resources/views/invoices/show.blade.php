@@ -208,7 +208,7 @@
 
                 <!-- Created By -->
                 <div class="mt-3 text-muted small">
-                    <p>Created by: {{ $invoice->creator->name ?? 'N/A' }} | Created at: {{ $invoice->created_at->format('M d, Y h:i A') }}</p>
+                    <p>Created by: {{ $invoice->creator->name ?? 'N/A' }} | Team Member: {{ $invoice->teamMember->name ?? 'N/A' }} | Created at: {{ $invoice->created_at->format('M d, Y h:i A') }}</p>
                 </div>
             </div>
         </div>

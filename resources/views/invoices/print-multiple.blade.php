@@ -135,7 +135,9 @@
                 <div class="invoice-info">
                     <div class="invoice-no">#{{ $invoice->invoice_number }}</div>
         <div class="invoice-date">{{ $invoice->status == 'pending' ? $invoice->created_at->format('d/m/Y h:i A') : now()->format('d/m/Y h:i A') }}</div>
+                    <div class="invoice-date">{{ $invoice->teamMember->name ?? 'N/A' }}</div>
                 </div>
+
             </div>
             
             <!-- Body -->

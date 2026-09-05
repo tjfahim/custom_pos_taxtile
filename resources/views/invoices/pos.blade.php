@@ -34,7 +34,7 @@
         <div class="d-flex flex-wrap align-items-center justify-content-md-end" style="gap: 1.25rem;">
                 <div class="form-group mb-0" style="min-width: 190px;">
                 <label class="mb-0 small text-muted">Assign to Team Member</label>
-                  <select name="team_id" id="teamMemberSelect" class="form-control">
+                  <select name="team_id" id="teamMemberSelect" class="form-control" required>
     <option value="">-- Select Team Member --</option>
 
     @php

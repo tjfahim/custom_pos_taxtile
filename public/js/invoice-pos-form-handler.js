@@ -355,6 +355,12 @@ if (selectedTeamMemberId) {
         return false;
     }
     
+    if (!$('#teamMemberSelect').val()) {
+        alert('Please select Team Member');
+        $('#teamMemberSelect').focus();
+        return false;
+    }
+    
     const phone = $('#recipientPhone').val().trim();
     if (!phone) {
         alert('Please enter recipient phone');

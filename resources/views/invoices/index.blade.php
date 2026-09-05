@@ -80,7 +80,8 @@
                                 <th>Status</th>
                                 <th>Payment</th>
                                 @if(auth()->user()->hasRole('admin'))
-                                    <th>Created By</th>
+                                    <th>Team Member</th>
+                                    <th></th>
                                 @endif
                                 <th>Actions</th>
                             </tr>
@@ -213,12 +214,13 @@ $(document).ready(function() {
                     return '<span class="badge badge-secondary">Unknown</span>';
                 }
             },
-            @if(auth()->user()->hasRole('admin'))
-                { 
-                    data: 'created_by', 
-                    name: 'created_by' 
-                },
-            @endif
+          @if(auth()->user()->hasRole('admin'))
+    { 
+        data: 'team_member_name', 
+        name: 'team_member_name',
+        defaultContent: 'N/A'
+    },
+@endif
             { 
                 data: 'actions', 
                 name: 'actions',

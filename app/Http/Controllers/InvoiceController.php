@@ -299,11 +299,11 @@ public function index(Request $request)
     return view('invoices.index', compact('counts'));
 }
 
-
 private function getDataTableData(Request $request)
 {
     try {
-        $query = Invoice::with(['customer', 'creator'])
+        // Load teamMember relationship as well
+        $query = Invoice::with(['customer', 'creator', 'teamMember'])
             ->whereNull('deleted_at'); // Exclude soft deleted
         
         // Apply status filter
@@ -389,6 +389,8 @@ private function getDataTableData(Request $request)
                     'text' => ucfirst($invoice->payment_status)
                 ],
                 'created_by' => $invoice->creator->name ?? 'N/A',
+                // Add the team member field
+                'team_member_name' => $invoice->teamMember->name ?? 'N/A',
                 'actions' => $this->getActionButtons($invoice),
                 // Add these for debugging if needed
                 'created_at' => $invoice->created_at ? $invoice->created_at->format('Y-m-d H:i:s') : null,
@@ -410,7 +412,8 @@ private function getDataTableData(Request $request)
             'filtered' => $filteredRecords,
             'data_count' => count($data),
             'first_invoice' => count($data) > 0 ? $data[0]['invoice_number'] : null,
-            'last_invoice' => count($data) > 0 ? $data[count($data)-1]['invoice_number'] : null
+            'last_invoice' => count($data) > 0 ? $data[count($data)-1]['invoice_number'] : null,
+            'sample_team_member' => count($data) > 0 ? ($data[0]['team_member_name'] ?? 'N/A') : 'N/A'
         ]);
         
         return response()->json($response);
@@ -428,7 +431,6 @@ private function getDataTableData(Request $request)
         ], 500);
     }
 }
-
 private function getActionButtons($invoice)
 {
     $buttons = '<div class="btn-group btn-group-sm" role="group">';
@@ -1129,6 +1131,7 @@ public function historyList(Request $request)
         // Get only CONFIRMED invoices for today with sorting by invoice number
         $invoices = Invoice::whereDate('updated_at', $today)
         ->where('courier_name', 'Pathao')
+        ->where('is_inhouse_sale', 0)
         ->where('status', 'confirmed')
             ->with('customer', 'items')
             ->orderBy('invoice_number', 'asc') // Add this line for sorting
@@ -1417,6 +1420,7 @@ public function downloadCustomCSV(Request $request)
         $invoices = Invoice::whereBetween('updated_at', [$startTime, $endTime])
             ->where('status', 'confirmed')
                     ->where('courier_name', 'Pathao')
+                    ->where('is_inhouse_sale', 0)
 
             ->whereNull('deleted_at')
             ->with(['customer', 'items']) // Only load existing relationships

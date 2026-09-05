@@ -425,7 +425,74 @@
     </div>
     @endif
 
-
+    @if($adminhasFullAccess)
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Today's Team Performance -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Team Members Performance</strong>
+                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
+                </div>
+                <div class="card-body">
+                    @if($todayPerformance->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Team Member</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Memo</th>
+                                        <th class="text-center">Quantity</th>
+                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Delivery</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Paid</th>
+                                        <th class="text-end">Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($todayPerformance as $index => $member)
+                                    <tr>
+                                        <td>{{ $index + 1 }}</td>
+                                        <td>
+                                            <strong>{{ $member->name }}</strong>
+                                            @if($index == 0)
+                                                <span class="badge bg-warning ms-1">
+                                                    <i class="fa fa-trophy"></i> Top
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $member->email }}</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ $member->total_invoices }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($member->total_quantity) }}</span>
+                                        </td>
+                                        <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
+                                        <td class="text-end">৳{{ number_format($member->total_delivery, 0) }}</td>
+                                        <td class="text-end fw-bold">৳{{ number_format($member->total_amount, 0) }}</td>
+                                        <td class="text-end text-success">৳{{ number_format($member->total_paid, 0) }}</td>
+                                        <td class="text-end text-danger">৳{{ number_format($member->total_due, 0) }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-4">
+                            <i class="fa fa-info-circle fa-3x text-muted"></i>
+                            <p class="text-muted mt-2">No team activity today</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
     @if($adminhasFullAccess)
     <!-- Payment Method Breakdown - Today & This Month -->
     <div class="row">
@@ -889,74 +956,7 @@
     @endif
     
 
-    @if($adminhasFullAccess)
-    <div class="row">
-        <div class="col-md-12">
-            <!-- Today's Team Performance -->
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <i class="fa fa-users me-1"></i>
-                    <strong>Team Members Performance</strong>
-                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
-                </div>
-                <div class="card-body">
-                    @if($todayPerformance->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Team Member</th>
-                                        <th>Email</th>
-                                        <th class="text-center">Memo</th>
-                                        <th class="text-center">Quantity</th>
-                                        <th class="text-end">Price</th>
-                                        <th class="text-end">Delivery</th>
-                                        <th class="text-end">Total</th>
-                                        <th class="text-end">Paid</th>
-                                        <th class="text-end">Due</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($todayPerformance as $index => $member)
-                                    <tr>
-                                        <td>{{ $index + 1 }}</td>
-                                        <td>
-                                            <strong>{{ $member->name }}</strong>
-                                            @if($index == 0)
-                                                <span class="badge bg-warning ms-1">
-                                                    <i class="fa fa-trophy"></i> Top
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td>{{ $member->email }}</td>
-                                        <td class="text-center">
-                                            <span class="badge bg-primary">{{ $member->total_invoices }}</span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-info">{{ number_format($member->total_quantity) }}</span>
-                                        </td>
-                                        <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
-                                        <td class="text-end">৳{{ number_format($member->total_delivery, 0) }}</td>
-                                        <td class="text-end fw-bold">৳{{ number_format($member->total_amount, 0) }}</td>
-                                        <td class="text-end text-success">৳{{ number_format($member->total_paid, 0) }}</td>
-                                        <td class="text-end text-danger">৳{{ number_format($member->total_due, 0) }}</td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="fa fa-info-circle fa-3x text-muted"></i>
-                            <p class="text-muted mt-2">No team activity today</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
+
 
     @if($adminhasFullAccess)
     @if(isset($topCreators) && $topCreators->count() > 0)
@@ -1356,287 +1356,7 @@
         </div>
     </div>
     @endif
-@if($adminhasFullAccess)
-<!-- This Month's Summary -->
-<div class="row">
-    <div class="col-xl-12 col-lg-12 col-md-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="stat-widget-one">
 
-                    <!-- Icon -->
-                    <div class="stat-icon dib">
-                        <i class="fa fa-calendar text-primary border-primary"
-                           style="font-size:32px;"></i>
-                    </div>
-
-                    <div class="stat-content dib" style="width:calc(100% - 70px);">
-
-                        <!-- Title -->
-                        <div class="stat-text"
-                             style="font-size:22px; font-weight:800; color:#222; margin-bottom:8px;">
-                            This Month's Summary
-                        </div>
-
-                        <!-- Total Summary -->
-                        <div class="stat-sub"
-                             style="font-size:17px; font-weight:700; line-height:1.9; color:#222;">
-
-                            <span style="color:#34495e;">
-                                Total Parcel:
-                                <strong style="font-size:20px;">
-                                    {{ array_sum(array_column($monthData, 'invoices')) + $monthInhouse['invoices'] }}
-                                </strong>
-                            </span>
-
-                            <span style="margin-left:10px; color:#555;">|</span>
-
-                            <span style="color:#222;">
-                                Total Qty:
-                                <strong style="font-size:20px;">
-                                    {{ number_format(array_sum(array_column($monthData, 'quantity')) + $monthInhouse['quantity'], 0) }}
-                                </strong>
-                            </span>
-
-                            <span style="margin-left:10px; color:#555;">|</span>
-
-                            <span style="color:#8e44ad;">
-                                Price:
-                                <strong style="font-size:20px;">
-                                    ৳{{ number_format(array_sum(array_column($monthData, 'subtotal')) + $monthInhouse['subtotal'], 0) }}
-                                </strong>
-                            </span>
-
-                            <span style="margin-left:10px; color:#555;">|</span>
-
-                            <span style="color:#e67e22;">
-                                Delivery:
-                                <strong style="font-size:20px;">
-                                    ৳{{ number_format(array_sum(array_column($monthData, 'delivery')) + $monthInhouse['delivery'], 0) }}
-                                </strong>
-                            </span>
-
-                            <span style="margin-left:10px; color:#555;">|</span>
-
-                            <span style="color:#2c3e50;">
-                                Total:
-                                <strong style="font-size:20px;">
-                                    ৳{{ number_format(array_sum(array_column($monthData, 'revenue')) + $monthInhouse['revenue'], 0) }}
-                                </strong>
-                            </span>
-
-                            <span style="margin-left:10px; color:#555;">|</span>
-
-                            <span style="color:#27ae60;">
-                                Paid:
-                                <strong style="font-size:20px;">
-                                    ৳{{ number_format(array_sum(array_column($monthData, 'paid')) + $monthInhouse['paid'], 0) }}
-                                </strong>
-                            </span>
-
-                        </div>
-
-                        <hr style="margin:15px 0; border-top:2px solid #eee;">
-
-                        <!-- Courier Details -->
-                        @foreach($monthData as $courier => $data)
-
-                            @php
-                                $courierLower = strtolower($courier);
-
-                                if (strpos($courierLower, 'pathao') !== false) {
-                                    $courierColor = '#e74c3c';
-                                    $courierBg = '#fff1f0';
-                                } elseif (strpos($courierLower, 'redx') !== false) {
-                                    $courierColor = '#c0392b';
-                                    $courierBg = '#fff5f5';
-                                } else {
-                                    $courierColor = '#3498db';
-                                    $courierBg = '#f0f8ff';
-                                }
-                            @endphp
-
-                            <div class="stat-sub"
-                                 style="
-                                    font-size:17px;
-                                    font-weight:700;
-                                    line-height:2;
-                                    margin-bottom:8px;
-                                    padding:8px 12px;
-                                    background:{{ $courierBg }};
-                                    border-left:5px solid {{ $courierColor }};
-                                    border-radius:4px;
-                                 ">
-
-                                <!-- Courier Name -->
-                                <strong style="
-                                    color:{{ $courierColor }};
-                                    font-size:20px;
-                                    font-weight:900;
-                                ">
-                                    {{ $courier }}
-                                </strong>
-
-                                <span style="color:#777;"> --- </span>
-
-                                <!-- Qty -->
-                                <span style="color:#222;">
-                                    Qty:
-                                    <strong style="font-size:19px;">
-                                        {{ number_format($data['quantity'], 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Price -->
-                                <span style="color:#8e44ad;">
-                                    Price:
-                                    <strong style="font-size:19px;">
-                                        ৳{{ number_format($data['subtotal'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Delivery -->
-                                <span style="color:#e67e22;">
-                                    Delivery:
-                                    <strong style="font-size:19px;">
-                                        ৳{{ number_format($data['delivery'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Total -->
-                                <span style="color:#2c3e50;">
-                                    Total:
-                                    <strong style="font-size:20px;">
-                                        ৳{{ number_format($data['revenue'], 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Paid -->
-                                <span style="color:#27ae60;">
-                                    Paid:
-                                    <strong style="font-size:19px;">
-                                        ৳{{ number_format($data['paid'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Parcels -->
-                                <span style="color:#34495e;">
-                                    Parcels:
-                                    <strong style="font-size:19px;">
-                                        {{ number_format($data['invoices'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                            </div>
-
-                        @endforeach
-
-                        <!-- In House -->
-                        @if($monthInhouse['invoices'] > 0)
-
-                            <hr style="margin:12px 0; border-top:2px solid #eee;">
-
-                            <div class="stat-sub"
-                                 style="
-                                    font-size:17px;
-                                    font-weight:700;
-                                    line-height:2;
-                                    padding:8px 12px;
-                                    background:#edfff4;
-                                    border-left:5px solid #2ecc71;
-                                    border-radius:4px;
-                                 ">
-
-                                <!-- In House Name -->
-                                <strong style="
-                                    color:#27ae60;
-                                    font-size:20px;
-                                    font-weight:900;
-                                ">
-                                    In House
-                                </strong>
-
-                                <span style="color:#777;"> --- </span>
-
-                                <!-- Qty -->
-                                <span style="color:#222;">
-                                    Qty:
-                                    <strong style="font-size:19px;">
-                                        {{ number_format($monthInhouse['quantity'], 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Price -->
-                                <span style="color:#8e44ad;">
-                                    Price:
-                                    <strong style="font-size:19px;">
-                                        ৳{{ number_format($monthInhouse['subtotal'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Delivery -->
-                                <span style="color:#e67e22;">
-                                    Delivery:
-                                    <strong style="font-size:19px;">
-                                        ৳{{ number_format($monthInhouse['delivery'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Total -->
-                                <span style="color:#27ae60;">
-                                    Total:
-                                    <strong style="font-size:20px;">
-                                        ৳{{ number_format($monthInhouse['revenue'], 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Paid -->
-                                <span style="color:#16a085;">
-                                    Paid:
-                                    <strong style="font-size:19px;">
-                                        ৳{{ number_format($monthInhouse['paid'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                                <span style="color:#aaa;"> | </span>
-
-                                <!-- Parcels -->
-                                <span style="color:#34495e;">
-                                    Parcels:
-                                    <strong style="font-size:19px;">
-                                        {{ number_format($monthInhouse['invoices'] ?? 0, 0) }}
-                                    </strong>
-                                </span>
-
-                            </div>
-
-                        @endif
-
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
 </div>
 
 <style>
