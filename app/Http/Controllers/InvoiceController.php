@@ -44,7 +44,7 @@ public function storePos(Request $request)
         'items' => 'required|array|min:1',
         'items.*.item_name' => 'required|string',
         'items.*.quantity' => 'required|integer|min:1',
-        'items.*.unit_price' => 'required|numeric|min:0',
+        'items.*.unit_price' => 'nullable|numeric|min:0',
         'items.*.weight' => 'nullable|integer|min:0',
         'has_return_items' => 'nullable|boolean',
         'return_items' => 'nullable|array',

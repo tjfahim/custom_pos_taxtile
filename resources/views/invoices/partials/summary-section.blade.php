@@ -49,7 +49,7 @@
                     </tr>
                     
                     <!-- Return Items Row -->
-                    <tr id="returnSubtotalRow" style="display: none;" class="text-danger">
+                    <tr id="returnSubtotalRow" class="text-danger">
                         <td>
                             Return Items: 
                             <span class="badge badge-danger" id="returnItemsCount">0</span>

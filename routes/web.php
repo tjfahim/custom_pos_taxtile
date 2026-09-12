@@ -80,7 +80,8 @@ Route::get('/check-customer-status/{phone}', [InvoiceController::class, 'checkCu
 // Admin dashboard routes - accessible by both admin and staff
 Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name('dashboard');
-    
+    Route::get('dashboard2', [DashboardController::class, 'showDashboard2'])->name('dashboard2');
+Route::post('dashboard2/filter', [DashboardController::class, 'filterDashboard2'])->name('dashboard2.filter');
     // CSV download
     Route::get('/invoices/download-today-csv', [InvoiceController::class, 'downloadTodayCSV'])
         ->name('invoices.download-today-csv');

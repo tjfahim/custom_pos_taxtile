@@ -22,7 +22,36 @@
 </div>
 
 <div class="content mt-3">
-    
+    <!-- Date Range Filter -->
+     @if($hasFullAccess)
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="fa fa-filter"></i> <strong>Filter by Date</strong>
+            </div>
+            <div class="card-body">
+                <form action="{{ route('admin.dashboard2.filter') }}" method="POST" class="row align-items-end">
+                    @csrf
+                    <div class="col-md-4 mb-2">
+                        <label>From Date</label>
+                        <input type="date" name="from_date" class="form-control" required>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label>To Date</label>
+                        <input type="date" name="to_date" class="form-control" required>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-search"></i> Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
     @if(!$hasFullAccess)
     <!-- User Welcome Card -->
     <div class="row">
@@ -65,24 +94,15 @@
 
                             <span style="color:#000;">
                                 Total Sell:
-                                <strong style="font-size:20px;">
-                                    {{ number_format(array_sum(array_column($todayData, 'revenue')) + $todayInhouse['revenue'], 0) }}
-                                </strong>
-                                (
+                                   Qty:
+                             
                                 <strong style="font-size:20px;">
                                     {{ number_format(array_sum(array_column($todayData, 'quantity')) + $todayInhouse['quantity'], 0) }}
                                 </strong>
-                                )
+                                
                             </span>
 
-                            <span style="margin-left:10px; color:#555;">|</span>
-
-                            <span style="color:#34495e;">
-                                Total Parcel:
-                                <strong style="font-size:20px;">
-                                    {{ array_sum(array_column($todayData, 'invoices')) + $todayInhouse['invoices'] }}
-                                </strong>
-                            </span>
+                         
 
                             <span style="margin-left:10px; color:#555;">|</span>
 
@@ -101,6 +121,15 @@
                                     ৳{{ number_format(array_sum(array_column($todayData, 'delivery')) + $todayInhouse['delivery'], 0) }}
                                 </strong>
                             </span>
+                                                        <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:;">
+                                Total:
+                                <strong style="font-size:20px;">
+                                     {{ number_format(array_sum(array_column($todayData, 'revenue')) + $todayInhouse['revenue'], 0) }}
+                                </strong>
+                                
+                            </span>
 
                             <span style="margin-left:10px; color:#555;">|</span>
 
@@ -108,6 +137,14 @@
                                 Paid:
                                 <strong style="font-size:20px;">
                                     ৳{{ number_format(array_sum(array_column($todayData, 'paid')) + $todayInhouse['paid'], 0) }}
+                                </strong>
+                            </span>
+                               <span style="margin-left:10px; color:#555;">|</span>
+
+                            <span style="color:#34495e;">
+                                Parcel:
+                                <strong style="font-size:20px;">
+                                    {{ array_sum(array_column($todayData, 'invoices')) + $todayInhouse['invoices'] }}
                                 </strong>
                             </span>
                         </div>
@@ -477,6 +514,111 @@
                                         <td class="text-end fw-bold">৳{{ number_format($member->total_amount, 0) }}</td>
                                         <td class="text-end text-success">৳{{ number_format($member->total_paid, 0) }}</td>
                                         <td class="text-end text-danger">৳{{ number_format($member->total_due, 0) }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-4">
+                            <i class="fa fa-info-circle fa-3x text-muted"></i>
+                            <p class="text-muted mt-2">No team activity today</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+      @if($adminhasFullAccess)
+    @if(isset($topCreators) && $topCreators->count() > 0)
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Creators Performance </strong>
+                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Creator Name</th>
+                                    <th>Email</th>
+                                    <th class="text-center">Memo</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Delivery</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Paid</th>
+                                    <th class="text-end">Due</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($topCreators as $index => $creator)
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td><strong>{{ $creator->name }}</strong></td>
+                                    <td>{{ $creator->email }}</td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
+                                    <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_quantity) }}</span></td>
+                                    <td class="text-end">৳{{ number_format($creator->total_subtotal, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($creator->total_delivery, 0) }}</td>
+                                    <td class="text-end">৳{{ number_format($creator->total_amount, 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($creator->total_paid, 0) }}</td>
+                                    <td class="text-end text-danger">৳{{ number_format($creator->total_due, 0) }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+    @endif
+  @if(!$adminhasFullAccess)
+
+      <div class="row">
+        <div class="col-md-12">
+            <!-- Today's Team Performance -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Team Members Performance</strong>
+                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
+                </div>
+                <div class="card-body">
+@if(!empty($todayPerformance) && $todayPerformance->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Team Member</th>
+                                        <th class="text-end">Price</th>
+                                       
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($todayPerformance as $index => $member)
+                                    <tr>
+                                        <td>{{ $index + 1 }}</td>
+                                        <td>
+                                            <strong>{{ $member->name }}</strong>
+                                            @if($index == 0)
+                                                <span class="badge bg-warning ms-1">
+                                                    <i class="fa fa-trophy"></i> Top
+                                                </span>
+                                            @endif
+                                        </td>
+                                      
+                                        <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
+                                       
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -958,57 +1100,7 @@
 
 
 
-    @if($adminhasFullAccess)
-    @if(isset($topCreators) && $topCreators->count() > 0)
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <i class="fa fa-users me-1"></i>
-                    <strong>Creators Performance </strong>
-                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Creator Name</th>
-                                    <th>Email</th>
-                                    <th class="text-center">Memo</th>
-                                    <th class="text-center">Quantity</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Delivery</th>
-                                    <th class="text-end">Total</th>
-                                    <th class="text-end">Paid</th>
-                                    <th class="text-end">Due</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($topCreators as $index => $creator)
-                                <tr>
-                                    <td>{{ $index + 1 }}</td>
-                                    <td><strong>{{ $creator->name }}</strong></td>
-                                    <td>{{ $creator->email }}</td>
-                                    <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
-                                    <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_quantity) }}</span></td>
-                                    <td class="text-end">৳{{ number_format($creator->total_subtotal, 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($creator->total_delivery, 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($creator->total_amount, 0) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($creator->total_paid, 0) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($creator->total_due, 0) }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-    @endif
+  
 
     @if($adminhasFullAccess && isset($last10Days))
     <!-- Last 10 Days Breakdown -->

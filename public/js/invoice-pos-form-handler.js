@@ -355,11 +355,7 @@ if (selectedTeamMemberId) {
         return false;
     }
     
-    if (!$('#teamMemberSelect').val()) {
-        alert('Please select Team Member');
-        $('#teamMemberSelect').focus();
-        return false;
-    }
+    
     
     const phone = $('#recipientPhone').val().trim();
     if (!phone) {
@@ -446,10 +442,28 @@ if (selectedTeamMemberId) {
         }
     });
     
+const courier = $('#courierName').val();
+
+
+if (courier !== 'Exchange') {
+
+    let validPrices = true;
+
+    $('.unit-price').each(function() {
+        const price = parseFloat($(this).val()) || 0;
+
+        if (price <= 0) {
+            validPrices = false;
+            $(this).focus();
+            return false;
+        }
+    });
+
     if (!validPrices) {
         alert('Please enter valid unit price (greater than 0) for all items');
         return false;
     }
+}
     
     return true;
 },
