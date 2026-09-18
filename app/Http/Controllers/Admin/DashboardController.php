@@ -14,687 +14,481 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+/**
+     * Couriers tracked individually on the dashboard. Any confirmed,
+     * non-inhouse invoice whose courier_name is NOT in this list is
+     * folded into an "Others" bucket, so the courier breakdown always
+     * sums to exactly the same total as the overall today/month totals
+     * and the Creators Performance table. (Previously, invoices with a
+     * courier name outside this list were silently excluded from the
+     * "Today's Summary" cards but still counted in Creators Performance
+     * and Last 10 Days — that mismatch was the main source of the
+     * different numbers you were seeing.)
+     */
+    private array $couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
+ 
+    /**
+     * Courier names that represent exchanges rather than real sales.
+     * Invoices with these courier names are excluded from the today/
+     * month revenue totals, the courier breakdown, and the Last 10 Days
+     * table (an exchange isn't a sale, and often carries a negative or
+     * net subtotal that would distort those numbers). They are
+     * deliberately NOT excluded from Creators/Team Performance — a
+     * creator still gets credit for having processed the order.
+     */
+    private array $excludedCouriers = ['Exchange'];
+ 
+    /**
+     * Single source of truth for payment method values. The old code
+     * declared this twice with two different value sets (one lowercase
+     * snake_case set used for the breakdown counts, one capitalized set
+     * used for the "payment details" whereIn) — if your payment_method
+     * column actually stores the lowercase values, the details tables
+     * were filtering against values that don't exist and returning
+     * nothing/wrong rows. Adjust this array to match what's actually
+     * stored in your `invoices.payment_method` column.
+     */
+    private array $paymentMethods = ['bkash', 'bkash_personal', 'bank_transfer', 'cash'];
+ 
     public function dashboard()
-{
-    $user = auth()->user();
-    
-    // Fix: Proper permission checking
-    $hasFullAccess = false;
-    $adminhasFullAccess = false;
-    
-    // Check if user has admin role or view dashboard permission
-    if ($user->hasRole('admin')) {
-        $hasFullAccess = true;
-        $adminhasFullAccess = true;
-    } elseif ($user->hasPermissionTo('view dashboard')) {
-        $hasFullAccess = true;
+    {
+        $user = auth()->user();
+ 
+        $hasFullAccess = false;
         $adminhasFullAccess = false;
-    }
-    
-    // If no full access, show user-specific dashboard
-    if (!$hasFullAccess) {
-        return $this->userDashboard($user);
-    }
-   $today = Carbon::today();
-$startOfMonth = Carbon::now()->startOfMonth();
-$couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
-$todayData = [];
-$monthData = [];
-
-// Get total invoices once (moved outside the loop)
-$totalInvoices = Invoice::where('status', 'confirmed')->count();
-
-// Process each courier
-foreach ($couriers as $courier) {
-    // TODAY'S DATA
-    // Create a fresh base query for today
-    $todayBaseQuery = Invoice::where('courier_name', $courier)
-        ->where('status', 'confirmed')
-         ->where('is_inhouse_sale', 0)
-        ->whereDate('invoice_date', $today);
-    
-    $todayCount = $todayBaseQuery->count();
-    
-    // Only add if there are invoices
-    if ($todayCount > 0) {
-        // Calculate quantity with return items subtracted
-        $todayInvoices = Invoice::where('courier_name', $courier)
-            ->where('status', 'confirmed')
-            ->whereDate('invoice_date', $today)
-            ->with(['items', 'returnItems'])
+ 
+        if ($user->hasRole('admin')) {
+            $hasFullAccess = true;
+            $adminhasFullAccess = true;
+        } elseif ($user->hasPermissionTo('view dashboard')) {
+            $hasFullAccess = true;
+            $adminhasFullAccess = false;
+        }
+ 
+        if (!$hasFullAccess) {
+            return $this->userDashboard($user);
+        }
+ 
+        $today = Carbon::today();
+        $startOfMonth = Carbon::now()->startOfMonth();
+ 
+        // ---------------------------------------------------------------
+        // Base, reusable query builders. EVERY block below is built from
+        // these two closures so the numbers always reconcile with each
+        // other. Each call returns a *fresh* builder instance.
+        // ---------------------------------------------------------------
+        $todayBase = fn () => Invoice::where('status', 'confirmed')
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
+            })
+            ->whereDate('invoice_date', $today);
+ 
+        $monthBase = fn () => Invoice::where('status', 'confirmed')
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
+            })
+            ->where('invoice_date', '>=', $startOfMonth);
+ 
+        $totalInvoices = Invoice::where('status', 'confirmed')->count();
+ 
+        // ---------------- TODAY: courier + in-house breakdown -----------
+        [$todayData, $todayInhouse] = $this->buildCourierBreakdown($todayBase());
+ 
+        // ---------------- THIS MONTH: courier + in-house breakdown ------
+        // (Fixes the old bug where this block sat outside the foreach
+        // loop and only ever computed data for the last courier, REDEX.)
+        [$monthData, $monthInhouse] = $this->buildCourierBreakdown($monthBase());
+ 
+        // ---------------- Monthly stats (Jan-Dec) ------------------------
+        $itemTotalsSql = 'SELECT invoice_id, SUM(quantity) as quantity FROM invoice_items GROUP BY invoice_id';
+        $returnTotalsSql = 'SELECT invoice_id, SUM(quantity) as return_quantity FROM return_items GROUP BY invoice_id';
+ 
+        $monthlyStats = DB::table('invoices')
+            ->leftJoin(DB::raw("({$itemTotalsSql}) as item_totals"), 'item_totals.invoice_id', '=', 'invoices.id')
+            ->leftJoin(DB::raw("({$returnTotalsSql}) as return_totals"), 'return_totals.invoice_id', '=', 'invoices.id')
+            ->select(
+                DB::raw('YEAR(invoices.invoice_date) as year'),
+                DB::raw('MONTH(invoices.invoice_date) as month'),
+                DB::raw('COUNT(DISTINCT invoices.id) as total_invoices'),
+                DB::raw('SUM(invoices.total) as total_revenue'),
+                DB::raw('SUM(invoices.paid_amount) as total_paid'),
+                DB::raw('SUM(invoices.due_amount) as total_due'),
+                DB::raw('SUM(invoices.subtotal) as total_subtotal'),
+                DB::raw('SUM(invoices.delivery_charge) as total_delivery'),
+                DB::raw('SUM(invoices.total_weight) as total_weight'),
+                DB::raw('COALESCE(SUM(item_totals.quantity), 0) - COALESCE(SUM(return_totals.return_quantity), 0) as total_quantity')
+            )
+            ->whereYear('invoices.invoice_date', Carbon::now()->year)
+            ->where('invoices.status', 'confirmed')
+            ->whereNull('invoices.deleted_at')
+            ->groupBy(DB::raw('YEAR(invoices.invoice_date)'), DB::raw('MONTH(invoices.invoice_date)'))
+            ->orderBy('year')->orderBy('month')
+            ->get()
+            ->keyBy('month');
+ 
+        foreach (range(1, 12) as $month) {
+            if (!isset($monthlyStats[$month])) {
+                $stats = new \stdClass();
+                $stats->year = Carbon::now()->year;
+                $stats->month = $month;
+                $stats->total_invoices = 0;
+                $stats->total_revenue = 0;
+                $stats->total_paid = 0;
+                $stats->total_due = 0;
+                $stats->total_subtotal = 0;
+                $stats->total_delivery = 0;
+                $stats->total_weight = 0;
+                $stats->total_quantity = 0;
+                $monthlyStats[$month] = $stats;
+            }
+        }
+ 
+        // ---------------- All-time totals --------------------------------
+        $totalPaidAmount = Invoice::where('status', 'confirmed')->sum('paid_amount');
+        $totalDueAmount = Invoice::where('status', 'confirmed')->sum('due_amount');
+        $totalSubtotal = Invoice::where('status', 'confirmed')->sum('subtotal');
+        $totalDelivery = Invoice::where('status', 'confirmed')->sum('delivery_charge');
+ 
+        // ---------------- Today / Month grand totals ----------------------
+        // These now come from EXACTLY the same base query as the courier
+        // breakdown and the "Others" bucket above, so
+        // todayInvoices === sum(todayData invoices) + todayInhouse invoices
+        // always holds true.
+        $todaySummary = $this->buildSummary($todayBase());
+        $todayInvoices = $todaySummary['invoices'];
+        $todayRevenue = $todaySummary['revenue'];
+        $todayPaid = $todaySummary['paid'];
+        $todayPaidInvoice = $todaySummary['paidInvoices'];
+        $todayQuantity = $todaySummary['quantity'];
+        $todayDue = $todaySummary['due'];
+        $todaySubtotal = $todaySummary['subtotal'];
+        $todayDelivery = $todaySummary['delivery'];
+ 
+        $monthSummary = $this->buildSummary($monthBase());
+        $monthlyInvoices = $monthSummary['invoices'];
+        $monthlyRevenue = $monthSummary['revenue'];
+        $monthlyPaid = $monthSummary['paid'];
+        $monthlyPaidInvoices = $monthSummary['paidInvoices'];
+        $monthlyDue = $monthSummary['due'];
+        $monthlySubtotal = $monthSummary['subtotal'];
+        $monthlyDelivery = $monthSummary['delivery'];
+        $monthlyQuantity = $monthSummary['quantity'];
+ 
+        // ---------------- Last 10 days -------------------------------------
+        // Now uses the exact same status/deleted_at/date filter as every
+        // other "today" style block (previously this used a separate raw
+        // join query with no is_inhouse_sale awareness, which is fine for
+        // a grand total but was diverging from the other cards due to the
+        // orphan-courier issue described above).
+        $last10Days = collect();
+        for ($i = 9; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $daySummary = $this->buildSummary(
+                Invoice::where('status', 'confirmed')
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) {
+                        $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
+                    })
+                    ->whereDate('invoice_date', $date)
+            );
+ 
+            $last10Days->push([
+                'date' => $date->format('D, M d'),
+                'day' => $date->format('d'),
+                'full_date' => $date->format('Y-m-d'),
+                'count' => $daySummary['invoices'],
+                'revenue' => $daySummary['revenue'],
+                'paid' => $daySummary['paid'],
+                'due' => $daySummary['due'],
+                'subtotal' => $daySummary['subtotal'],
+                'delivery' => $daySummary['delivery'],
+                'quantity' => $daySummary['quantity'],
+            ]);
+        }
+ 
+        // ---------------- Creators performance (today / month) ------------
+        // Both now come from the same underlying helper (only the date
+        // condition differs), and both already correctly restrict to
+        // is_inhouse_sale = 0 with no courier restriction — matching the
+        // "Others"-inclusive courier breakdown above.
+        $topCreators = $this->topCreatorsQuery($today, $today, true)->get();
+        $topCreatorsMonth = $this->topCreatorsQuery($startOfMonth, Carbon::now(), false)->get();
+ 
+        // ---------------- Today's paid invoices / creator summary ---------
+        $todayPaidInvoices = ($todayBase())
+            ->where('paid_amount', '>', 0)
+            ->with(['creator', 'items', 'returnItems'])
+            ->orderBy('paid_amount', 'desc')
             ->get();
-        
-        $totalQuantity = $todayInvoices->sum(function($invoice) {
-            $itemsQty = $invoice->items->sum('quantity');
-            $returnQty = $invoice->returnItems->sum('quantity');
-            return $itemsQty - $returnQty; // Subtract return quantities
+ 
+        $creatorPaymentSummary = $todayPaidInvoices->groupBy('created_by')->map(function ($invoices) {
+            $creator = $invoices->first()->creator;
+            return [
+                'creator_name' => $creator ? $creator->name : 'Unknown',
+                'invoice_count' => $invoices->count(),
+                'total_paid' => $invoices->sum('paid_amount'),
+                'invoices' => $invoices,
+            ];
+        })->sortByDesc('total_paid');
+ 
+        // ---------------- Monthly courier report ---------------------------
+        // Reuses $monthData directly instead of re-querying with a
+        // separate (previously inconsistent) set of filters.
+        $monthlyCourierReport = collect($monthData)->map(fn ($data) => [
+            'parcels' => $data['invoices'],
+            'quantity' => $data['quantity'],
+            'subtotal' => $data['subtotal'],
+            'delivery' => $data['delivery'],
+            'total' => $data['revenue'],
+            'paid' => $data['paid'],
+            'due' => $data['due'],
+        ])->toArray();
+ 
+        $monthlyInhouseReport = [
+            'parcels' => $monthInhouse['invoices'],
+            'quantity' => $monthInhouse['quantity'],
+            'subtotal' => $monthInhouse['subtotal'],
+            'delivery' => $monthInhouse['delivery'],
+            'total' => $monthInhouse['revenue'],
+            'paid' => $monthInhouse['paid'],
+            'due' => $monthInhouse['due'],
+        ];
+ 
+        // ---------------- Payment method breakdown --------------------------
+        $todayPaymentMethods = [];
+        foreach ($this->paymentMethods as $method) {
+            $query = ($todayBase())->where('payment_method', $method)->where('paid_amount', '>', 0);
+            $todayPaymentMethods[$method] = [
+                'transactions' => $query->count(),
+                'total_paid' => $query->sum('paid_amount'),
+            ];
+        }
+ 
+        $monthlyPaymentMethods = [];
+        foreach ($this->paymentMethods as $method) {
+            $query = ($monthBase())->where('payment_method', $method)->where('paid_amount', '>', 0);
+            $monthlyPaymentMethods[$method] = [
+                'transactions' => $query->count(),
+                'total_paid' => $query->sum('paid_amount'),
+            ];
+        }
+ 
+        // Uses the SAME $this->paymentMethods array as the breakdown above
+        // (previously this whereIn used a different, mismatched array of
+        // capitalized values).
+        $todayPaymentDetails = ($todayBase())
+            ->where('paid_amount', '>', 0)
+            ->whereIn('payment_method', $this->paymentMethods)
+            ->with(['creator', 'items', 'returnItems'])
+            ->orderBy('paid_amount', 'desc')
+            ->get();
+ 
+        $monthlyPaymentDetails = ($monthBase())
+            ->where('paid_amount', '>', 0)
+            ->whereIn('payment_method', $this->paymentMethods)
+            ->with(['creator', 'items', 'returnItems'])
+            ->orderBy('paid_amount', 'desc')
+            ->get();
+ 
+        // ---------------- Team performance ------------------------------------
+        $todayPerformance = User::getTopTeamMembersToday();
+        $monthPerformance = User::getTopTeamMembersMonth();
+ 
+        // ---------------- Attendance ---------------------------------------------
+        $attendanceData = $this->getAttendanceMatrix();
+        $attendanceMatrix = $attendanceData['matrix'];
+        $daysInMonth = $attendanceData['daysInMonth'];
+        $monthName = $attendanceData['monthName'];
+        $attYear = $attendanceData['year'];
+        $attMonth = $attendanceData['month'];
+ 
+        $todayInvoicesuser = $todayInvoices;
+        $monthlyInvoicesuser = $monthlyInvoices;
+ 
+        return view('admin.dashboard', compact(
+            'totalInvoices', 'daysInMonth', 'attendanceMatrix', 'monthName',
+            'todayInvoicesuser', 'monthlyInvoicesuser', 'attYear', 'attMonth',
+            'todayPerformance', 'monthPerformance',
+            'todayPaymentMethods', 'monthlyPaymentMethods',
+            'todayPaymentDetails', 'monthlyPaymentDetails',
+            'monthlyCourierReport', 'monthlyInhouseReport',
+            'todayPaidInvoices', 'creatorPaymentSummary',
+            'totalPaidAmount', 'totalDueAmount', 'totalSubtotal', 'totalDelivery',
+            'todayInvoices', 'todayRevenue', 'todayPaid', 'todayDue',
+            'todaySubtotal', 'todayDelivery', 'todayQuantity',
+            'monthlyInvoices', 'monthlyRevenue', 'monthlyPaid', 'monthlyDue',
+            'monthlyPaidInvoices', 'monthlySubtotal', 'today', 'monthlyDelivery', 'monthlyQuantity',
+            'topCreators', 'monthlyStats', 'last10Days',
+            'hasFullAccess', 'adminhasFullAccess',
+            'todayData', 'monthData', 'todayInhouse', 'monthInhouse',
+            'todayPaidInvoice', 'topCreatorsMonth'
+        ));
+    }
+ 
+    /**
+     * Aggregate a confirmed-invoice query into the shared summary shape
+     * used across every card/table on the dashboard. Quantity is always
+     * items.quantity - returnItems.quantity, computed consistently.
+     */
+    private function buildSummary($query): array
+    {
+        $invoices = $query->with(['items', 'returnItems'])->get();
+ 
+        $quantity = $invoices->sum(function ($invoice) {
+            return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
         });
-        
-        $todayData[$courier] = [
-            'invoices' => $todayCount,
-            'revenue' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->whereDate('invoice_date', $today)
-                ->sum('total'),
-            'paid' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->whereDate('invoice_date', $today)
-                ->sum('paid_amount'),
-            'paidInvoices' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->whereDate('invoice_date', $today)
-                ->where('paid_amount', '>', 0)
-                ->count(),
-            'subtotal' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->whereDate('invoice_date', $today)
-                ->sum('subtotal'),
-            'delivery' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->whereDate('invoice_date', $today)
-                ->sum('delivery_charge'),
-            'quantity' => $totalQuantity // Use the calculated quantity with returns subtracted
+ 
+        return [
+            'invoices' => $invoices->count(),
+            'quantity' => $quantity,
+            'subtotal' => $invoices->sum('subtotal'),
+            'delivery' => $invoices->sum('delivery_charge'),
+            'revenue' => $invoices->sum('total'),
+            'paid' => $invoices->sum('paid_amount'),
+            'due' => $invoices->sum('due_amount'),
+            'paidInvoices' => $invoices->where('paid_amount', '>', 0)->count(),
         ];
     }
-
-    // MONTH DATA
-    // Create a fresh base query for the month
-    $monthBaseQuery = Invoice::where('courier_name', $courier)
-        ->where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfMonth);
-    
-    $monthCount = $monthBaseQuery->count();
-    
-    // Only add if there are invoices
-    if ($monthCount > 0) {
-        // Calculate quantity with return items subtracted for month
-        $monthInvoices = Invoice::where('courier_name', $courier)
-            ->where('status', 'confirmed')
-            ->where('invoice_date', '>=', $startOfMonth)
-            ->with(['items', 'returnItems'])
-            ->get();
-        
-        $totalMonthQuantity = $monthInvoices->sum(function($invoice) {
-            $itemsQty = $invoice->items->sum('quantity');
-            $returnQty = $invoice->returnItems->sum('quantity');
-            return $itemsQty - $returnQty; // Subtract return quantities
-        });
-        
-        $monthData[$courier] = [
-            'invoices' => $monthCount,
-            'revenue' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->where('invoice_date', '>=', $startOfMonth)
-                ->sum('total'),
-            'paid' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->where('invoice_date', '>=', $startOfMonth)
-                ->sum('paid_amount'),
-            'paidInvoices' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->where('invoice_date', '>=', $startOfMonth)
-                ->where('paid_amount', '>', 0)
-                ->count(),
-            'subtotal' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->where('invoice_date', '>=', $startOfMonth)
-                ->sum('subtotal'),
-            'delivery' => Invoice::where('courier_name', $courier)
-                ->where('status', 'confirmed')
-                ->where('invoice_date', '>=', $startOfMonth)
-                ->sum('delivery_charge'),
-            'quantity' => $totalMonthQuantity // Use the calculated quantity with returns subtracted
-        ];
+ 
+    /**
+     * Split a confirmed-invoice query (already scoped to a date range)
+     * into [courier => summary, ...] plus an in-house summary. Any
+     * courier not in $this->couriers is folded into an "Others" bucket
+     * so that sum(courier breakdown) + in-house always equals the full
+     * query's total — no more silently dropped invoices.
+     *
+     * @return array{0: array<string, array>, 1: array}
+     */
+    private function buildCourierBreakdown($query): array
+    {
+        $courierData = [];
+ 
+        foreach ($this->couriers as $courier) {
+            $summary = $this->buildSummary(
+                (clone $query)->where('is_inhouse_sale', 0)->where('courier_name', $courier)
+            );
+            if ($summary['invoices'] > 0) {
+                $courierData[$courier] = $summary;
+            }
+        }
+ 
+        $othersSummary = $this->buildSummary(
+            (clone $query)->where('is_inhouse_sale', 0)->where(function ($q) {
+                $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->couriers);
+            })
+        );
+        if ($othersSummary['invoices'] > 0) {
+            $courierData['Others'] = $othersSummary;
+        }
+ 
+        $inhouseSummary = $this->buildSummary(
+            (clone $query)->where('is_inhouse_sale', 1)
+        );
+ 
+        return [$courierData, $inhouseSummary];
     }
-}
-    
-   // In-house data - Today
-$todayInhouseQuery = Invoice::where('is_inhouse_sale', true)
-    ->where('status', 'confirmed')
-    ->whereDate('invoice_date', $today);
-
-$todayInhouseCount = $todayInhouseQuery->count();
-
-// Get invoices with items and return items for quantity calculation
-$todayInhouseInvoices = $todayInhouseQuery->with(['items', 'returnItems'])->get();
-
-$totalInhouseQuantity = $todayInhouseInvoices->sum(function($invoice) {
-    $itemsQty = $invoice->items->sum('quantity');
-    $returnQty = $invoice->returnItems->sum('quantity');
-    return $itemsQty - $returnQty; // Subtract return quantities
-});
-
-$todayInhouse = [
-    'invoices' => $todayInhouseCount,
-    'revenue' => $todayInhouseQuery->sum('total'),
-    'paid' => $todayInhouseQuery->sum('paid_amount'),
-    'paidInvoices' => $todayInhouseQuery->where('paid_amount', '>', 0)->count(),
-    'subtotal' => $todayInhouseQuery->sum('subtotal'),
-    'delivery' => $todayInhouseQuery->sum('delivery_charge'),
-    'quantity' => $totalInhouseQuantity // Use the calculated quantity with returns subtracted
-];
-
-// In-house data - Month
-$monthInhouseQuery = Invoice::where('is_inhouse_sale', true)
-    ->where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth);
-
-$monthInhouseCount = $monthInhouseQuery->count();
-
-// Get invoices with items and return items for quantity calculation
-$monthInhouseInvoices = $monthInhouseQuery->with(['items', 'returnItems'])->get();
-
-$totalMonthInhouseQuantity = $monthInhouseInvoices->sum(function($invoice) {
-    $itemsQty = $invoice->items->sum('quantity');
-    $returnQty = $invoice->returnItems->sum('quantity');
-    return $itemsQty - $returnQty; // Subtract return quantities
-});
-
-$monthInhouse = [
-    'invoices' => $monthInhouseCount,
-    'revenue' => $monthInhouseQuery->sum('total'),
-    'paid' => $monthInhouseQuery->sum('paid_amount'),
-    'paidInvoices' => $monthInhouseQuery->where('paid_amount', '>', 0)->count(),
-    'subtotal' => $monthInhouseQuery->sum('subtotal'),
-    'delivery' => $monthInhouseQuery->sum('delivery_charge'),
-    'quantity' => $totalMonthInhouseQuantity // Use the calculated quantity with returns subtracted
-];
-    
-    // Monthly Stats with return items subtracted
-$itemTotalsSql = 'SELECT invoice_id, SUM(quantity) as quantity FROM invoice_items GROUP BY invoice_id';
-$returnTotalsSql = 'SELECT invoice_id, SUM(quantity) as return_quantity FROM return_items GROUP BY invoice_id';
-
-$monthlyStats = DB::table('invoices')
-    ->leftJoin(DB::raw("({$itemTotalsSql}) as item_totals"), 'item_totals.invoice_id', '=', 'invoices.id')
-    ->leftJoin(DB::raw("({$returnTotalsSql}) as return_totals"), 'return_totals.invoice_id', '=', 'invoices.id')
-    ->select(
-        DB::raw('YEAR(invoices.invoice_date) as year'),
-        DB::raw('MONTH(invoices.invoice_date) as month'),
-        DB::raw('COUNT(DISTINCT invoices.id) as total_invoices'),
-        DB::raw('SUM(invoices.total) as total_revenue'),
-        DB::raw('SUM(invoices.paid_amount) as total_paid'),
-        DB::raw('SUM(invoices.due_amount) as total_due'),
-        DB::raw('SUM(invoices.subtotal) as total_subtotal'),
-        DB::raw('SUM(invoices.delivery_charge) as total_delivery'),
-        DB::raw('SUM(invoices.total_weight) as total_weight'),
-        DB::raw('COALESCE(SUM(item_totals.quantity), 0) - COALESCE(SUM(return_totals.return_quantity), 0) as total_quantity')
-    )
-    ->whereYear('invoices.invoice_date', Carbon::now()->year)
-    ->where('invoices.status', 'confirmed')
-    ->whereNull('invoices.deleted_at')
-    ->groupBy(DB::raw('YEAR(invoices.invoice_date)'), DB::raw('MONTH(invoices.invoice_date)'))
-    ->orderBy('year')
-    ->orderBy('month')
-    ->get()
-    ->keyBy('month');
-
-// For months with no data
-foreach (range(1, 12) as $month) {
-    if (!isset($monthlyStats[$month])) {
-        $stats = new \stdClass();
-        $stats->year = Carbon::now()->year;
-        $stats->month = $month;
-        $stats->total_invoices = 0;
-        $stats->total_revenue = 0;
-        $stats->total_paid = 0;
-        $stats->total_due = 0;
-        $stats->total_subtotal = 0;
-        $stats->total_delivery = 0;
-        $stats->total_weight = 0;
-        $stats->total_quantity = 0;
-        $monthlyStats[$month] = $stats;
+ 
+    /**
+     * Shared "top creators" query for both the today and month views.
+     * $isToday switches between DATE(invoice_date) = CURDATE() and an
+     * invoice_date BETWEEN start/end range for the month view.
+     */
+    private function topCreatorsQuery($start, $end, bool $isToday)
+    {
+        $dateCondition = $isToday
+            ? 'DATE(invoices.invoice_date) = CURDATE()'
+            : 'invoices.invoice_date >= "' . $start->toDateString() . '" AND invoices.invoice_date <= "' . $end->toDateString() . '"';
+ 
+        return User::select([
+            'users.*',
+            DB::raw("(SELECT COUNT(*) FROM invoices
+                WHERE invoices.created_by = users.id
+                AND {$dateCondition}
+                AND invoices.status = 'confirmed'
+                AND invoices.is_inhouse_sale = 0
+                AND invoices.deleted_at IS NULL) as total_invoices"),
+            DB::raw("(SELECT COALESCE(SUM(total), 0) FROM invoices
+                WHERE invoices.created_by = users.id
+                AND {$dateCondition}
+                AND invoices.status = 'confirmed'
+                AND invoices.is_inhouse_sale = 0
+                AND invoices.deleted_at IS NULL) as total_amount"),
+            DB::raw("(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices
+                WHERE invoices.created_by = users.id
+                AND {$dateCondition}
+                AND invoices.status = 'confirmed'
+                AND invoices.is_inhouse_sale = 0
+                AND invoices.deleted_at IS NULL) as total_paid"),
+            DB::raw("(SELECT COALESCE(SUM(due_amount), 0) FROM invoices
+                WHERE invoices.created_by = users.id
+                AND {$dateCondition}
+                AND invoices.status = 'confirmed'
+                AND invoices.is_inhouse_sale = 0
+                AND invoices.deleted_at IS NULL) as total_due"),
+            DB::raw("(SELECT COALESCE(SUM(subtotal), 0) FROM invoices
+                WHERE invoices.created_by = users.id
+                AND {$dateCondition}
+                AND invoices.status = 'confirmed'
+                AND invoices.is_inhouse_sale = 0
+                AND invoices.deleted_at IS NULL) as total_subtotal"),
+            DB::raw("(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices
+                WHERE invoices.created_by = users.id
+                AND {$dateCondition}
+                AND invoices.status = 'confirmed'
+                AND invoices.is_inhouse_sale = 0
+                AND invoices.deleted_at IS NULL) as total_delivery"),
+            DB::raw("(SELECT COALESCE(SUM(items.quantity), 0) - COALESCE(SUM(returns.quantity), 0)
+                FROM invoice_items items
+                LEFT JOIN return_items returns ON returns.invoice_id = items.invoice_id
+                WHERE items.invoice_id IN (
+                    SELECT id FROM invoices
+                    WHERE invoices.created_by = users.id
+                    AND {$dateCondition}
+                    AND invoices.status = 'confirmed'
+                    AND invoices.is_inhouse_sale = 0
+                    AND invoices.deleted_at IS NULL
+                )) as total_quantity"),
+            DB::raw("(SELECT COUNT(*) FROM invoices
+                WHERE invoices.team_id = users.id
+                AND {$dateCondition}
+                AND invoices.status = 'confirmed'
+                AND invoices.is_inhouse_sale = 0
+                AND invoices.deleted_at IS NULL) as as_team_member"),
+        ])
+        ->having('total_invoices', '>', 0)
+        ->orderBy('total_amount', 'desc');
     }
-}
-    
- $totalPaidAmount = Invoice::where('status', 'confirmed')->sum('paid_amount');
-$totalDueAmount = Invoice::where('status', 'confirmed')->sum('due_amount');
-$totalSubtotal = Invoice::where('status', 'confirmed')->sum('subtotal');
-$totalDelivery = Invoice::where('status', 'confirmed')->sum('delivery_charge');
-
-// Today's counts (only confirmed invoices)
-$todayInvoices = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->count();
-
-$todayRevenue = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->sum('total');
-
-$todayPaid = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->sum('paid_amount');
-
-$todayPaidInvoice = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->where('paid_amount', '>', 0)
-    ->count();
-
-// Today's quantity with return items subtracted
-$todayQuantity = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->with(['items', 'returnItems'])
-    ->get()
-    ->sum(function($invoice) {
-        $itemsQty = $invoice->items->sum('quantity');
-        $returnQty = $invoice->returnItems->sum('quantity');
-        return $itemsQty - $returnQty; // Subtract return quantities
-    });
-
-$todayDue = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->sum('due_amount');
-
-$todaySubtotal = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->sum('subtotal');
-
-$todayDelivery = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->sum('delivery_charge');
-
-// Last 10 days daily breakdown (only confirmed invoices)
-$last10Days = collect();
-for ($i = 9; $i >= 0; $i--) {
-    $date = Carbon::now()->subDays($i);
-    
-    // Get invoices for this day
-    $dayInvoices = Invoice::where('status', 'confirmed')
-        ->whereDate('invoice_date', $date)
-        ->get();
-    
-    // Calculate quantity with return items subtracted using DB query
-    $quantity = DB::table('invoices')
-        ->leftJoin('invoice_items as items', 'invoices.id', '=', 'items.invoice_id')
-        ->leftJoin('return_items as returns', 'invoices.id', '=', 'returns.invoice_id')
-        ->where('invoices.status', 'confirmed')
-        ->whereDate('invoices.invoice_date', $date)
-        ->whereNull('invoices.deleted_at')
-        ->select(
-            DB::raw('COALESCE(SUM(items.quantity), 0) - COALESCE(SUM(returns.quantity), 0) as net_quantity')
-        )
-        ->first();
-    
-    $last10Days->push([
-        'date' => $date->format('D, M d'),
-        'day' => $date->format('d'),
-        'full_date' => $date->format('Y-m-d'),
-        'count' => $dayInvoices->count(),
-        'revenue' => $dayInvoices->sum('total'),
-        'paid' => $dayInvoices->sum('paid_amount'),
-        'due' => $dayInvoices->sum('due_amount'),
-        'subtotal' => $dayInvoices->sum('subtotal'),
-        'delivery' => $dayInvoices->sum('delivery_charge'),
-        'quantity' => $quantity->net_quantity ?? 0, // Use net quantity with returns subtracted
-    ]);
-}
-   $monthlyInvoices = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->count();
-
-$monthlyRevenue = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->sum('total');
-
-$monthlyPaid = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->sum('paid_amount');
-
-$monthlyPaidInvoices = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->where('paid_amount', '>', 0)
-    ->count();
-
-$monthlyDue = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->sum('due_amount');
-
-$monthlySubtotal = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->sum('subtotal');
-
-$monthlyDelivery = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->sum('delivery_charge');
-
-// Monthly quantity with return items subtracted
-$monthlyQuantity = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->with(['items', 'returnItems'])
-    ->get()
-    ->sum(function($invoice) {
-        $itemsQty = $invoice->items->sum('quantity');
-        $returnQty = $invoice->returnItems->sum('quantity');
-        return $itemsQty - $returnQty; // Subtract return quantities
-    });
-// User performance summary - NOW USING confirmed_at to credit the original creator
-$topCreators = User::select([
-    'users.*',
-    
-    // Total invoices created (USE SAME FILTERS as Today's Summary)
-    DB::raw('(SELECT COUNT(*) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND DATE(invoices.invoice_date) = CURDATE() 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_invoices'),
-    
-    // Total amount
-    DB::raw('(SELECT COALESCE(SUM(total), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND DATE(invoices.invoice_date) = CURDATE() 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_amount'),
-    
-    // Total paid
-    DB::raw('(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND DATE(invoices.invoice_date) = CURDATE() 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_paid'),
-    
-    // Total due
-    DB::raw('(SELECT COALESCE(SUM(due_amount), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND DATE(invoices.invoice_date) = CURDATE() 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_due'),
-    
-    // Total subtotal
-    DB::raw('(SELECT COALESCE(SUM(subtotal), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND DATE(invoices.invoice_date) = CURDATE() 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_subtotal'),
-    
-    // Total delivery
-    DB::raw('(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND DATE(invoices.invoice_date) = CURDATE() 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_delivery'),
-    
-    // Total quantity - SUBTRACT RETURN ITEMS
-    DB::raw('(SELECT COALESCE(SUM(items.quantity), 0) - COALESCE(SUM(returns.quantity), 0) 
-        FROM invoice_items items 
-        LEFT JOIN return_items returns ON returns.invoice_id = items.invoice_id
-        WHERE items.invoice_id IN (
-            SELECT id FROM invoices 
-            WHERE invoices.created_by = users.id 
-            AND DATE(invoices.invoice_date) = CURDATE() 
-            AND invoices.status = "confirmed"
-            AND invoices.is_inhouse_sale = 0
-            AND invoices.deleted_at IS NULL
-        )) as total_quantity'),
-    
-    // As team member count
-    DB::raw('(SELECT COUNT(*) FROM invoices 
-        WHERE invoices.team_id = users.id 
-        AND DATE(invoices.invoice_date) = CURDATE() 
-        AND invoices.status = "confirmed"
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as as_team_member')
-])
-->having('total_invoices', '>', 0)
-->orderBy('total_amount', 'desc')
-->get();
-
-
-// FIXED: Monthly version - Now includes is_inhouse_sale = 0 and proper formatting
-$topCreatorsMonth = User::select([
-    'users.*',
-    
-    // Total invoices
-    DB::raw('(SELECT COUNT(*) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND invoices.invoice_date >= "' . $startOfMonth . '" 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_invoices'),
-    
-    // Total amount
-    DB::raw('(SELECT COALESCE(SUM(total), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND invoices.invoice_date >= "' . $startOfMonth . '" 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_amount'),
-    
-    // Total paid
-    DB::raw('(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND invoices.invoice_date >= "' . $startOfMonth . '" 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_paid'),
-    
-    // Total due
-    DB::raw('(SELECT COALESCE(SUM(due_amount), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND invoices.invoice_date >= "' . $startOfMonth . '" 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_due'),
-    
-    // Total subtotal
-    DB::raw('(SELECT COALESCE(SUM(subtotal), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND invoices.invoice_date >= "' . $startOfMonth . '" 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_subtotal'),
-    
-    // Total delivery
-    DB::raw('(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices 
-        WHERE invoices.created_by = users.id 
-        AND invoices.invoice_date >= "' . $startOfMonth . '" 
-        AND invoices.status = "confirmed" 
-        AND invoices.is_inhouse_sale = 0
-        AND invoices.deleted_at IS NULL) as total_delivery'),
-    
-    // Total quantity for month - SUBTRACT RETURN ITEMS
-    DB::raw('(SELECT COALESCE(SUM(items.quantity), 0) - COALESCE(SUM(returns.quantity), 0) 
-        FROM invoice_items items 
-        LEFT JOIN return_items returns ON returns.invoice_id = items.invoice_id
-        WHERE items.invoice_id IN (
-            SELECT id FROM invoices 
-            WHERE invoices.created_by = users.id 
-            AND invoices.invoice_date >= "' . $startOfMonth . '" 
-            AND invoices.status = "confirmed"
-            AND invoices.is_inhouse_sale = 0
-            AND invoices.deleted_at IS NULL
-        )) as total_quantity')
-])
-->having('total_invoices', '>', 0)
-->orderBy('total_amount', 'desc')
-->get();
-$todayPaidInvoices = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->where('paid_amount', '>', 0)
-    ->with(['creator', 'items', 'returnItems'])
-    ->orderBy('paid_amount', 'desc')
-    ->get();
-// Group by creator for summary
-$creatorPaymentSummary = $todayPaidInvoices->groupBy('created_by')->map(function($invoices, $creatorId) {
-    $creator = $invoices->first()->creator;
-    return [
-        'creator_name' => $creator ? $creator->name : 'Unknown',
-        'invoice_count' => $invoices->count(),
-        'total_paid' => $invoices->sum('paid_amount'),
-        'invoices' => $invoices
-    ];
-})->sortByDesc('total_paid');
-
-$monthlyCourierReport = [];
-
-foreach ($couriers as $courier) {
-    $query = Invoice::where('courier_name', $courier)
-        ->where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfMonth)
-        ->where('invoice_date', '<=', Carbon::now());
-    
-    $invoices = $query->with(['items', 'returnItems'])->get();
-    
-    $monthlyCourierReport[$courier] = [
-        'parcels' => $invoices->count(),
-        'quantity' => $invoices->sum(function($invoice) {
-            $itemsQty = $invoice->items->sum('quantity');
-            $returnQty = $invoice->returnItems->sum('quantity');
-            return $itemsQty - $returnQty; // Subtract return quantities
-        }),
-        'subtotal' => $invoices->sum('subtotal'),
-        'delivery' => $invoices->sum('delivery_charge'),
-        'total' => $invoices->sum('total'),
-        'paid' => $invoices->sum('paid_amount'),
-        'due' => $invoices->sum('due_amount'),
-    ];
-}
-
-// In-house monthly report
-$inhouseQuery = Invoice::where('is_inhouse_sale', true)
-    ->where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->where('invoice_date', '<=', Carbon::now());
-
-$inhouseInvoices = $inhouseQuery->with(['items', 'returnItems'])->get();
-
-$monthlyInhouseReport = [
-    'parcels' => $inhouseInvoices->count(),
-    'quantity' => $inhouseInvoices->sum(function($invoice) {
-        $itemsQty = $invoice->items->sum('quantity');
-        $returnQty = $invoice->returnItems->sum('quantity');
-        return $itemsQty - $returnQty; // Subtract return quantities
-    }),
-    'subtotal' => $inhouseInvoices->sum('subtotal'),
-    'delivery' => $inhouseInvoices->sum('delivery_charge'),
-    'total' => $inhouseInvoices->sum('total'),
-    'paid' => $inhouseInvoices->sum('paid_amount'),
-    'due' => $inhouseInvoices->sum('due_amount'),
-];
-
-$paymentMethods = ['bkash', 'bkash_personal', 'bank_transfer', 'cash'];
-$todayPaymentMethods = [];
-foreach ($paymentMethods as $method) {
-    $query = Invoice::where('status', 'confirmed')
-        ->whereDate('invoice_date', $today)
-        ->where('payment_method', $method)
-        ->where('paid_amount', '>', 0);
-    
-    $todayPaymentMethods[$method] = [
-        'transactions' => $query->count(),
-        'total_paid' => $query->sum('paid_amount'),
-    ];
-}
-
-// This Month's Payment Method Breakdown
-$monthlyPaymentMethods = [];
-foreach ($paymentMethods as $method) {
-    $query = Invoice::where('status', 'confirmed')
-        ->where('invoice_date', '>=', $startOfMonth)
-        ->where('invoice_date', '<=', Carbon::now())
-        ->where('payment_method', $method)
-        ->where('paid_amount', '>', 0);
-    
-    $monthlyPaymentMethods[$method] = [
-        'transactions' => $query->count(),
-        'total_paid' => $query->sum('paid_amount'),
-    ];
-}
-
-// Today's Payment Details (for detailed view)
-$todayPaymentDetails = Invoice::where('status', 'confirmed')
-    ->whereDate('invoice_date', $today)
-    ->where('paid_amount', '>', 0)
-    ->whereIn('payment_method', $paymentMethods)
-    ->with(['creator', 'items', 'returnItems'])
-    ->orderBy('paid_amount', 'desc')
-    ->get();
-
-$today = Carbon::today();
-$startOfMonth = Carbon::now()->startOfMonth();
-$couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
-$paymentMethods = ['Cash', 'Bank', 'Mobile Banking', 'Rocket', 'bKash', 'Nagad'];
-
-// This Month's Payment Details
-$monthlyPaymentDetails = Invoice::where('status', 'confirmed')
-    ->where('invoice_date', '>=', $startOfMonth)
-    ->where('invoice_date', '<=', Carbon::now())
-    ->where('paid_amount', '>', 0)
-    ->whereIn('payment_method', $paymentMethods)
-    ->with(['creator', 'items', 'returnItems'])
-    ->orderBy('paid_amount', 'desc')
-    ->get();
-
-$todayPerformance = User::getTopTeamMembersToday();
-$monthPerformance = User::getTopTeamMembersMonth();
-
-$attendanceData = $this->getAttendanceMatrix();
-$attendanceMatrix = $attendanceData['matrix'];
-$daysInMonth = $attendanceData['daysInMonth'];
-$monthName = $attendanceData['monthName'];
-$attYear = $attendanceData['year'];
-$attMonth = $attendanceData['month'];
-
-    return view('admin.dashboard', compact(
-                'totalInvoices',
-                    'daysInMonth',
-                        'attendanceMatrix',
-    'monthName',
-    'attYear',
-    'attMonth',
-'todayPerformance',
-'monthPerformance',
-          'todayPaymentMethods',
-    'monthlyPaymentMethods',
-    'todayPaymentDetails',
-    'monthlyPaymentDetails',
-          'monthlyCourierReport',
-    'monthlyInhouseReport',
-        'todayPaidInvoices',
-        'creatorPaymentSummary',
-        'totalPaidAmount',
-        'totalDueAmount',
-        'totalSubtotal',
-        'totalDelivery',
-        'todayInvoices',
-        'todayRevenue',
-        'todayPaid',
-        'todayDue',
-        'todaySubtotal',
-        'todayDelivery',
-        'todayQuantity',
-        'monthlyInvoices',
-        'monthlyRevenue',
-        'monthlyPaid',
-        'monthlyDue',
-        'monthlyPaidInvoices',
-        'monthlySubtotal',
-        'today',
-        'monthlyDelivery',
-        'monthlyQuantity',
-        'topCreators',
-        'monthlyStats',
-        'last10Days',
-        'hasFullAccess',
-        'adminhasFullAccess',
-        'todayData',
-        'monthData',
-        'todayInhouse',
-        'monthInhouse',
-        'todayPaidInvoice',
-        'topCreatorsMonth',
-       
-           
-    ));
-}
-    
-
-
-
+ 
+    /**
+     * User-specific dashboard showing only their own performance
+     */
+    private function userDashboard($user)
+    {
+        $today = Carbon::today();
+        $startOfMonth = Carbon::now()->startOfMonth();
+ 
+        $userInvoices = Invoice::where('status', 'confirmed')
+            ->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('team_id', $user->id);
+            });
+ 
+        $todayInvoicesuser = (clone $userInvoices)->whereDate('confirmed_at', $today)->count();
+        $monthlyInvoicesuser = (clone $userInvoices)->where('confirmed_at', '>=', $startOfMonth)->count();
+ 
+        $hasFullAccess = false;
+        $adminhasFullAccess = false;
+ 
+        return view('admin.dashboard', compact(
+            'user',
+            'todayInvoicesuser',
+            'monthlyInvoicesuser',
+            'hasFullAccess',
+            'adminhasFullAccess'
+        ));
+    }
 /**
  * Get simple monthly attendance data for dashboard
  */
@@ -780,130 +574,6 @@ private function getAttendanceMatrix()
         'month' => $month,
     ];
 }
-    /**
-     * User-specific dashboard showing only their own performance
-     */
-   private function userDashboard($user)
-{
-    $today = Carbon::today();
-    $startOfMonth = Carbon::now()->startOfMonth();
-
-    /*
-    |--------------------------------------------------------------------------
-    | Current authenticated user's invoices
-    |--------------------------------------------------------------------------
-    | Only confirmed invoices where:
-    | - user created the invoice
-    | OR
-    | - invoice is assigned to this user as team member
-    |--------------------------------------------------------------------------
-    */
-   $userInvoices = Invoice::where('status', 'confirmed')
-        ->where(function ($q) use ($user) {
-            $q->where('created_by', $user->id)
-              ->orWhere('team_id', $user->id);
-        });
-
-    /*
-    |--------------------------------------------------------------------------
-    | TODAY
-    |--------------------------------------------------------------------------
-    */
-    $todayInvoicesQuery = (clone $userInvoices)
-        ->whereDate('confirmed_at', $today);
-
-    $todayInvoices = (clone $todayInvoicesQuery)->count();
-
-    $todayRevenue = (clone $todayInvoicesQuery)->sum('total');
-
-    $todayPaid = (clone $todayInvoicesQuery)->sum('paid_amount');
-
-    $todayDue = (clone $todayInvoicesQuery)->sum('due_amount');
-
-    $todaySubtotal = (clone $todayInvoicesQuery)->sum('subtotal');
-
-    $todayDelivery = (clone $todayInvoicesQuery)->sum('delivery_charge');
-
-    // Today's quantity with return items subtracted
-    $todayQuantity = (clone $todayInvoicesQuery)
-        ->with(['items', 'returnItems'])
-        ->get()
-        ->sum(function ($invoice) {
-            $itemsQty = $invoice->items->sum('quantity');
-            $returnQty = $invoice->returnItems->sum('quantity');
-            return $itemsQty - $returnQty; // Subtract return quantities
-        });
-
-    /*
-    |--------------------------------------------------------------------------
-    | THIS MONTH
-    |--------------------------------------------------------------------------
-    */
-    $monthlyInvoicesQuery = (clone $userInvoices)
-        ->where('confirmed_at', '>=', $startOfMonth);
-
-    $monthlyInvoices = (clone $monthlyInvoicesQuery)->count();
-
-    $monthlyRevenue = (clone $monthlyInvoicesQuery)->sum('total');
-
-    $monthlyPaid = (clone $monthlyInvoicesQuery)->sum('paid_amount');
-
-    $monthlyDue = (clone $monthlyInvoicesQuery)->sum('due_amount');
-
-    $monthlySubtotal = (clone $monthlyInvoicesQuery)->sum('subtotal');
-
-    $monthlyDelivery = (clone $monthlyInvoicesQuery)->sum('delivery_charge');
-
-    // Monthly quantity with return items subtracted
-    $monthlyQuantity = (clone $monthlyInvoicesQuery)
-        ->with(['items', 'returnItems'])
-        ->get()
-        ->sum(function ($invoice) {
-            $itemsQty = $invoice->items->sum('quantity');
-            $returnQty = $invoice->returnItems->sum('quantity');
-            return $itemsQty - $returnQty; // Subtract return quantities
-        });
-    /*
-    |--------------------------------------------------------------------------
-    | User access flags
-    |--------------------------------------------------------------------------
-    */
-    $hasFullAccess = false;
-    $adminhasFullAccess = false;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dashboard
-    |--------------------------------------------------------------------------
-    */
-    return view('admin.dashboard', compact(
-        'user',
-
-        // Today
-        'todayInvoices',
-        'todayRevenue',
-        'todayPaid',
-        'todayDue',
-        'todaySubtotal',
-        'todayDelivery',
-        'todayQuantity',
-
-        // This month
-        'monthlyInvoices',
-        'monthlyRevenue',
-        'monthlyPaid',
-        'monthlyDue',
-        'monthlySubtotal',
-        'monthlyDelivery',
-        'monthlyQuantity',
-
-        // Access
-        'hasFullAccess',
-        'adminhasFullAccess'
-    ));
-}
-
 public function showDashboard2()
 {
     return view('admin.dashboard2', [

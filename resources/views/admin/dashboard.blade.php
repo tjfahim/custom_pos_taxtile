@@ -23,7 +23,7 @@
 
 <div class="content mt-3">
     <!-- Date Range Filter -->
-     @if($hasFullAccess)
+     @if($adminhasFullAccess)
 <div class="row">
     <div class="col-md-12">
         <div class="card">
@@ -338,128 +338,153 @@
   
 
     @if($adminhasFullAccess)
-    <!-- Today's Payments -->
-    <div class="row">
-        <div class="col-xl-12 col-lg-12 col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fa fa-credit-card text-success"></i> Today's Payments Transaction Details
-                    <span class="badge bg-success float-right">{{ $todayPaidInvoices->count() }} payments</span>
-                </div>
-                <div class="card-body">
-                    <!-- Creator Summary -->
-                    @if(isset($creatorPaymentSummary) && $creatorPaymentSummary->count() > 0)
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <div class="alert alert-info">
-                                <strong><i class="fa fa-users"></i> Payment Summary by Creator:</strong>
-                                <div class="row mt-2">
-                                    <div class="col-md-3">
-                                        <strong>Total Payments:</strong> 
-                                        <span class="badge bg-primary">{{ $todayPaidInvoices->count() }}</span>
-                                    </div>
-                                    @foreach($creatorPaymentSummary as $creatorId => $summary)
-                                    <div class="col-md-3">
-                                        <strong>{{ $summary['creator_name'] }}:</strong> 
-                                        <span class="badge bg-success">{{ $summary['invoice_count'] }}</span>
-                                        <span class="text-muted">(৳{{ number_format($summary['total_paid'], 0) }})</span>
-                                    </div>
-                                    @endforeach
+   <div class="row">
+    <div class="col-xl-12 col-lg-12 col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fa fa-credit-card text-success"></i> Today's Payments Transaction Details
+                <span class="badge bg-success float-right">{{ $todayPaidInvoices->count() }} payments</span>
+            </div>
+            <div class="card-body">
+                <!-- Creator Summary -->
+                @if(isset($creatorPaymentSummary) && $creatorPaymentSummary->count() > 0)
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <strong><i class="fa fa-users"></i> Payment Summary by Creator:</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <strong>Total Payments:</strong> 
+                                    <span class="badge bg-primary">{{ $todayPaidInvoices->count() }}</span>
                                 </div>
+                                @foreach($creatorPaymentSummary as $creatorId => $summary)
+                                <div class="col-md-3">
+                                    <strong>{{ $summary['creator_name'] }}:</strong> 
+                                    <span class="badge bg-success">{{ $summary['invoice_count'] }}</span>
+                                    <span class="text-muted">(৳{{ number_format($summary['total_paid'], 0) }})</span>
+                                </div>
+                                @endforeach
                             </div>
                         </div>
                     </div>
-                    @endif
-
-                    <div style="max-height: 450px; overflow-y: auto;">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Invoice</th>
-                                    <th>Phone</th>
-                                    <th>Created By</th>
-                                    <th>Merchant Id</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Delivery</th>
-                                    <th class="text-end">Total</th>
-                                    <th class="text-end">Paid</th>
-                                    <th class="text-end">Due</th>
-                                    <th class="text-center">Method</th>
-                                    <th class="text-center">Details</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($todayPaidInvoices->take(10) as $invoice)
-                                <tr>
-                                    <td>
-                                        <strong>#{{ $invoice->invoice_number ?? $invoice->id }}</strong>
-                                    </td>
-                                    <td>
-                                        <strong>{{ $invoice->recipient_phone }}</strong>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info">
-                                            {{ $invoice->creator ? $invoice->creator->name : 'N/A' }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span style="font-size: 12px;">
-                                            {{ $invoice->merchant_order_id ?? 'N/A' }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end">৳{{ number_format($invoice->subtotal, 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
-                                    <td class="text-end fw-bold">৳{{ number_format($invoice->total, 0) }}</td>
-                                    <td class="text-end text-success fw-bold">৳{{ number_format($invoice->paid_amount, 0) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
-                                    <td class="text-center">
-                                        @if($invoice->payment_method)
-                                            <span class="badge" style="background: #3498db; color: #fff; font-size: 10px;">
-                                                {{ $invoice->payment_method }}
-                                            </span>
-                                        @else
-                                            <span class="text-muted">-</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-center">
-                                        @if($invoice->payment_details)
-                                            <span style="font-size: 11px; color: #666;">{{ $invoice->payment_details }}</span>
-                                        @else
-                                            <span class="text-muted">-</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="11" class="text-center text-muted py-3">
-                                        <i class="fa fa-inbox" style="font-size: 20px; display: block; margin-bottom: 5px;"></i>
-                                        No payments received today
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                            <tfoot>
-                                <tr style="border-top: 2px solid #e9ecef; font-weight: bold; background: #f8f9fa;">
-                                    <td colspan="4" class="text-end">TOTAL:</td>
-                                    <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('subtotal'), 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('delivery_charge'), 0) }}</td>
-                                    <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('total'), 0) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($todayPaidInvoices->sum('paid_amount'), 0) }}</td>
-                                    <td class="text-end text-danger">৳{{ number_format($todayPaidInvoices->sum('due_amount'), 0) }}</td>
-                                    <td colspan="2"></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                    @if($todayPaidInvoices->count() > 10)
-                        <div class="text-center text-muted mt-2" style="font-size: 12px;">
-                            <i class="fa fa-chevron-down"></i> Showing 10 of {{ $todayPaidInvoices->count() }} payments
-                        </div>
-                    @endif
                 </div>
+                @endif
+
+                <div style="max-height: 450px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Phone</th>
+                                <th>Created By</th>
+                                <th>Merchant Id</th>
+                                <th class="text-center">Courier</th>  {{-- NEW --}}
+                                <th class="text-end">Price</th>
+                                <th class="text-end">Delivery</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-end">Paid</th>
+                                <th class="text-end">Due</th>
+                                <th class="text-center">Method</th>
+                                <th class="text-center">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($todayPaidInvoices->take(10) as $invoice)
+                            <tr>
+                                <td>
+                                    <strong>#{{ $invoice->invoice_number ?? $invoice->id }}</strong>
+                                </td>
+                                <td>
+                                    <strong>{{ $invoice->recipient_phone }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ $invoice->creator ? $invoice->creator->name : 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-size: 12px;">
+                                        {{ $invoice->merchant_order_id ?? 'N/A' }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    {{-- NEW: Courier column --}}
+                                    @if($invoice->is_inhouse_sale)
+                                        <span class="badge" style="background: #6f42c1; color: #fff; font-size: 10px;">
+                                            Inhouse
+                                        </span>
+                                    @elseif($invoice->courier_name)
+                                        <span class="badge" style="background: #17a2b8; color: #fff; font-size: 10px;">
+                                            {{ $invoice->courier_name }}
+                                        </span>
+                                    @else
+                                        <span class="text-muted" style="font-size: 11px;">N/A</span>
+                                    @endif
+                                </td>
+                                <td class="text-end">৳{{ number_format($invoice->subtotal, 0) }}</td>
+                                <td class="text-end">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
+                                <td class="text-end fw-bold">৳{{ number_format($invoice->total, 0) }}</td>
+                                <td class="text-end text-success fw-bold">৳{{ number_format($invoice->paid_amount, 0) }}</td>
+                                <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
+                                <td class="text-center">
+                                    @if($invoice->payment_method)
+                                        <span class="badge" style="background: #3498db; color: #fff; font-size: 10px;">
+                                                @php
+            $methodLabels = [
+                'bkash'          => 'Bkash Merchant',
+                'bkash_personal' => 'Bkash Personal',
+                'bank_transfer'  => 'Bank Transfer',
+                'cash'           => 'Cash',
+            ];
+            $label = $methodLabels[$invoice->payment_method] 
+                ?? ucfirst(str_replace('_', ' ', $invoice->payment_method ?? ''));
+        @endphp
+        {{ $label }}
+                                        </span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    @if($invoice->payment_details)
+                                        <span style="font-size: 11px; color: #666;">{{ $invoice->payment_details }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="12" class="text-center text-muted py-3">  {{-- was 11, now 12 --}}
+                                    <i class="fa fa-inbox" style="font-size: 20px; display: block; margin-bottom: 5px;"></i>
+                                    No payments received today
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 2px solid #e9ecef; font-weight: bold; background: #f8f9fa;">
+                                <td colspan="5" class="text-end">TOTAL:</td>  {{-- was 4, now 5 --}}
+                                <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('subtotal'), 0) }}</td>
+                                <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('delivery_charge'), 0) }}</td>
+                                <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('total'), 0) }}</td>
+                                <td class="text-end text-success">৳{{ number_format($todayPaidInvoices->sum('paid_amount'), 0) }}</td>
+                                <td class="text-end text-danger">৳{{ number_format($todayPaidInvoices->sum('due_amount'), 0) }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                @if($todayPaidInvoices->count() > 10)
+                    <div class="text-center text-muted mt-2" style="font-size: 12px;">
+                        <i class="fa fa-chevron-down"></i> Showing 10 of {{ $todayPaidInvoices->count() }} payments
+                    </div>
+                @endif
             </div>
         </div>
     </div>
+</div>
+    
     @endif
 
     @if($adminhasFullAccess)
@@ -530,7 +555,7 @@
         </div>
     </div>
     @endif
-      @if($adminhasFullAccess)
+     @if($adminhasFullAccess)
     @if(isset($topCreators) && $topCreators->count() > 0)
     <div class="row">
         <div class="col-md-12">
@@ -600,14 +625,16 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Team Member</th>
-                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Memo</th>
                                        
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($todayPerformance as $index => $member)
                                     <tr>
-                                        <td>{{ $index + 1 }}</td>
+
+
+                                          <td>{{ $index + 1 }}</td>
                                         <td>
                                             <strong>{{ $member->name }}</strong>
                                             @if($index == 0)
@@ -616,8 +643,10 @@
                                                 </span>
                                             @endif
                                         </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ $member->total_invoices }}</span>
+                                        </td>
                                       
-                                        <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
                                        
                                     </tr>
                                     @endforeach
@@ -635,6 +664,136 @@
         </div>
     </div>
     @endif
+
+     @if(!$adminhasFullAccess)
+    @if(isset($topCreators) && $topCreators->count() > 0)
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Creators Performance </strong>
+                    <span class="float-right badge bg-light text-dark">Today's Performance</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Creator Name</th>
+                                    <th class="text-center">Memo</th>
+                                  
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($topCreators as $index => $creator)
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td><strong>{{ $creator->name }}</strong></td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
+                                   </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+    @endif
+    @if(!$adminhasFullAccess)
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Monthly Team Performance -->
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Team Members Performance Monthly</strong>
+                    <span class="float-right badge bg-light text-dark">This Month Performance</span>
+                </div>
+                <div class="card-body">
+                    @if(isset($monthPerformance) && $monthPerformance->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Team Member</th>
+                                        <th class="text-center">Memo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($monthPerformance as $index => $member)
+                                    <tr>
+                                        <td>{{ $index + 1 }}</td>
+                                        <td>
+                                            <strong>{{ $member->name }}</strong>
+                                            @if($index == 0)
+                                                <span class="badge bg-warning ms-1">
+                                                    <i class="fa fa-trophy"></i> Top
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ $member->total_invoices }}</span>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-4">
+                            <i class="fa fa-info-circle fa-3x text-muted"></i>
+                            <p class="text-muted mt-2">No team activity this month</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+        @if(!$adminhasFullAccess)
+    @if(isset($topCreatorsMonth) && $topCreatorsMonth->count() > 0)
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-users me-1"></i>
+                    <strong>Creators Performance Monthly</strong>
+                    <span class="float-right badge bg-light text-dark">This Month Performance</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Creator Name</th>
+                                    <th class="text-center">Memo</th>
+                                    
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($topCreatorsMonth as $index => $creator)
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td><strong>{{ $creator->name }}</strong></td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+    @endif
+
     @if($adminhasFullAccess)
     <!-- Payment Method Breakdown - Today & This Month -->
     <div class="row">
@@ -771,7 +930,7 @@
         </div>
     </div>
     @endif
- @if($adminhasFullAccess)
+ {{-- @if($adminhasFullAccess)
 <!-- Monthly Attendance Calendar -->
 <div class="row">
     <div class="col-md-12">
@@ -904,7 +1063,7 @@
         </div>
     </div>
 </div>
-@endif
+@endif --}}
     @if(!$adminhasFullAccess)
  <div class="row">
 
@@ -924,66 +1083,15 @@
                     <div class="col-6 mb-3">
                         <div class="text-center p-3 border rounded">
                             <h5 class="text-primary">
-                                {{ number_format($todayInvoices ?? 0) }}
+                                {{ number_format($todayInvoicesuser ?? 0) }}
                             </h5>
                             <small>Invoices</small>
                         </div>
                     </div>
 
-                    <div class="col-6 mb-3">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-success">
-                                {{ number_format($todayQuantity ?? 0) }}
-                            </h5>
-                            <small>Quantity</small>
-                        </div>
-                    </div>
 
-                    <div class="col-6 mb-3">
-                        <div class="text-center p-3 border rounded">
-                            <h5>
-                                ৳{{ number_format($todaySubtotal ?? 0, 0) }}
-                            </h5>
-                            <small>Total Price</small>
-                        </div>
-                    </div>
 
-                    <div class="col-6 mb-3">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-info">
-                                ৳{{ number_format($todayDelivery ?? 0, 0) }}
-                            </h5>
-                            <small>Delivery</small>
-                        </div>
-                    </div>
-
-                    <div class="col-12 mb-3">
-                        <div class="text-center p-3 border rounded bg-light">
-                            <h4 class="text-primary">
-                                ৳{{ number_format($todayRevenue ?? 0, 0) }}
-                            </h4>
-                            <small>Total Amount</small>
-                        </div>
-                    </div>
-
-                    <div class="col-6">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-success">
-                                ৳{{ number_format($todayPaid ?? 0, 0) }}
-                            </h5>
-                            <small>Total Paid</small>
-                        </div>
-                    </div>
-
-                    <div class="col-6">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-warning">
-                                ৳{{ number_format($todayDue ?? 0, 0) }}
-                            </h5>
-                            <small>Total Due</small>
-                        </div>
-                    </div>
-
+                  
                 </div>
             </div>
         </div>
@@ -1006,65 +1114,12 @@
                     <div class="col-6 mb-3">
                         <div class="text-center p-3 border rounded">
                             <h5 class="text-primary">
-                                {{ number_format($monthlyInvoices ?? 0) }}
+                                {{ $monthlyInvoicesuser }}
                             </h5>
                             <small>Invoices</small>
                         </div>
                     </div>
 
-                    <div class="col-6 mb-3">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-success">
-                                {{ number_format($monthlyQuantity ?? 0) }}
-                            </h5>
-                            <small>Quantity</small>
-                        </div>
-                    </div>
-
-                    <div class="col-6 mb-3">
-                        <div class="text-center p-3 border rounded">
-                            <h5>
-                                ৳{{ number_format($monthlySubtotal ?? 0, 0) }}
-                            </h5>
-                            <small>Total Price</small>
-                        </div>
-                    </div>
-
-                    <div class="col-6 mb-3">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-info">
-                                ৳{{ number_format($monthlyDelivery ?? 0, 0) }}
-                            </h5>
-                            <small>Delivery</small>
-                        </div>
-                    </div>
-
-                    <div class="col-12 mb-3">
-                        <div class="text-center p-3 border rounded bg-light">
-                            <h4 class="text-success">
-                                ৳{{ number_format($monthlyRevenue ?? 0, 0) }}
-                            </h4>
-                            <small>Total Amount</small>
-                        </div>
-                    </div>
-
-                    <div class="col-6">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-success">
-                                ৳{{ number_format($monthlyPaid ?? 0, 0) }}
-                            </h5>
-                            <small>Total Paid</small>
-                        </div>
-                    </div>
-
-                    <div class="col-6">
-                        <div class="text-center p-3 border rounded">
-                            <h5 class="text-warning">
-                                ৳{{ number_format($monthlyDue ?? 0, 0) }}
-                            </h5>
-                            <small>Total Due</small>
-                        </div>
-                    </div>
 
                 </div>
             </div>

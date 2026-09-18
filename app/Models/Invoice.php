@@ -68,7 +68,55 @@ class Invoice extends Model
         'payment_date' => 'datetime',
         'paid_amount2' => 'decimal:2',
     ];
-    
+  /**
+ * Cancel all pending invoices older than 5 days.
+ * Returns a JSON summary of the operation.
+ *
+ * @return \Illuminate\Http\JsonResponse
+ */
+public static function cancelStalePendingInvoices()
+{
+    $cutoffDate = now()->subDays(5);
+
+    // Find all pending invoices created before the cutoff
+    $staleInvoices = self::where('status', 'pending')
+        ->where('created_at', '<=', $cutoffDate)
+        ->whereNull('deleted_at')
+        ->get();
+
+    if ($staleInvoices->isEmpty()) {
+        return response()->json([
+            'success'         => true,
+            'message'         => 'No stale pending invoices found.',
+            'cutoff_date'     => $cutoffDate->toDateTimeString(),
+            'total_cancelled' => 0,
+            'invoices'        => [],
+        ]);
+    }
+
+    $cancelled = [];
+
+    foreach ($staleInvoices as $invoice) {
+        $invoice->status = 'cancelled';
+        $invoice->save();
+
+        $cancelled[] = [
+            'id'             => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'created_at'     => $invoice->created_at->toDateTimeString(),
+            'days_old'       => $invoice->created_at->diffInDays(now()),
+            'total'          => $invoice->total,
+        ];
+    }
+
+    return response()->json([
+        'success'         => true,
+        'message'         => count($cancelled) . ' pending invoice(s) cancelled.',
+        'cutoff_date'     => $cutoffDate->toDateTimeString(),
+        'total_cancelled' => count($cancelled),
+        'invoices'        => $cancelled,
+    ]);
+}
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

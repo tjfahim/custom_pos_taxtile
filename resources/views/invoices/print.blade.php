@@ -405,7 +405,22 @@
                      
                         <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 0) }}</td></tr>
                         @if($invoice->payment_method)
-                        <tr><td class="label">Method:</td><td class="value">{{ ucfirst(str_replace('_', ' ', $invoice->payment_method)) }}</td></tr>
+                       <tr>
+    <td class="label">Method:</td>
+    <td class="value">
+        @php
+            $methodLabels = [
+                'bkash'          => 'Bkash Merchant',
+                'bkash_personal' => 'Bkash Personal',
+                'bank_transfer'  => 'Bank Transfer',
+                'cash'           => 'Cash',
+            ];
+            $label = $methodLabels[$invoice->payment_method] 
+                ?? ucfirst(str_replace('_', ' ', $invoice->payment_method ?? ''));
+        @endphp
+        {{ $label }}
+    </td>
+</tr>
                         @endif
                         @if($invoice->payment_details)
                         <tr><td class="label">Details:</td><td class="value">{{ $invoice->payment_details }}</td></tr>

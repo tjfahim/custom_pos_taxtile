@@ -115,11 +115,11 @@
                                                     <span class="badge badge-secondary" title="Friday">F</span>
                                                 @elseif($status == 'present')
                                                     <span class="badge badge-success" title="Present: {{ $inTime }}">
-                                                        <i class="fa fa-check"></i> {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i A') : '' }}
+                                                       {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i') : '' }}
                                                     </span>
                                                 @elseif($status == 'late')
                                                     <span class="badge badge-warning" title="Late: {{ $inTime }}">
-                                                        <i class="fa fa-clock-o"></i> {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i A') : '' }}
+                                                         {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i') : '' }}
                                                     </span>
                                         
                                                 @elseif($status == 'absent')

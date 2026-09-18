@@ -57,6 +57,7 @@ Route::get('/clear', function() {
 
     Route::get('/', [AuthController::class, 'showLoginFrom'])->name('login');
     Route::get('/register', [AuthController::class, 'showRegisterFrom'])->name('register');
+    Route::get('/cancelStalePending', [InvoiceController::class, 'cancelStalePending']);
     Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
     Route::post('/register-submit', [AuthController::class, 'registerSubmit'])->name('register.submit');
 

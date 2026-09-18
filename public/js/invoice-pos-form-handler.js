@@ -401,8 +401,8 @@ if (selectedTeamMemberId) {
             $detailField = $('[name="bank_transfer_details"]');
             detailLabel = 'bank transfer details';
         } else if (paymentMethod === 'cash') {
-            $detailField = $('[name="cash_amount"]');
-            detailLabel = 'cash amount';
+            $detailField = $('[name="cash_payment_details"]');
+            detailLabel = 'cash details';
         }
 
         if ($detailField && !$detailField.val().toString().trim()) {

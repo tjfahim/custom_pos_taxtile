@@ -312,42 +312,42 @@
                                                value="{{ old('paid_amount', $invoice->paid_amount) }}">
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                {{-- <div class="col-md-4">
                                     <div class="form-group">
                                         <label>Amount to Collect</label>
                                         <input type="number" step="0.01" min="0" name="amount_to_collect" id="amountToCollect" class="form-control"
                                                value="{{ old('amount_to_collect', $invoice->amount_to_collect) }}">
                                     </div>
-                                </div>
+                                </div> --}}
 
                                 <div class="col-md-6" id="bkashDetails" style="display:none;">
-                                    <div class="form-group">
-                                        <label>bKash Transaction ID</label>
-                                        <input type="text" name="bkash_transaction" class="form-control"
-                                               value="{{ old('bkash_transaction', $invoice->payment_method == 'bkash' ? $invoice->payment_details : '') }}">
-                                    </div>
-                                </div>
-                                <div class="col-md-6" id="bkashPersonalDetails" style="display:none;">
-                                    <div class="form-group">
-                                        <label>bKash Personal Transaction ID</label>
-                                        <input type="text" name="bkash_personal_transaction" class="form-control"
-                                               value="{{ old('bkash_personal_transaction', $invoice->payment_method == 'bkash_personal' ? $invoice->payment_details : '') }}">
-                                    </div>
-                                </div>
-                                <div class="col-md-6" id="bankDetails" style="display:none;">
-                                    <div class="form-group">
-                                        <label>Bank Transfer Details</label>
-                                        <input type="text" name="bank_transfer_details" class="form-control"
-                                               value="{{ old('bank_transfer_details', $invoice->payment_method == 'bank_transfer' ? $invoice->payment_details : '') }}">
-                                    </div>
-                                </div>
-                                <div class="col-md-6" id="cashDetails" style="display:none;">
-                                    <div class="form-group">
-                                        <label>Cash Amount</label>
-                                        <input type="text" name="cash_amount" class="form-control"
-                                               value="{{ old('cash_amount', $invoice->payment_method == 'cash' ? $invoice->payment_details : '') }}">
-                                    </div>
-                                </div>
+    <div class="form-group">
+        <label>bKash Transaction ID</label>
+        <input type="text" name="payment_details" class="form-control"
+               value="{{ old('payment_details', $invoice->payment_method == 'bkash' ? $invoice->payment_details : '') }}">
+    </div>
+</div>
+<div class="col-md-6" id="bkashPersonalDetails" style="display:none;">
+    <div class="form-group">
+        <label>bKash Personal Transaction ID</label>
+        <input type="text" name="payment_details" class="form-control"
+               value="{{ old('payment_details', $invoice->payment_method == 'bkash_personal' ? $invoice->payment_details : '') }}">
+    </div>
+</div>
+<div class="col-md-6" id="bankDetails" style="display:none;">
+    <div class="form-group">
+        <label>Bank Transfer Details</label>
+        <input type="text" name="payment_details" class="form-control"
+               value="{{ old('payment_details', $invoice->payment_method == 'bank_transfer' ? $invoice->payment_details : '') }}">
+    </div>
+</div>
+<div class="col-md-6" id="cashDetails" style="display:none;">
+    <div class="form-group">
+        <label>Cash Details</label>
+        <input type="text" name="payment_details" class="form-control"
+               value="{{ old('payment_details', $invoice->payment_method == 'cash' ? $invoice->payment_details : '') }}">
+    </div>
+</div>
                             </div>
                         </div>
                     </div>

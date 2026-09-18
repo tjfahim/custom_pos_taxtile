@@ -1872,6 +1872,10 @@ public function updateStatus(Request $request, $id)
     }
 }
 
+public function cancelStalePending()
+{
+    return Invoice::cancelStalePendingInvoices();
+}
 public function checkCustomerStatus($phone)
 {
     try {

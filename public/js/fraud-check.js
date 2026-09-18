@@ -152,33 +152,33 @@ class FraudChecker {
     }
 
     async checkCustomerStatus(phone) {
-        this.showLoading('Checking customer status...');
+    this.showLoading('Checking customer status...');
+    
+    try {
+        const res = await fetch(`/check-customer-status/${phone}`);
+        const data = await res.json();
         
-        try {
-            const res = await fetch(`/check-customer-status/${phone}`);
-            const data = await res.json();
-            
-            if (data.error) throw new Error(data.error);
-            
-            this.customerStatus = data;
-            
-            // Display customer status warning if inactive
-            if (data.status === 'inactive' || data.status === 'blocked') {
-                this.displayCustomerStatusWarning(data);
-            } else {
-                $('#customerStatusWarning').remove();
-            }
-            
-            // Then check last 3 days invoices
-            this.checkLastThreeDays(phone);
-        } catch (error) {
-            console.error('Customer status check error:', error);
-            // Continue with other checks even if status check fails
-            this.checkLastThreeDays(phone);
-        } finally {
-            this.hideLoading();
+        if (data.error) throw new Error(data.error);
+        
+        this.customerStatus = data;
+        
+        // Show warning if inactive/blocked OR if customer has a note
+        if (data.status === 'inactive' || data.status === 'blocked' || data.note) {
+            this.displayCustomerStatusWarning(data);
+        } else {
+            $('#customerStatusWarning').remove();
         }
+        
+        // Then check last 3 days invoices
+        this.checkLastThreeDays(phone);
+    } catch (error) {
+        console.error('Customer status check error:', error);
+        // Continue with other checks even if status check fails
+        this.checkLastThreeDays(phone);
+    } finally {
+        this.hideLoading();
     }
+}
 
     async checkLastThreeDays(phone) {
         this.showLoading('Checking recent orders...');
@@ -244,57 +244,75 @@ class FraudChecker {
     }
 
     displayCustomerStatusWarning(data) {
-        let container = $('#customerStatusWarning');
-        if (!container.length) {
-            container = $(`
-                <div id="customerStatusWarning" class="mt-2 alert alert-dismissible fade show bg-danger">
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                    <div id="customerStatusContent" class="d-flex align-items-center"></div>
-                </div>
-            `).insertAfter($('#recipientPhone').closest('.form-group'));
-        }
-        
-        let alertLevel = 'danger';
-        let alertIcon = 'ban';
-        let statusText = 'Blocked';
-        
-        if (data.status === 'inactive') {
-            alertLevel = 'warning';
-            alertIcon = 'exclamation-triangle';
-            statusText = 'Inactive';
-        }
-        
-        container.removeClass('alert-danger alert-warning alert-info alert-success')
-                .addClass(`alert-${alertLevel}`);
-        
-        let notesHtml = '';
-        if (data.note) {
-            notesHtml = `
-                <div class="mt-1">
-                    <strong>Notes:</strong>
-                    <small class="d-block text-muted">${data.note}</small>
-                </div>
-            `;
-        }
-        
-        const html = `
-            <i class="fa fa-${alertIcon} mr-2 fa-lg"></i>
-            <div class="flex-grow-1">
-                <strong>***** Customer ${statusText}:</strong>
-                <div class="mt-1">
-                    <span class="badge badge-${alertLevel}">${data.name || 'Unknown Customer'}</span>
-                    <small class="text-muted ml-2">ID: ${data.id}</small>
-                </div>
-                ${notesHtml}
-                <small class="d-block text-${alertLevel} mt-1">
-                    <i class="fa fa-exclamation-circle"></i> This customer is ${data.status} by our system.
-                </small>
+    let container = $('#customerStatusWarning');
+    if (!container.length) {
+        container = $(`
+            <div id="customerStatusWarning" class="mt-2 alert alert-dismissible fade show">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <div id="customerStatusContent" class="d-flex align-items-center"></div>
+            </div>
+        `).insertAfter($('#recipientPhone').closest('.form-group'));
+    }
+    
+    // Determine alert level based on status
+    let alertLevel = 'info';
+    let alertIcon = 'info-circle';
+    let statusText = 'Customer Note';
+    
+    if (data.status === 'blocked') {
+        alertLevel = 'danger';
+        alertIcon = 'ban';
+        statusText = 'Blocked';
+    } else if (data.status === 'inactive') {
+        alertLevel = 'warning';
+        alertIcon = 'exclamation-triangle';
+        statusText = 'Inactive';
+    } else if (data.note) {
+        // Active customer but has a note
+        alertLevel = 'info';
+        alertIcon = 'sticky-note';
+        statusText = 'Note';
+    }
+    
+    container.removeClass('alert-danger alert-warning alert-info alert-success bg-danger')
+            .addClass(`alert-${alertLevel}`);
+    
+    // Build notes HTML (only if note exists)
+    let notesHtml = '';
+    if (data.note) {
+        notesHtml = `
+            <div class="mt-1">
+                <strong>Notes:</strong>
+                <small class="d-block text-muted">${data.note}</small>
             </div>
         `;
-        
-        $('#customerStatusContent').html(html);
     }
-
+    
+    // Build status message (only show if inactive/blocked)
+    let statusMessageHtml = '';
+    if (data.status === 'inactive' || data.status === 'blocked') {
+        statusMessageHtml = `
+            <small class="d-block text-${alertLevel} mt-1">
+                <i class="fa fa-exclamation-circle"></i> This customer is ${data.status} by our system.
+            </small>
+        `;
+    }
+    
+    const html = `
+        <i class="fa fa-${alertIcon} mr-2 fa-lg"></i>
+        <div class="flex-grow-1">
+            <strong>Customer ${statusText}:</strong>
+            <div class="mt-1">
+                <span class="badge badge-${alertLevel}">${data.name || 'Unknown Customer'}</span>
+                <small class="text-muted ml-2">ID: ${data.id}</small>
+            </div>
+            ${notesHtml}
+            ${statusMessageHtml}
+        </div>
+    `;
+    
+    $('#customerStatusContent').html(html);
+}
     displayThreeDaysWarning(data) {
         let container = $('#threeDaysWarning');
         if (!container.length) {
@@ -641,6 +659,22 @@ class FraudChecker {
                 }
             }
         }
+        if (this.customerStatus && this.customerStatus.note && 
+    this.customerStatus.status !== 'inactive' && 
+    this.customerStatus.status !== 'blocked') {
+    
+    const proceed = confirm(
+        `📝 CUSTOMER NOTE\n\n` +
+        `Customer: ${this.customerStatus.name || 'Unknown'}\n` +
+        `Note: ${this.customerStatus.note}\n\n` +
+        `Do you want to proceed?`
+    );
+    
+    if (!proceed) {
+        $('#recipientPhone').focus().select();
+        return false;
+    }
+}
         
         if (this.daysHistory.today) {
             e.preventDefault();
