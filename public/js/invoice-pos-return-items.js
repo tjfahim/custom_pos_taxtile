@@ -58,7 +58,7 @@ const ReturnItems = {
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm return-total-price text-right" 
-                           readonly value="৳0">
+                            value="৳0">
                     <input type="hidden" name="return_items[${this.itemCount}][total_price]" 
                            class="return-total-hidden" value="0">
                 </td>

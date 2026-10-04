@@ -9,9 +9,7 @@
                     Invoice #{{ $invoice->invoice_number }}
                 </h5>
                 <div>
-                    <a href="{{ route('admin.invoices.edit', $invoice->id) }}" class="btn btn-primary btn-sm">
-                        <i class="fa fa-edit"></i> Edit
-                    </a>
+                  
                     <a href="{{ route('admin.invoices.print', $invoice->id) }}" class="btn btn-info btn-sm">
                         <i class="fa fa-print"></i> Print
                     </a>

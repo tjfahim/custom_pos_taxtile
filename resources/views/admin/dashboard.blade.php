@@ -384,6 +384,7 @@
                                 <th class="text-end">Total</th>
                                 <th class="text-end">Paid</th>
                                 <th class="text-end">Due</th>
+                                <th class="text-end">Time</th>
                                 <th class="text-center">Method</th>
                                 <th class="text-center">Details</th>
                             </tr>
@@ -426,6 +427,13 @@
                                 <td class="text-end fw-bold">৳{{ number_format($invoice->total, 0) }}</td>
                                 <td class="text-end text-success fw-bold">৳{{ number_format($invoice->paid_amount, 0) }}</td>
                                 <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
+                                <td class="text-end">
+                                    @if($invoice->payment_date)
+                                        {{ \Carbon\Carbon::parse($invoice->payment_date)->format('h:i A') }}
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
                                 <td class="text-center">
                                     @if($invoice->payment_method)
                                         <span class="badge" style="background: #3498db; color: #fff; font-size: 10px;">
@@ -1023,7 +1031,7 @@
                                                 @elseif($status == 'friday')
                                                     <span class="badge badge-secondary" title="Friday">F</span>
                                                 @elseif($status == 'present')
-                                                    <span class="badge badge-success" title="Present: {{ $inTime }}">
+                                                <span class="badge badge-success" title="Present: {{ $inTime }}">
                                                         <i class="fa fa-check"></i> {{ $inTime ? Carbon\Carbon::parse($inTime)->format('h:i A') : '' }}
                                                     </span>
                                                 @elseif($status == 'late')

@@ -347,127 +347,109 @@ if (selectedTeamMemberId) {
         this.showMessage('Ready for new invoice. Form has been reset.', 'success');
     },
     
-    validateForm: function() {
+ validateForm: function () {
 
     if (!$('#recipientName').val().trim()) {
         alert('Please enter recipient name');
         $('#recipientName').focus();
         return false;
     }
-    
-    
-    
+
     const phone = $('#recipientPhone').val().trim();
     if (!phone) {
         alert('Please enter recipient phone');
         $('#recipientPhone').focus();
         return false;
     }
-    
-    const phoneRegex = /^01[3-9]\d{8}$/;
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (!phoneRegex.test(cleanPhone)) {
+    if (!/^01[3-9]\d{8}$/.test(phone.replace(/\D/g, ''))) {
         alert('Please enter a valid Bangladeshi mobile number (01XXXXXXXXX)');
         $('#recipientPhone').focus();
         return false;
     }
 
-    // NEW: in-house vs regular sale requirements
     const isInhouse = $('#isInhouseSale').is(':checked');
 
-    if (!isInhouse) {
-        if (!$('#recipientAddress').val().trim()) {
-            alert('Please enter recipient address');
-            $('#recipientAddress').focus();
-            return false;
-        }
-    } else {
-        const paymentMethod = $('#paymentMethod').val();
-        if (!paymentMethod) {
-            alert('Please select a payment method for In-house Sale');
-            $('#paymentMethod').focus();
+    // Address required only for normal (non-inhouse) sale
+    if (!isInhouse && !$('#recipientAddress').val().trim()) {
+        alert('Please enter recipient address');
+        $('#recipientAddress').focus();
+        return false;
+    }
+
+    // ✅ Payment validation — for ALL sales (not just in-house)
+    const paymentMethod = $('#paymentMethod').val();
+    if (paymentMethod) {
+
+        // 1. Payment date required
+        if (!$('#paymentDate').val().trim()) {
+            alert('Please select a payment date');
+            $('#paymentDate').focus();
             return false;
         }
 
+        // 2. Matching detail field required
         let $detailField = null;
         let detailLabel = '';
+
         if (paymentMethod === 'bkash') {
             $detailField = $('[name="bkash_transaction"]');
-            detailLabel = 'bKash transaction ID';
+            detailLabel  = 'bKash transaction ID';
         } else if (paymentMethod === 'bkash_personal') {
             $detailField = $('[name="bkash_personal_transaction"]');
-            detailLabel = 'bKash personal transaction ID';
+            detailLabel  = 'bKash personal transaction ID';
         } else if (paymentMethod === 'bank_transfer') {
             $detailField = $('[name="bank_transfer_details"]');
-            detailLabel = 'bank transfer details';
+            detailLabel  = 'bank transfer details';
         } else if (paymentMethod === 'cash') {
-            $detailField = $('[name="cash_payment_details"]');
-            detailLabel = 'cash details';
+            $detailField = $('[name="cash_amount"]');
+            detailLabel  = 'cash details (receiver name)';
         }
 
         if ($detailField && !$detailField.val().toString().trim()) {
-            alert('Please enter ' + detailLabel + ' for In-house Sale');
+            alert('Please enter ' + detailLabel);
             $detailField.focus();
             return false;
         }
     }
-    // END NEW
+    // END payment validation
 
     if ($('#itemsBody tr').length === 0) {
         alert('Please add at least one item');
         return false;
     }
-    
+
     let validItems = true;
-    $('.item-name').each(function() {
+    $('.item-name').each(function () {
         if (!$(this).val().trim()) {
             validItems = false;
             $(this).focus();
             return false;
         }
     });
-    
     if (!validItems) {
         alert('Please enter item name for all items');
         return false;
     }
-    
-    let validPrices = true;
-    $('.unit-price').each(function() {
-        const price = parseFloat($(this).val()) || 0;
-        if (price <= 0) {
-            validPrices = false;
-            $(this).focus();
+
+    const courier = $('#courierName').val();
+    if (courier !== 'Exchange') {
+        let validPrices = true;
+        $('.unit-price').each(function () {
+            const price = parseFloat($(this).val()) || 0;
+            if (price <= 0) {
+                validPrices = false;
+                $(this).focus();
+                return false;
+            }
+        });
+        if (!validPrices) {
+            alert('Please enter valid unit price (greater than 0) for all items');
             return false;
         }
-    });
-    
-const courier = $('#courierName').val();
-
-
-if (courier !== 'Exchange') {
-
-    let validPrices = true;
-
-    $('.unit-price').each(function() {
-        const price = parseFloat($(this).val()) || 0;
-
-        if (price <= 0) {
-            validPrices = false;
-            $(this).focus();
-            return false;
-        }
-    });
-
-    if (!validPrices) {
-        alert('Please enter valid unit price (greater than 0) for all items');
-        return false;
     }
-}
-    
+
     return true;
 },
-    
     showLoading: function() {
         if (!$('#loadingOverlay').length) {
             $('body').append(`

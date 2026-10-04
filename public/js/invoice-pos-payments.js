@@ -1,6 +1,6 @@
 const InvoicePayments = {
 
-    togglePaymentDetails: function() {
+    togglePaymentDetails: function () {
         const method = $('#paymentMethod').val();
 
         $('#bkashDetails').hide();
@@ -12,7 +12,6 @@ const InvoicePayments = {
         $('[name="bkash_personal_transaction"]').val('');
         $('[name="bank_transfer_details"]').val('');
         $('[name="cash_amount"]').val('');
-        $('[name="amount_receiver_name"]').val('');
 
         if (method === 'bkash') {
             $('#bkashDetails').show();
@@ -27,10 +26,7 @@ const InvoicePayments = {
         this.updateRequiredState();
     },
 
-    // NEW: same idea as togglePaymentDetails() but for the second,
-    // in-house-sale-only payment method. Never marks anything required —
-    // the whole second payment is optional even when in-house is checked.
-    togglePaymentDetails2: function() {
+    togglePaymentDetails2: function () {
         const method = $('#paymentMethod2').val();
 
         $('#bkashDetails2').hide();
@@ -54,17 +50,36 @@ const InvoicePayments = {
         }
     },
 
-    // marks the currently-visible (first) payment detail field as required
-    // only when In-house Sale is checked. Doesn't touch values/visibility.
-    updateRequiredState: function() {
-        const isInhouse = $('#isInhouseSale').is(':checked');
+    /**
+     * Required-field manager.
+     * When ANY payment method is selected:
+     *   - the visible detail input becomes required
+     *   - the payment_date becomes required
+     * When no method is selected:
+     *   - nothing is required
+     * Never touches hidden fields, so the browser won't complain about
+     * "An invalid form control is not focusable".
+     */
+    updateRequiredState: function () {
         const method = $('#paymentMethod').val();
 
-        $('[name="bkash_transaction"], [name="bkash_personal_transaction"], ' +
-          '[name="bank_transfer_details"], [name="cash_amount"]').prop('required', false);
+        // 1. Reset all first
+        $('[name="bkash_transaction"], ' +
+          '[name="bkash_personal_transaction"], ' +
+          '[name="bank_transfer_details"], ' +
+          '[name="cash_amount"]').prop('required', false);
 
-        if (!isInhouse) return;
+        $('#paymentDate').prop('required', false);
 
+        // 2. No method selected → nothing required
+        if (!method) {
+            return;
+        }
+
+        // 3. Method selected → payment date required
+        $('#paymentDate').prop('required', true);
+
+        // 4. And the matching detail field required
         if (method === 'bkash') {
             $('[name="bkash_transaction"]').prop('required', true);
         } else if (method === 'bkash_personal') {
@@ -77,10 +92,5 @@ const InvoicePayments = {
     }
 };
 
-window.togglePaymentDetails = function() {
-    InvoicePayments.togglePaymentDetails();
-};
-
-window.togglePaymentDetails2 = function() {
-    InvoicePayments.togglePaymentDetails2();
-};
+window.togglePaymentDetails  = function () { InvoicePayments.togglePaymentDetails();  };
+window.togglePaymentDetails2 = function () { InvoicePayments.togglePaymentDetails2(); };

@@ -395,71 +395,95 @@ class DashboardController extends Controller
      * $isToday switches between DATE(invoice_date) = CURDATE() and an
      * invoice_date BETWEEN start/end range for the month view.
      */
-    private function topCreatorsQuery($start, $end, bool $isToday)
-    {
-        $dateCondition = $isToday
-            ? 'DATE(invoices.invoice_date) = CURDATE()'
-            : 'invoices.invoice_date >= "' . $start->toDateString() . '" AND invoices.invoice_date <= "' . $end->toDateString() . '"';
- 
-        return User::select([
-            'users.*',
-            DB::raw("(SELECT COUNT(*) FROM invoices
-                WHERE invoices.created_by = users.id
-                AND {$dateCondition}
-                AND invoices.status = 'confirmed'
-                AND invoices.is_inhouse_sale = 0
-                AND invoices.deleted_at IS NULL) as total_invoices"),
-            DB::raw("(SELECT COALESCE(SUM(total), 0) FROM invoices
-                WHERE invoices.created_by = users.id
-                AND {$dateCondition}
-                AND invoices.status = 'confirmed'
-                AND invoices.is_inhouse_sale = 0
-                AND invoices.deleted_at IS NULL) as total_amount"),
-            DB::raw("(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices
-                WHERE invoices.created_by = users.id
-                AND {$dateCondition}
-                AND invoices.status = 'confirmed'
-                AND invoices.is_inhouse_sale = 0
-                AND invoices.deleted_at IS NULL) as total_paid"),
-            DB::raw("(SELECT COALESCE(SUM(due_amount), 0) FROM invoices
-                WHERE invoices.created_by = users.id
-                AND {$dateCondition}
-                AND invoices.status = 'confirmed'
-                AND invoices.is_inhouse_sale = 0
-                AND invoices.deleted_at IS NULL) as total_due"),
-            DB::raw("(SELECT COALESCE(SUM(subtotal), 0) FROM invoices
-                WHERE invoices.created_by = users.id
-                AND {$dateCondition}
-                AND invoices.status = 'confirmed'
-                AND invoices.is_inhouse_sale = 0
-                AND invoices.deleted_at IS NULL) as total_subtotal"),
-            DB::raw("(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices
-                WHERE invoices.created_by = users.id
-                AND {$dateCondition}
-                AND invoices.status = 'confirmed'
-                AND invoices.is_inhouse_sale = 0
-                AND invoices.deleted_at IS NULL) as total_delivery"),
-            DB::raw("(SELECT COALESCE(SUM(items.quantity), 0) - COALESCE(SUM(returns.quantity), 0)
-                FROM invoice_items items
-                LEFT JOIN return_items returns ON returns.invoice_id = items.invoice_id
-                WHERE items.invoice_id IN (
-                    SELECT id FROM invoices
-                    WHERE invoices.created_by = users.id
-                    AND {$dateCondition}
-                    AND invoices.status = 'confirmed'
-                    AND invoices.is_inhouse_sale = 0
-                    AND invoices.deleted_at IS NULL
-                )) as total_quantity"),
-            DB::raw("(SELECT COUNT(*) FROM invoices
-                WHERE invoices.team_id = users.id
-                AND {$dateCondition}
-                AND invoices.status = 'confirmed'
-                AND invoices.is_inhouse_sale = 0
-                AND invoices.deleted_at IS NULL) as as_team_member"),
-        ])
-        ->having('total_invoices', '>', 0)
-        ->orderBy('total_amount', 'desc');
-    }
+  private function topCreatorsQuery($start, $end, bool $isToday)
+{
+    $dateCondition = $isToday
+        ? 'DATE(invoices.invoice_date) = CURDATE()'
+        : 'invoices.invoice_date >= "' . $start->toDateString() . '" AND invoices.invoice_date <= "' . $end->toDateString() . '"';
+
+    // Same courier exclusion the dashboard base query uses
+    $courierCondition = "(invoices.courier_name IS NULL OR invoices.courier_name <> 'Exchange')";
+
+    return User::select([
+        'users.*',
+
+        DB::raw("(SELECT COUNT(*) FROM invoices
+            WHERE invoices.created_by = users.id
+            AND {$dateCondition}
+            AND invoices.status = 'confirmed'
+            AND {$courierCondition}
+            AND invoices.deleted_at IS NULL) as total_invoices"),
+
+        DB::raw("(SELECT COALESCE(SUM(total), 0) FROM invoices
+            WHERE invoices.created_by = users.id
+            AND {$dateCondition}
+            AND invoices.status = 'confirmed'
+            AND {$courierCondition}
+            AND invoices.deleted_at IS NULL) as total_amount"),
+
+        DB::raw("(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices
+            WHERE invoices.created_by = users.id
+            AND {$dateCondition}
+            AND invoices.status = 'confirmed'
+            AND {$courierCondition}
+            AND invoices.deleted_at IS NULL) as total_paid"),
+
+        DB::raw("(SELECT COALESCE(SUM(due_amount), 0) FROM invoices
+            WHERE invoices.created_by = users.id
+            AND {$dateCondition}
+            AND invoices.status = 'confirmed'
+            AND {$courierCondition}
+            AND invoices.deleted_at IS NULL) as total_due"),
+
+        DB::raw("(SELECT COALESCE(SUM(subtotal), 0) FROM invoices
+            WHERE invoices.created_by = users.id
+            AND {$dateCondition}
+            AND invoices.status = 'confirmed'
+            AND {$courierCondition}
+            AND invoices.deleted_at IS NULL) as total_subtotal"),
+
+        DB::raw("(SELECT COALESCE(SUM(delivery_charge), 0) FROM invoices
+            WHERE invoices.created_by = users.id
+            AND {$dateCondition}
+            AND invoices.status = 'confirmed'
+            AND {$courierCondition}
+            AND invoices.deleted_at IS NULL) as total_delivery"),
+
+        // ❗ Quantity via TWO separate subqueries — no fan-out
+        DB::raw("(
+            (SELECT COALESCE(SUM(ii.quantity), 0)
+             FROM invoice_items ii
+             WHERE ii.invoice_id IN (
+                 SELECT id FROM invoices
+                 WHERE invoices.created_by = users.id
+                 AND {$dateCondition}
+                 AND invoices.status = 'confirmed'
+                 AND {$courierCondition}
+                 AND invoices.deleted_at IS NULL
+             ))
+            -
+            (SELECT COALESCE(SUM(ri.quantity), 0)
+             FROM return_items ri
+             WHERE ri.invoice_id IN (
+                 SELECT id FROM invoices
+                 WHERE invoices.created_by = users.id
+                 AND {$dateCondition}
+                 AND invoices.status = 'confirmed'
+                 AND {$courierCondition}
+                 AND invoices.deleted_at IS NULL
+             ))
+        ) as total_quantity"),
+
+        DB::raw("(SELECT COUNT(*) FROM invoices
+            WHERE invoices.team_id = users.id
+            AND {$dateCondition}
+            AND invoices.status = 'confirmed'
+            AND {$courierCondition}
+            AND invoices.deleted_at IS NULL) as as_team_member"),
+    ])
+    ->having('total_invoices', '>', 0)
+    ->orderBy('total_amount', 'desc');
+}
  
     /**
      * User-specific dashboard showing only their own performance
@@ -600,11 +624,15 @@ public function filterDashboard2(Request $request)
 
     $couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
 
-    $baseQuery = function () use ($fromDateStr, $toDateStr) {
-        return Invoice::where('status', 'confirmed')
-            ->whereDate('invoice_date', '>=', $fromDateStr)
-            ->whereDate('invoice_date', '<=', $toDateStr);
-    };
+$baseQuery = function () use ($fromDateStr, $toDateStr) {
+    return Invoice::where('status', 'confirmed')
+        ->whereNull('deleted_at')
+        ->where(function ($q) {
+            $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
+        })
+        ->whereDate('invoice_date', '>=', $fromDateStr)
+        ->whereDate('invoice_date', '<=', $toDateStr);
+};
 
     // ---------- Range totals ----------
     $rangeCount    = (clone $baseQuery())->count();
