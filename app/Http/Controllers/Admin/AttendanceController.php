@@ -16,88 +16,101 @@ class AttendanceController extends Controller
     /**
      * Display monthly attendance view
      */
-    public function index(Request $request)
-    {
-        try {
-            $year = $request->get('year', Carbon::now()->year);
-            $month = $request->get('month', Carbon::now()->month);
-            
-            // Get all active users
-            $users = User::orderBy('name')->get();
-            
-            // Get attendance for the month
-            $attendances = Attendance::with('user')
-                ->forMonth($year, $month)
-                ->get()
-                ->groupBy(function($attendance) {
-                    return $attendance->user_id . '_' . $attendance->attendance_date->format('Y-m-d');
-                });
-            
-            // Get days in month
-            $daysInMonth = Carbon::create($year, $month)->daysInMonth;
-            $firstDayOfMonth = Carbon::create($year, $month, 1);
-            $monthName = $firstDayOfMonth->format('F Y');
-            
-            // Create a matrix of attendance data
-            $attendanceMatrix = [];
-            foreach ($users as $user) {
-                $userData = [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'days' => []
-                ];
-                
-                for ($day = 1; $day <= $daysInMonth; $day++) {
-                    $date = Carbon::create($year, $month, $day)->format('Y-m-d');
-                    $key = $user->id . '_' . $date;
-                    
-                    if (isset($attendances[$key])) {
-                        $attendance = $attendances[$key]->first();
-                        $userData['days'][$day] = [
-                            'id' => $attendance->id,
-                            'date' => $date,
-                            'in_time' => $attendance->in_time ? Carbon::parse($attendance->in_time)->format('H:i') : null,
-                            'status' => $attendance->status,
-                            'is_friday' => $attendance->is_friday,
-                            'is_govt_holiday' => $attendance->is_govt_holiday,
-                            'on_leave' => $attendance->on_leave,
-                            'note' => $attendance->note,
-                        ];
-                    } else {
-                        $userData['days'][$day] = null;
-                    }
-                }
-                
-                $attendanceMatrix[] = $userData;
-            }
-            
-            // Get holidays (days that are Friday or Govt Holiday for all users)
-            $holidays = [];
-            $fridays = [];
+  public function index(Request $request)
+{
+    try {
+        $year  = $request->get('year', Carbon::now()->year);
+        $month = $request->get('month', Carbon::now()->month);
+
+        $users = User::orderBy('name')->get();
+
+        $attendances = Attendance::with('user')
+            ->forMonth($year, $month)
+            ->get()
+            ->groupBy(function ($attendance) {
+                return $attendance->user_id . '_' . $attendance->attendance_date->format('Y-m-d');
+            });
+
+        $daysInMonth     = Carbon::create($year, $month)->daysInMonth;
+        $firstDayOfMonth = Carbon::create($year, $month, 1);
+        $monthName       = $firstDayOfMonth->format('F Y');
+
+        $attendanceMatrix = [];
+        foreach ($users as $user) {
+            $lateCount   = 0;
+            $absentCount = 0;
+
+            $userData = [
+                'id'            => $user->id,
+                'name'          => $user->name,
+                'email'         => $user->email,
+                'days'          => [],
+                'late_count'    => 0,
+                'absent_count'  => 0,
+            ];
+
             for ($day = 1; $day <= $daysInMonth; $day++) {
-                $date = Carbon::create($year, $month, $day);
-                if ($date->isFriday()) {
-                    $fridays[] = $day;
+                $date = Carbon::create($year, $month, $day)->format('Y-m-d');
+                $key  = $user->id . '_' . $date;
+
+                if (isset($attendances[$key])) {
+                    $attendance = $attendances[$key]->first();
+                    $status     = $attendance->status;
+
+                    // Count late & absent (same rule as dashboard)
+                    if ($status === 'late') {
+                        $lateCount++;
+                    } elseif ($status === 'absent') {
+                        $absentCount++;
+                    }
+
+                    $userData['days'][$day] = [
+                        'id'              => $attendance->id,
+                        'date'            => $date,
+                        'in_time'         => $attendance->in_time
+                                                ? Carbon::parse($attendance->in_time)->format('H:i')
+                                                : null,
+                        'status'          => $status,
+                        'is_friday'       => $attendance->is_friday,
+                        'is_govt_holiday' => $attendance->is_govt_holiday,
+                        'on_leave'        => $attendance->on_leave,
+                        'note'            => $attendance->note,
+                    ];
+                } else {
+                    $userData['days'][$day] = null;
                 }
             }
-            
-            return view('admin.attendance.index', compact(
-                'attendanceMatrix',
-                'users',
-                'year',
-                'month',
-                'daysInMonth',
-                'monthName',
-                'fridays',
-                'holidays'
-            ));
-            
-        } catch (\Exception $e) {
-            Log::error('Attendance index error: ' . $e->getMessage());
-            return back()->with('error', 'Failed to load attendance data');
+
+            $userData['late_count']   = $lateCount;
+            $userData['absent_count'] = $absentCount;
+
+            $attendanceMatrix[] = $userData;
         }
+
+        $holidays = [];
+        $fridays  = [];
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $date = Carbon::create($year, $month, $day);
+            if ($date->isFriday()) {
+                $fridays[] = $day;
+            }
+        }
+
+        return view('admin.attendance.index', compact(
+            'attendanceMatrix',
+            'users',
+            'year',
+            'month',
+            'daysInMonth',
+            'monthName',
+            'fridays',
+            'holidays'
+        ));
+    } catch (\Exception $e) {
+        Log::error('Attendance index error: ' . $e->getMessage());
+        return back()->with('error', 'Failed to load attendance data');
     }
+}
 
     /**
      * Get attendance data for a specific date (for modal)

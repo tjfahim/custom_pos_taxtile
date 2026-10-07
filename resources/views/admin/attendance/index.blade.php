@@ -10,29 +10,33 @@
                     Attendance - {{ $monthName }}
                 </h5>
                 <div class="d-flex align-items-center flex-wrap">
-                    <!-- Month Navigation -->
+                     <!-- Month Navigation -->
                     <div class="btn-group mr-2">
-                        <a href="{{ route('admin.attendance.index', ['year' => $year, 'month' => $month - 1]) }}" 
+                        @php
+                            $prev = \Carbon\Carbon::create($year, $month, 1)->subMonth();
+                            $next = \Carbon\Carbon::create($year, $month, 1)->addMonth();
+                        @endphp
+                        <a href="{{ route('admin.attendance.index', ['year' => $prev->year, 'month' => $prev->month]) }}"
                            class="btn btn-sm btn-outline-secondary">
                             <i class="fa fa-chevron-left"></i>
                         </a>
-                        <a href="{{ route('admin.attendance.index', ['year' => Carbon\Carbon::now()->year, 'month' => Carbon\Carbon::now()->month]) }}" 
+                        <a href="{{ route('admin.attendance.index', ['year' => now()->year, 'month' => now()->month]) }}"
                            class="btn btn-sm btn-outline-primary">
-                            Month
+                            This Month
                         </a>
-                        <a href="{{ route('admin.attendance.index', ['year' => $year, 'month' => $month + 1]) }}" 
+                        <a href="{{ route('admin.attendance.index', ['year' => $next->year, 'month' => $next->month]) }}"
                            class="btn btn-sm btn-outline-secondary">
                             <i class="fa fa-chevron-right"></i>
                         </a>
                     </div>
-                    
-                    <button class="btn btn-primary btn-sm" onclick="openAttendanceModal('{{ Carbon\Carbon::now()->format('Y-m-d') }}')">
+
+                    <button class="btn btn-primary btn-sm"
+                            onclick="openAttendanceModal('{{ Carbon\Carbon::now()->format('Y-m-d') }}')">
                         <i class="fa fa-plus"></i> Mark Today
                     </button>
                 </div>
             </div>
-            
-            <div class="card-body">
+              <div class="card-body">
                 @if(session('success'))
                     <div class="alert alert-success">{{ session('success') }}</div>
                 @endif
@@ -40,113 +44,128 @@
                     <div class="alert alert-danger">{{ session('error') }}</div>
                 @endif
 
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover table-sm" id="attendanceTable">
-                        <thead class="thead-dark">
-                            <tr>
-                                <th style="min-width: 150px; position: sticky; left: 0; background: #343a40; z-index: 10;">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span>User</span>
-                                        <button class="btn btn-sm btn-outline-light" onclick="openAttendanceModal()">
-                                            <i class="fa fa-calendar-plus"></i>
-                                        </button>
-                                    </div>
-                                </th>
-                                @for($day = 1; $day <= $daysInMonth; $day++)
-                                    @php
-                                        $date = Carbon\Carbon::create($year, $month, $day);
-                                        $isFriday = $date->isFriday();
-                                        $isToday = $date->isToday();
-                                        $dayOfWeek = $date->format('D');
-                                    @endphp
-                                    <th class="text-center {{ $isFriday ? 'table-secondary' : '' }} {{ $isToday ? 'table-primary' : '' }}" 
-                                        style="min-width: 45px; cursor: pointer;"
-                                        onclick="openAttendanceModal('{{ $date->format('Y-m-d') }}')"
-                                        title="Click to mark attendance for {{ $date->format('d M Y') }}">
-                                        <div>
+                @if(isset($attendanceMatrix) && is_array($attendanceMatrix) && count($attendanceMatrix) > 0)
+                    <div class="table-responsive" style="max-height: 650px; overflow: auto;">
+                        <table class="table table-bordered table-hover table-sm mb-0" id="attendanceTable">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th style="min-width: 200px; position: sticky; left: 0; top: 0; background: #343a40; color: #fff; z-index: 12;">
+                                        User
+                                    </th>
+                                    @for($day = 1; $day <= $daysInMonth; $day++)
+                                        @php
+                                            $date      = Carbon\Carbon::create($year, $month, $day);
+                                            $isFriday  = $date->isFriday();
+                                            $isToday   = $date->isToday();
+                                            $dayOfWeek = $date->format('D');
+                                        @endphp
+                                        <th class="text-center {{ $isFriday ? 'table-secondary' : '' }} {{ $isToday ? 'table-primary' : '' }}"
+                                            style="min-width: 55px; cursor: pointer; position: sticky; top: 0; z-index: 10;"
+                                            onclick="openAttendanceModal('{{ $date->format('Y-m-d') }}')"
+                                            title="Click to mark attendance for {{ $date->format('d M Y') }}">
                                             <div>{{ $day }}</div>
                                             <small class="text-muted">{{ $dayOfWeek }}</small>
                                             @if($isFriday)
                                                 <i class="fa fa-moon-o d-block text-secondary" title="Friday"></i>
                                             @endif
-                                        </div>
-                                    </th>
-                                @endfor
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($attendanceMatrix as $userData)
-                                <tr>
-                                    <td style="position: sticky; left: 0; background: white; z-index: 5;">
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-circle bg-info text-white mr-2" 
-                                                 style="width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px;">
-                                                {{ strtoupper(substr($userData['name'], 0, 2)) }}
-                                            </div>
-                                            <div>
-                                                <div class="font-weight-bold">{{ $userData['name'] }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    
-                                    @for($day = 1; $day <= $daysInMonth; $day++)
-                                        @php
-                                            $date = Carbon\Carbon::create($year, $month, $day);
-                                            $isFriday = $date->isFriday();
-                                            $dayData = $userData['days'][$day] ?? null;
-                                            $status = $dayData ? $dayData['status'] : null;
-                                            $inTime = $dayData ? $dayData['in_time'] : null;
-                                            $onLeave = $dayData ? $dayData['on_leave'] : false;
-                                            $isHoliday = $dayData ? $dayData['is_govt_holiday'] : false;
-                                            $attendanceId = $dayData ? $dayData['id'] : null;
-                                        @endphp
-                                        <td class="text-center attendance-cell {{ $isFriday ? 'bg-light' : '' }} {{ $isHoliday ? 'bg-warning bg-opacity-25' : '' }}"
-                                            data-user-id="{{ $userData['id'] }}"
-                                            data-date="{{ $date->format('Y-m-d') }}"
-                                            data-attendance-id="{{ $attendanceId }}"
-                                            onclick="openAttendanceModal('{{ $date->format('Y-m-d') }}')"
-                                            style="cursor: pointer;">
-                                            @if($status)
-                                                @if($status == 'leave')
-                                                    <span class="badge badge-dark" title="On Leave">L</span>
-                                                @elseif($status == 'holiday')
-                                                    <span class="badge badge-primary" title="Holiday">H</span>
-                                                @elseif($status == 'friday')
-                                                    <span class="badge badge-secondary" title="Friday">F</span>
-                                                @elseif($status == 'present')
-                                                    <span class="badge badge-success" title="Present: {{ $inTime }}">
-                                                       {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i') : '' }}
-                                                    </span>
-                                                @elseif($status == 'late')
-                                                    <span class="badge badge-warning" title="Late: {{ $inTime }}">
-                                                         {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i') : '' }}
-                                                    </span>
-                                        
-                                                @elseif($status == 'absent')
-                                                    <span class="badge badge-danger" title="Absent">A</span>
-                                                @endif
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td>
+                                        </th>
                                     @endfor
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="mt-3 d-flex justify-content-between align-items-center flex-wrap">
-                    <div>
-                        <span class="badge badge-success">P = Present</span>
-                        <span class="badge badge-warning">L = Late</span>
-                        <span class="badge badge-danger">A = Absent</span>
-                        <span class="badge badge-dark">Lv = Leave</span>
-                        <span class="badge badge-primary">H = Holiday</span>
-                        <span class="badge badge-secondary">F = Friday</span>
+                            </thead>
+                            <tbody>
+                                @foreach($attendanceMatrix as $userData)
+                                    <tr>
+                                        {{-- Sticky user column with Late/Absent summary (same as dashboard) --}}
+                                        <td style="position: sticky; left: 0; background: #fff; z-index: 5; min-width: 200px;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-circle bg-info text-white mr-2"
+                                                     style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">
+                                                    {{ strtoupper(substr($userData['name'], 0, 2)) }}
+                                                </div>
+                                                <div>
+                                                    <div class="font-weight-bold">{{ $userData['name'] ?? 'Unknown' }}</div>
+                                                    <div style="font-size: 12px; line-height: 1.3;">
+                                                        @if(($userData['late_count'] ?? 0) > 0 || ($userData['absent_count'] ?? 0) > 0)
+                                                            @if(($userData['late_count'] ?? 0) > 0)
+                                                                <span class="text-warning">Late: {{ $userData['late_count'] }}</span>
+                                                            @endif
+                                                            @if(($userData['late_count'] ?? 0) > 0 && ($userData['absent_count'] ?? 0) > 0)
+                                                                <span class="text-muted"> | </span>
+                                                            @endif
+                                                            @if(($userData['absent_count'] ?? 0) > 0)
+                                                                <span class="text-danger">Absent: {{ $userData['absent_count'] }}</span>
+                                                            @endif
+                                                        @else
+                                                            <span class="text-muted">No absences</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        @for($day = 1; $day <= $daysInMonth; $day++)
+                                            @php
+                                                $date         = Carbon\Carbon::create($year, $month, $day);
+                                                $isFriday     = $date->isFriday();
+                                                $dayData      = $userData['days'][$day] ?? null;
+                                                $status       = $dayData ? $dayData['status'] : null;
+                                                $inTime       = $dayData ? $dayData['in_time'] : null;
+                                                $isHoliday    = $dayData ? $dayData['is_govt_holiday'] : false;
+                                                $attendanceId = $dayData ? $dayData['id'] : null;
+                                            @endphp
+                                            <td class="text-center attendance-cell {{ $isFriday ? 'bg-light' : '' }} {{ $isHoliday ? 'bg-warning bg-opacity-25' : '' }}"
+                                                data-user-id="{{ $userData['id'] }}"
+                                                data-date="{{ $date->format('Y-m-d') }}"
+                                                data-attendance-id="{{ $attendanceId }}"
+                                                onclick="openAttendanceModal('{{ $date->format('Y-m-d') }}')"
+                                                style="cursor: pointer;">
+                                                @if($status)
+                                                    @if($status == 'leave')
+                                                        <span class="badge badge-dark" title="On Leave">L</span>
+                                                    @elseif($status == 'holiday')
+                                                        <span class="badge badge-primary" title="Holiday">H</span>
+                                                    @elseif($status == 'friday')
+                                                        <span class="badge badge-secondary" title="Friday">F</span>
+                                                    @elseif($status == 'present')
+                                                        <span class="badge badge-success" title="Present: {{ $inTime }}">
+                                                            {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i') : '✓' }}
+                                                        </span>
+                                                    @elseif($status == 'late')
+                                                        <span class="badge badge-warning" title="Late: {{ $inTime }}">
+                                                            {{ $inTime ? \Carbon\Carbon::parse($inTime)->format('h:i') : '!' }}
+                                                        </span>
+                                                    @elseif($status == 'absent')
+                                                        <span class="badge badge-danger" title="Absent">A</span>
+                                                    @endif
+                                                @else
+                                                    <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
+                                        @endfor
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
-                   
-                </div>
+
+                    <div class="mt-3 d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <span class="badge badge-success">P = Present</span>
+                            <span class="badge badge-warning">L = Late</span>
+                            <span class="badge badge-danger">A = Absent</span>
+                            <span class="badge badge-dark">Lv = Leave</span>
+                            <span class="badge badge-primary">H = Holiday</span>
+                            <span class="badge badge-secondary">F = Friday</span>
+                            <span class="text-muted ml-3"><small>Late after 11:30 AM</small></span>
+                        </div>
+                        <small class="text-muted">Click any cell or day to mark attendance</small>
+                    </div>
+                @else
+                    <div class="text-center py-5">
+                        <i class="fa fa-inbox fa-3x text-muted"></i>
+                        <p class="text-muted mt-2">No attendance data available for this month</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

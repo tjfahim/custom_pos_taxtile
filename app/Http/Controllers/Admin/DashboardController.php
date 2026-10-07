@@ -488,31 +488,113 @@ class DashboardController extends Controller
     /**
      * User-specific dashboard showing only their own performance
      */
-    private function userDashboard($user)
-    {
-        $today = Carbon::today();
-        $startOfMonth = Carbon::now()->startOfMonth();
- 
-        $userInvoices = Invoice::where('status', 'confirmed')
-            ->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
-                  ->orWhere('team_id', $user->id);
-            });
- 
-        $todayInvoicesuser = (clone $userInvoices)->whereDate('confirmed_at', $today)->count();
-        $monthlyInvoicesuser = (clone $userInvoices)->where('confirmed_at', '>=', $startOfMonth)->count();
- 
-        $hasFullAccess = false;
-        $adminhasFullAccess = false;
- 
-        return view('admin.dashboard', compact(
-            'user',
-            'todayInvoicesuser',
-            'monthlyInvoicesuser',
-            'hasFullAccess',
-            'adminhasFullAccess'
-        ));
-    }
+   private function userDashboard($user)
+{
+    $today = Carbon::today();
+    $startOfMonth = Carbon::now()->startOfMonth();
+
+    // User's own invoice counts (existing logic)
+    $userInvoices = Invoice::where('status', 'confirmed')
+        ->where(function ($q) use ($user) {
+            $q->where('created_by', $user->id)
+              ->orWhere('team_id', $user->id);
+        });
+
+    $todayInvoicesuser = (clone $userInvoices)->whereDate('invoice_date', $today)->count();
+    $monthlyInvoicesuser = (clone $userInvoices)->where('confirmed_at', '>=', $startOfMonth)->count();
+
+    // ---------------------------------------------------------------
+    // Same data as admin dashboard
+    // ---------------------------------------------------------------
+    $todayPerformance = User::getTopTeamMembersToday();
+    $monthPerformance = User::getTopTeamMembersMonth();
+
+    $topCreators = $this->topCreatorsQuery($today, $today, true)->get();
+    $topCreatorsMonth = $this->topCreatorsQuery($startOfMonth, Carbon::now(), false)->get();
+
+    // Defaults so the view doesn't break if any admin-only block is ever
+    // referenced. (The view guards most admin blocks with $adminhasFullAccess,
+    // so these are only here as a safety net.)
+    $totalInvoices = 0;
+    $todayData = [];
+    $todayInhouse = [
+        'invoices' => 0, 'quantity' => 0, 'subtotal' => 0,
+        'delivery' => 0, 'revenue' => 0, 'paid' => 0,
+    ];
+    $monthData = [];
+    $monthInhouse = [
+        'invoices' => 0, 'quantity' => 0, 'subtotal' => 0,
+        'delivery' => 0, 'revenue' => 0, 'paid' => 0,
+    ];
+    $todayPaidInvoices = collect();
+    $creatorPaymentSummary = collect();
+    $todayPaymentMethods = [];
+    $monthlyPaymentMethods = [];
+    $todayPaymentDetails = collect();
+    $monthlyPaymentDetails = collect();
+    $monthlyCourierReport = [];
+    $monthlyInhouseReport = [
+        'parcels' => 0, 'quantity' => 0, 'subtotal' => 0,
+        'delivery' => 0, 'total' => 0, 'paid' => 0, 'due' => 0,
+    ];
+    $last10Days = collect();
+    $monthlyStats = collect();
+    $daysInMonth = 0;
+    $attendanceMatrix = [];
+    $monthName = '';
+    $attYear = Carbon::now()->year;
+    $attMonth = Carbon::now()->month;
+    $totalPaidAmount = 0;
+    $totalDueAmount = 0;
+    $totalSubtotal = 0;
+    $totalDelivery = 0;
+    $todayInvoices = 0;
+    $todayRevenue = 0;
+    $todayPaid = 0;
+    $todayDue = 0;
+    $todaySubtotal = 0;
+    $todayDelivery = 0;
+    $todayQuantity = 0;
+    $monthlyInvoices = 0;
+    $monthlyRevenue = 0;
+    $monthlyPaid = 0;
+    $monthlyDue = 0;
+    $monthlyPaidInvoices = 0;
+    $monthlySubtotal = 0;
+    $monthlyDelivery = 0;
+    $monthlyQuantity = 0;
+    $todayPaidInvoice = 0;
+
+    $hasFullAccess = false;
+    $adminhasFullAccess = false;
+
+    return view('admin.dashboard', compact(
+        'user',
+        'todayInvoicesuser',
+        'monthlyInvoicesuser',
+        'hasFullAccess',
+        'adminhasFullAccess',
+        // performance data now passed to the view:
+        'todayPerformance',
+        'monthPerformance',
+        'topCreators',
+        'topCreatorsMonth',
+        // safety defaults
+        'totalInvoices', 'todayData', 'todayInhouse', 'monthData', 'monthInhouse',
+        'todayPaidInvoices', 'creatorPaymentSummary',
+        'todayPaymentMethods', 'monthlyPaymentMethods',
+        'todayPaymentDetails', 'monthlyPaymentDetails',
+        'monthlyCourierReport', 'monthlyInhouseReport',
+        'last10Days', 'monthlyStats',
+        'daysInMonth', 'attendanceMatrix', 'monthName', 'attYear', 'attMonth',
+        'totalPaidAmount', 'totalDueAmount', 'totalSubtotal', 'totalDelivery',
+        'todayInvoices', 'todayRevenue', 'todayPaid', 'todayDue',
+        'todaySubtotal', 'todayDelivery', 'todayQuantity',
+        'monthlyInvoices', 'monthlyRevenue', 'monthlyPaid', 'monthlyDue',
+        'monthlyPaidInvoices', 'monthlySubtotal', 'monthlyDelivery', 'monthlyQuantity',
+        'today', 'todayPaidInvoice'
+    ));
+}
 /**
  * Get simple monthly attendance data for dashboard
  */

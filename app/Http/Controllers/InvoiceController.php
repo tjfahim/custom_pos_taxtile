@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\ReturnItem;
+use App\Models\User;
 use App\Traits\TracksInvoiceEdits;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -222,36 +223,62 @@ if ($request->team_id) {
  * Mirrors getPaymentDetails() but reads the "_2" suffixed fields for the
  * second, in-house-sale-only payment.
  */
+
 private function getPaymentDetails2($request)
 {
     switch ($request->payment_method2) {
         case 'bkash':
-            return $request->bkash_transaction2;
+            if ($request->filled('bkash_transaction2')) {
+                return $request->bkash_transaction2;
+            }
+            break;
         case 'bkash_personal':
-            return $request->bkash_personal_transaction2;
+            if ($request->filled('bkash_personal_transaction2')) {
+                return $request->bkash_personal_transaction2;
+            }
+            break;
         case 'bank_transfer':
-            return $request->bank_transfer_details2;
+            if ($request->filled('bank_transfer_details2')) {
+                return $request->bank_transfer_details2;
+            }
+            break;
         case 'cash':
-            return $request->cash_amount2;
-        default:
-            return null;
+            if ($request->filled('cash_amount2')) {
+                return $request->cash_amount2;
+            }
+            break;
     }
-}
 
+    return $request->input('payment_details2');
+}
 private function getPaymentDetails($request)
 {
+    // Method-specific names (used by POS form)
     switch ($request->payment_method) {
         case 'bkash':
-            return $request->bkash_transaction; // Store full transaction ID for merchant bkash
+            if ($request->filled('bkash_transaction')) {
+                return $request->bkash_transaction;
+            }
+            break;
         case 'bkash_personal':
-            return $request->bkash_personal_transaction; // Store last 4 digits for personal bkash
+            if ($request->filled('bkash_personal_transaction')) {
+                return $request->bkash_personal_transaction;
+            }
+            break;
         case 'bank_transfer':
-            return $request->bank_transfer_details; // Store bank details
+            if ($request->filled('bank_transfer_details')) {
+                return $request->bank_transfer_details;
+            }
+            break;
         case 'cash':
-                return $request->cash_amount; 
-        default:
-            return null;
+            if ($request->filled('cash_amount')) {
+                return $request->cash_amount;
+            }
+            break;
     }
+
+    // Fallback: the edit form posts a single generic payment_details field.
+    return $request->input('payment_details');
 }
 
     // Print invoice
@@ -283,203 +310,263 @@ public function printMultiple($ids)
         abort(500, 'Failed to load invoices');
     }
 }
+ public function index(Request $request)
+    {
+        if ($request->ajax()) {
+            \Log::info('AJAX Request received', $request->all());
 
-public function index(Request $request)
-{
-    if ($request->ajax()) {
-        \Log::info('AJAX Request received', $request->all());
-        return $this->getDataTableData($request);
-    }
-    
-    // Get counts for filter buttons (optimized)
-    $counts = [
-        'all' => Invoice::whereNull('deleted_at')->count(),
-        'confirmed' => Invoice::whereNull('deleted_at')->where('status', 'confirmed')->count(),
-        'pending' => Invoice::whereNull('deleted_at')->where('status', 'pending')->count(),
-        'cancelled' => Invoice::whereNull('deleted_at')->where('status', 'cancelled')->count(),
-    ];
-    
-    return view('invoices.index', compact('counts'));
-}
+            // counts_only request handled here so the JS can refresh badge counts
+            if ($request->boolean('counts_only')) {
+                // Ignore status so the badge numbers represent all statuses
+                // under the current date / member / courier filters.
+                $base = $this->buildFilteredQuery($request, ['status']);
 
-private function getDataTableData(Request $request)
-{
-    try {
-        // Load teamMember relationship as well
-        $query = Invoice::with(['customer', 'creator', 'teamMember'])
-            ->whereNull('deleted_at'); // Exclude soft deleted
-        
-        // Apply status filter
-        if ($request->has('status') && !empty($request->status)) {
-            $query->where('status', $request->status);
+                return response()->json([
+                    'counts' => [
+                        'all'       => (clone $base)->count(),
+                        'confirmed' => (clone $base)->where('status', 'confirmed')->count(),
+                        'pending'   => (clone $base)->where('status', 'pending')->count(),
+                        'cancelled' => (clone $base)->where('status', 'cancelled')->count(),
+                    ],
+                ]);
+            }
+
+            return $this->getDataTableData($request);
         }
-        
-        // DataTables parameters
-        $start = $request->input('start', 0);
-        $length = $request->input('length', 20);
-        $orderColumnIndex = $request->input('order.0.column', 5); // Default to date column
-        $orderDir = $request->input('order.0.dir', 'desc');
-        $searchValue = $request->input('search.value', '');
-        
-        // Define sortable columns with proper field names
-        $columns = [
-            0 => 'id',
-            1 => 'invoice_number',
-            2 => 'customer_id',
-            3 => 'recipient_phone',
-            4 => 'merchant_order_id',
-            5 => 'invoice_date',
-            6 => 'total',
-            7 => 'status',
-            8 => 'payment_status',
-            9 => 'created_by',
-            10 => 'id',
+
+        // Counts shown in the status badge buttons on first page load.
+        // Respect the current filters (if any) but ignore status so all four
+        // counters are meaningful.
+        $base = $this->buildFilteredQuery($request, ['status']);
+
+        $counts = [
+            'all'       => (clone $base)->count(),
+            'confirmed' => (clone $base)->where('status', 'confirmed')->count(),
+            'pending'   => (clone $base)->where('status', 'pending')->count(),
+            'cancelled' => (clone $base)->where('status', 'cancelled')->count(),
         ];
-        
-        $orderColumn = $columns[$orderColumnIndex] ?? 'invoice_date';
-        
-        // Special handling for ordering - use created_at for latest records
-        if ($orderColumn == 'invoice_date') {
-            // Order by created_at DESC to get latest records first
-            $orderColumn = 'created_at';
+
+        // Dropdown data
+        $teamMembers = User::orderBy('name')->get(['id', 'name']);
+
+        $courierNames = [
+            'Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX',
+            'Inhouse', 'Exchange',
+        ];
+
+        return view('invoices.index', compact('counts', 'teamMembers', 'courierNames'));
+    }
+
+    /**
+     * Build the base Invoice query with all UI filters applied.
+     * Shared by index() counts and getDataTableData().
+     */
+    protected function buildFilteredQuery(Request $request, array $ignore = [])
+    {
+        $query = Invoice::query()->whereNull('deleted_at');
+
+        // ---- Date range ----
+        if (!in_array('from_date', $ignore, true) && $request->filled('from_date')) {
+            $query->whereDate('invoice_date', '>=', $request->from_date);
         }
-        
-        // Apply search
-        if (!empty($searchValue)) {
-            $query->where(function($q) use ($searchValue) {
-                $q->where('invoice_number', 'LIKE', "%{$searchValue}%")
-                  ->orWhere('merchant_order_id', 'LIKE', "%{$searchValue}%")
-                  ->orWhere('recipient_name', 'LIKE', "%{$searchValue}%")
-                  ->orWhere('recipient_phone', 'LIKE', "%{$searchValue}%")
-                  ->orWhereHas('customer', function($customerQuery) use ($searchValue) {
-                      $customerQuery->where('name', 'LIKE', "%{$searchValue}%")
-                                   ->orWhere('phone_number_1', 'LIKE', "%{$searchValue}%");
-                  });
+        if (!in_array('to_date', $ignore, true) && $request->filled('to_date')) {
+            $query->whereDate('invoice_date', '<=', $request->to_date);
+        }
+
+        // ---- Team member (matches team_id OR created_by) ----
+        if (!in_array('team_member_id', $ignore, true) && $request->filled('team_member_id')) {
+            $memberId = $request->team_member_id;
+            $query->where(function ($q) use ($memberId) {
+                $q->where('team_id', $memberId)
+                  ->orWhere('created_by', $memberId);
             });
         }
-        
-        // Get total records count
-        $totalRecords = Invoice::whereNull('deleted_at')->count();
-        $filteredRecords = $query->count();
-        
-        // Get paginated data with proper ordering
-        $invoices = $query->orderBy($orderColumn, $orderDir)
-                          ->orderBy('id', 'desc') // Secondary order by ID for ties
-                          ->skip($start)
-                          ->take($length)
-                          ->get();
-        
-        // Format data for DataTables
-        $data = [];
-        foreach ($invoices as $index => $invoice) {
-            $row = [
-                'DT_RowIndex' => $start + $index + 1,
-                'id' => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'customer_name' => $invoice->customer->name ?? 'N/A',
-                'customer_phone' => $invoice->customer->phone_number_1 ?? $invoice->recipient_phone,
-                'merchant_order_id' => $invoice->merchant_order_id ?? 'N/A',
-                'invoice_date' => $invoice->invoice_date->format('d M Y'),
-                'total' => '৳' . number_format($invoice->total, 0),
-                'status' => [
-                    'value' => $invoice->status,
-                    'badge' => $invoice->status == 'confirmed' ? 'success' : ($invoice->status == 'pending' ? 'warning' : 'danger'),
-                    'text' => ucfirst($invoice->status)
-                ],
-                'payment_status' => [
-                    'value' => $invoice->payment_status,
-                    'badge' => $invoice->payment_status == 'paid' ? 'success' : ($invoice->payment_status == 'partial' ? 'warning' : 'danger'),
-                    'text' => ucfirst($invoice->payment_status)
-                ],
-                'created_by' => $invoice->creator->name ?? 'N/A',
-                // Add the team member field
-                'team_member_name' => $invoice->teamMember->name ?? 'N/A',
-                'actions' => $this->getActionButtons($invoice),
-                // Add these for debugging if needed
-                'created_at' => $invoice->created_at ? $invoice->created_at->format('Y-m-d H:i:s') : null,
-                'updated_at' => $invoice->updated_at ? $invoice->updated_at->format('Y-m-d H:i:s') : null,
-            ];
-            $data[] = $row;
+
+        // ---- Courier ----
+        if (!in_array('courier_name', $ignore, true) && $request->filled('courier_name')) {
+            $courier = $request->courier_name;
+
+            if ($courier === 'Inhouse') {
+                $query->where('is_inhouse_sale', 1);
+            } elseif ($courier === 'Exchange') {
+                $query->where('courier_name', 'Exchange');
+            } else {
+                $query->where('courier_name', $courier)
+                      ->where(function ($q) {
+                          $q->whereNull('is_inhouse_sale')->orWhere('is_inhouse_sale', 0);
+                      });
+            }
         }
-        
-        $response = [
-            'draw' => intval($request->input('draw', 1)),
-            'recordsTotal' => $totalRecords,
-            'recordsFiltered' => $filteredRecords,
-            'data' => $data
-        ];
-        
-        \Log::info('DataTable Response', [
-            'draw' => $response['draw'],
-            'total' => $totalRecords,
-            'filtered' => $filteredRecords,
-            'data_count' => count($data),
-            'first_invoice' => count($data) > 0 ? $data[0]['invoice_number'] : null,
-            'last_invoice' => count($data) > 0 ? $data[count($data)-1]['invoice_number'] : null,
-            'sample_team_member' => count($data) > 0 ? ($data[0]['team_member_name'] ?? 'N/A') : 'N/A'
-        ]);
-        
-        return response()->json($response);
-        
-    } catch (\Exception $e) {
-        \Log::error('DataTable Error: ' . $e->getMessage());
-        \Log::error($e->getTraceAsString());
-        
-        return response()->json([
-            'draw' => intval($request->input('draw', 1)),
-            'recordsTotal' => 0,
-            'recordsFiltered' => 0,
-            'data' => [],
-            'error' => $e->getMessage()
-        ], 500);
+
+        // ---- Status ----
+        if (!in_array('status', $ignore, true) && $request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        return $query;
     }
-}
-private function getActionButtons($invoice)
-{
-    $buttons = '<div class="btn-group btn-group-sm" role="group">';
-    
-    if (auth()->user()->can('print invoices')) {
-        $buttons .= '<a href="' . route('admin.invoices.print', $invoice->id) . '" class="btn btn-info" title="Print"><i class="fa fa-print"></i></a>';
-    }
-    
-    if (auth()->user()->can('view invoices')) {
-        $buttons .= '<a href="' . route('admin.invoices.show', $invoice->id) . '" class="btn btn-secondary" title="View"><i class="fa fa-eye"></i></a>';
-    }
-    
-    if (auth()->user()->can('edit invoices')) {
-        $buttons .= '<a href="' . route('admin.invoices.edit', $invoice->id) . '" class="btn btn-warning" title="Edit"><i class="fa fa-edit"></i></a>';
-    }
-    
-    $buttons .= $this->getStatusButtons($invoice);
-    
-    if (auth()->user()->can('delete invoices')) {
-        $buttons .= '<form action="' . route('admin.invoices.destroy', $invoice->id) . '" method="POST" class="d-inline">' .
-                    csrf_field() .
-                    method_field('DELETE') .
-                    '<button type="submit" class="btn btn-danger" onclick="return confirm(\'Delete this invoice?\')" title="Delete">' .
-                    '<i class="fa fa-trash"></i>' .
-                    '</button>' .
-                    '</form>';
-    }
-    
-    $buttons .= '</div>';
-    return $buttons;
+
+    private function getDataTableData(Request $request)
+    {
+        try {
+            $query = $this->buildFilteredQuery($request)
+                ->with(['customer', 'creator', 'teamMember']);
+
+            // DataTables parameters
+            $start = $request->input('start', 0);
+            $length = $request->input('length', 20);
+            $orderColumnIndex = $request->input('order.0.column', 5);
+            $orderDir = $request->input('order.0.dir', 'desc');
+            $searchValue = $request->input('search.value', '');
+
+            // Column map (indices must line up with the DataTable columns order)
+            $columns = [
+                0 => 'id',
+                1 => 'invoice_number',
+                2 => 'customer_id',
+                3 => 'recipient_phone',
+                4 => 'merchant_order_id',
+                5 => 'invoice_date',
+                6 => 'total',
+                7 => 'status',
+                8 => 'payment_status',
+                9 => 'courier_name',
+                10 => 'created_by',
+                11 => 'id',
+            ];
+
+            $orderColumn = $columns[$orderColumnIndex] ?? 'invoice_date';
+
+if ($orderColumn == 'invoice_date') {
+    $orderColumn = 'invoice_date';
+    $orderDir = 'desc';   // force newest invoice_date first
 }
 
-private function getStatusButtons($invoice)
-{
-    $buttons = '';
-    
-    if ($invoice->status == 'pending') {
-        $buttons .= '<button type="button" class="btn btn-success btn-status-update" title="Confirm Invoice" data-invoice-id="' . $invoice->id . '" data-target-status="confirmed"><i class="fa fa-check"></i></button>';
+            // Search
+            if (!empty($searchValue)) {
+                $query->where(function ($q) use ($searchValue) {
+                    $q->where('invoice_number', 'LIKE', "%{$searchValue}%")
+                      ->orWhere('merchant_order_id', 'LIKE', "%{$searchValue}%")
+                      ->orWhere('recipient_name', 'LIKE', "%{$searchValue}%")
+                      ->orWhere('recipient_phone', 'LIKE', "%{$searchValue}%")
+                      ->orWhereHas('customer', function ($customerQuery) use ($searchValue) {
+                          $customerQuery->where('name', 'LIKE', "%{$searchValue}%")
+                                        ->orWhere('phone_number_1', 'LIKE', "%{$searchValue}%");
+                      });
+                });
+            }
+
+            $totalRecords    = Invoice::whereNull('deleted_at')->count();
+            $filteredRecords = $query->count();
+
+            $invoices = $query->orderBy($orderColumn, $orderDir)
+                              ->orderBy('id', 'desc')
+                              ->skip($start)
+                              ->take($length)
+                              ->get();
+
+            $data = [];
+            foreach ($invoices as $index => $invoice) {
+              $row = [
+    'id' => $invoice->id,
+    'invoice_number' => $invoice->invoice_number,
+    'customer_name' => $invoice->customer->name ?? 'N/A',
+    'customer_phone' => $invoice->customer->phone_number_1 ?? $invoice->recipient_phone,
+    'merchant_order_id' => $invoice->merchant_order_id ?? 'N/A',
+    'invoice_date' => $invoice->invoice_date->format('d M Y'),
+    'total' => '৳' . number_format($invoice->total, 0),
+
+    // 👇 NEW — computed courier label
+    'courier_label' => $invoice->is_inhouse_sale
+        ? 'Inhouse'
+        : ($invoice->courier_name ?? 'N/A'),
+
+    'status' => [
+        'value' => $invoice->status,
+        'badge' => $invoice->status == 'confirmed' ? 'success' : ($invoice->status == 'pending' ? 'warning' : 'danger'),
+        'text'  => ucfirst($invoice->status),
+    ],
+    'payment_status' => [
+        'value' => $invoice->payment_status,
+        'badge' => $invoice->payment_status == 'paid' ? 'success' : ($invoice->payment_status == 'partial' ? 'warning' : 'danger'),
+        'text'  => ucfirst($invoice->payment_status),
+    ],
+    'created_by' => $invoice->creator->name ?? 'N/A',
+    'team_member_name' => $invoice->teamMember->name ?? 'N/A',
+    'actions' => $this->getActionButtons($invoice),
+    'created_at' => $invoice->created_at ? $invoice->created_at->format('Y-m-d H:i:s') : null,
+    'updated_at' => $invoice->updated_at ? $invoice->updated_at->format('Y-m-d H:i:s') : null,
+];
+                $data[] = $row;
+            }
+
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => $totalRecords,
+                'recordsFiltered' => $filteredRecords,
+                'data' => $data,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('DataTable Error: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-    
-    if ($invoice->status == 'confirmed') {
-        $buttons .= '<button type="button" class="btn btn-primary btn-status-update" title="Mark as Pending" data-invoice-id="' . $invoice->id . '" data-target-status="pending"><i class="fa fa-check"></i></button>';
+
+    private function getActionButtons($invoice)
+    {
+        $buttons = '<div class="btn-group btn-group-sm" role="group">';
+
+        if (auth()->user()->can('print invoices')) {
+            $buttons .= '<a href="' . route('admin.invoices.print', $invoice->id) . '" class="btn btn-info" title="Print"><i class="fa fa-print"></i></a>';
+        }
+
+        if (auth()->user()->can('view invoices')) {
+            $buttons .= '<a href="' . route('admin.invoices.show', $invoice->id) . '" class="btn btn-secondary" title="View"><i class="fa fa-eye"></i></a>';
+        }
+
+        if (auth()->user()->can('edit invoices')) {
+            $buttons .= '<a href="' . route('admin.invoices.edit', $invoice->id) . '" class="btn btn-warning" title="Edit"><i class="fa fa-edit"></i></a>';
+        }
+
+        $buttons .= $this->getStatusButtons($invoice);
+
+        if (auth()->user()->can('delete invoices')) {
+            $buttons .= '<form action="' . route('admin.invoices.destroy', $invoice->id) . '" method="POST" class="d-inline">' .
+                        csrf_field() .
+                        method_field('DELETE') .
+                        '<button type="submit" class="btn btn-danger" onclick="return confirm(\'Delete this invoice?\')" title="Delete">' .
+                        '<i class="fa fa-trash"></i>' .
+                        '</button>' .
+                        '</form>';
+        }
+
+        $buttons .= '</div>';
+        return $buttons;
     }
-    
-    return $buttons;
-}
+
+    private function getStatusButtons($invoice)
+    {
+        $buttons = '';
+
+        if ($invoice->status == 'pending') {
+            $buttons .= '<button type="button" class="btn btn-success btn-status-update" title="Confirm Invoice" data-invoice-id="' . $invoice->id . '" data-target-status="confirmed"><i class="fa fa-check"></i></button>';
+        }
+
+        if ($invoice->status == 'confirmed') {
+            $buttons .= '<button type="button" class="btn btn-primary btn-status-update" title="Mark as Pending" data-invoice-id="' . $invoice->id . '" data-target-status="pending"><i class="fa fa-check"></i></button>';
+        }
+
+        return $buttons;
+    }
 
     // Show single invoice
     public function show($id)
@@ -566,245 +653,7 @@ public function historyList(Request $request)
 
         return view('invoices.history-detail', compact('invoice', 'statistics'));
     }
-    public function updateold(Request $request, $id)
-    {
-        $invoice = Invoice::with(['items', 'returnItems'])->findOrFail($id);
-        $oldData = $this->getInvoiceDataForTracking($invoice);
-        $oldItems = $invoice->items->toArray();
-        $oldData['items'] = $oldItems;
-        // Manual validation to handle dynamic array indices
-        $validated = $request->validate([
-            'delivery_charge' => 'required|numeric|min:0',
-            'status' => 'required|string|in:confirmed,pending,cancelled',
-            // Add customer validation
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_address' => 'required|string|max:500',
-            'special_instructions' => 'nullable|string|max:1000',
-            // Return items validation
-                    'team_id' => 'nullable|exists:users,id', // Add validation
 
-            'has_return_items' => 'nullable|boolean',
-            'return_items' => 'nullable|array',
-            'return_items.*.item_name' => 'nullable|string',
-            'return_items.*.quantity' => 'nullable|integer|min:1',
-            'return_items.*.unit_price' => 'nullable|numeric|min:0',
-            'return_items.*.return_reason' => 'nullable|string',
-        ]);
-        
-        // Validate items manually to handle dynamic keys
-        $items = $request->items;
-        if (empty($items) || !is_array($items)) {
-            return back()->with('error', 'At least one item is required.');
-        }
-        
-        foreach ($items as $key => $item) {
-            if (empty($item['item_name'])) {
-                return back()->with('error', "Item name is required for all items.");
-            }
-            if (empty($item['quantity']) || $item['quantity'] < 1) {
-                return back()->with('error', "Valid quantity (minimum 1) is required for all items.");
-            }
-            if (empty($item['unit_price']) || $item['unit_price'] < 0) {
-                return back()->with('error', "Valid unit price is required for all items.");
-            }
-        }
-        
-        try {
-            DB::beginTransaction();
-            
-            // 1. Update Customer Information
-            $customer = $invoice->customer;
-            if ($customer) {
-                $customer->update([
-                    'name' => $request->customer_name,
-                    'phone_number_1' => $request->customer_phone,
-                    'full_address' => $request->customer_address,
-                ]);
-            } else {
-                // If no customer exists, create one (fallback)
-                $customer = Customer::create([
-                    'name' => $request->customer_name,
-                    'phone_number_1' => $request->customer_phone,
-                    'full_address' => $request->customer_address,
-                    'status' => 'active',
-                ]);
-                $invoice->customer_id = $customer->id;
-                $invoice->save();
-            }
-            
-            // 2. Check if has return items
-            $hasReturnItems = $request->has_return_items == '1' || $request->has_return_items === true;
-            
-            // 3. Prepare invoice data for update
-            $invoiceData = [
-                'delivery_charge' => $request->delivery_charge,
-                'status' => $request->status,
-                'merchant_order_id' => $request->merchant_order_id,
-                'notes' => $request->notes ?? $invoice->notes,
-                'special_instructions' => $request->special_instructions ?? $invoice->special_instructions,
-                'has_return_items' => $hasReturnItems,
-                'recipient_name' => $request->customer_name,
-                'recipient_phone' => $request->customer_phone,
-                'recipient_address' => $request->customer_address,
-                'team_id' => $request->team_id,
-            ];
-            
-            // 4. Update invoice_date only if status has changed
-            $oldStatus = $invoice->status;
-            $newStatus = $request->status;
-            
-            if ($oldStatus !== $newStatus) {
-                $invoiceData['invoice_date'] = now();
-                
-                if ($newStatus === 'confirmed') {
-                    $invoiceData['confirmed_at'] = now();
-                }
-            }
-            
-            // 5. Update invoice
-            $invoice->update($invoiceData);
-            
-            // 6. Update Items
-            $existingIds = $invoice->items->pluck('id')->toArray();
-            $updatedIds = [];
-            $subtotal = 0;
-            
-            foreach ($items as $itemData) {
-                $itemId = $itemData['id'] ?? null;
-                $weight = ($itemData['quantity'] * 500);
-                $totalPrice = $itemData['quantity'] * $itemData['unit_price'];
-                $subtotal += $totalPrice;
-                
-                if ($itemId && str_starts_with($itemId, 'new_')) {
-                    $item = InvoiceItem::create([
-                        'invoice_id' => $invoice->id,
-                        'item_name' => $itemData['item_name'],
-                        'quantity' => $itemData['quantity'],
-                        'unit_price' => $itemData['unit_price'],
-                        'total_price' => $totalPrice,
-                        'weight' => $weight,
-                    ]);
-                    $updatedIds[] = $item->id;
-                } elseif ($itemId && is_numeric($itemId)) {
-                    $item = InvoiceItem::find($itemId);
-                    if ($item && $item->invoice_id == $invoice->id) {
-                        $item->update([
-                            'item_name' => $itemData['item_name'],
-                            'quantity' => $itemData['quantity'],
-                            'unit_price' => $itemData['unit_price'],
-                            'total_price' => $totalPrice,
-                            'weight' => $weight,
-                        ]);
-                        $updatedIds[] = $item->id;
-                    }
-                }
-            }
-            
-            // Delete items that were removed
-            if ($request->has('deleted_items')) {
-                InvoiceItem::whereIn('id', $request->deleted_items)->delete();
-            }
-            
-            $itemsToDelete = array_diff($existingIds, $updatedIds);
-            if (!empty($itemsToDelete)) {
-                InvoiceItem::whereIn('id', $itemsToDelete)->delete();
-            }
-            
-            // 7. Update Return Items
-            $existingReturnIds = $invoice->returnItems->pluck('id')->toArray();
-            $updatedReturnIds = [];
-            $returnSubtotal = 0;
-            
-            if ($hasReturnItems && !empty($request->return_items)) {
-                foreach ($request->return_items as $returnItemData) {
-                    // Skip if item_name is empty
-                    if (empty($returnItemData['item_name'])) {
-                        continue;
-                    }
-                    
-                    $returnItemId = $returnItemData['id'] ?? null;
-                    $returnWeight = ($returnItemData['quantity'] ?? 1) * 500;
-                    $returnTotalPrice = ($returnItemData['quantity'] ?? 1) * ($returnItemData['unit_price'] ?? 0);
-                    $returnSubtotal += $returnTotalPrice;
-                    
-                    if ($returnItemId && str_starts_with($returnItemId, 'new_')) {
-                        $returnItem = ReturnItem::create([
-                            'invoice_id' => $invoice->id,
-                            'item_name' => $returnItemData['item_name'],
-                            'description' => $returnItemData['description'] ?? null,
-                            'quantity' => $returnItemData['quantity'] ?? 1,
-                            'weight' => $returnWeight,
-                            'unit_price' => $returnItemData['unit_price'] ?? 0,
-                            'total_price' => $returnTotalPrice,
-                            'return_reason' => $returnItemData['return_reason'] ?? null,
-                            'return_note' => $returnItemData['return_note'] ?? null,
-                        ]);
-                        $updatedReturnIds[] = $returnItem->id;
-                    } elseif ($returnItemId && is_numeric($returnItemId)) {
-                        $returnItem = ReturnItem::find($returnItemId);
-                        if ($returnItem && $returnItem->invoice_id == $invoice->id) {
-                            $returnItem->update([
-                                'item_name' => $returnItemData['item_name'],
-                                'description' => $returnItemData['description'] ?? null,
-                                'quantity' => $returnItemData['quantity'] ?? 1,
-                                'weight' => $returnWeight,
-                                'unit_price' => $returnItemData['unit_price'] ?? 0,
-                                'total_price' => $returnTotalPrice,
-                                'return_reason' => $returnItemData['return_reason'] ?? null,
-                                'return_note' => $returnItemData['return_note'] ?? null,
-                            ]);
-                            $updatedReturnIds[] = $returnItem->id;
-                        }
-                    }
-                }
-            }
-            
-            // Delete return items that were removed
-            if ($request->has('deleted_return_items')) {
-                ReturnItem::whereIn('id', $request->deleted_return_items)->delete();
-            }
-            
-            $returnItemsToDelete = array_diff($existingReturnIds, $updatedReturnIds);
-            if (!empty($returnItemsToDelete)) {
-                ReturnItem::whereIn('id', $returnItemsToDelete)->delete();
-            }
-            
-            // 8. Calculate final totals (subtotal - return subtotal)
-            $finalSubtotal = $subtotal - $returnSubtotal;
-            $deliveryCharge = $request->delivery_charge;
-            $total = $finalSubtotal + $deliveryCharge;
-            
-            // Update invoice totals
-            $invoice->update([
-                'subtotal' => $finalSubtotal,
-                'total' => $total,
-            ]);
-            
-            // Update due_amount if needed
-            if ($invoice->payment_status !== 'paid') {
-                $amountDue = $total - $invoice->paid_amount;
-                $invoice->update(['due_amount' => $amountDue]);
-            }
-            
-            DB::commit();
-            
-            $statusMessage = '';
-            if ($oldStatus !== $newStatus) {
-                $statusMessage = " Status changed from '{$oldStatus}' to '{$newStatus}' and invoice date updated.";
-            }
-            
-            return redirect()->route('admin.invoices.show', $invoice->id)
-                ->with('success', 'Invoice and customer updated successfully!' . $statusMessage);
-                
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('Invoice update error: ' . $e->getMessage());
-            
-            return back()->withInput()
-                ->with('error', 'Failed to update invoice: ' . $e->getMessage());
-        }
-    }
     public function update(Request $request, $id)
 {
     $invoice = Invoice::with(['items', 'returnItems'])->findOrFail($id);
@@ -838,7 +687,8 @@ public function historyList(Request $request)
         'payment_method' => 'nullable|string|in:bkash,bkash_personal,bank_transfer,cash',
         'paid_amount' => 'nullable|numeric|min:0',
         'amount_to_collect' => 'nullable|numeric|min:0',
- 
+     'payment_details2' => 'nullable|string',
+        'payment_details' => 'nullable|string',
         // Notes
         'special_instructions' => 'nullable|string|max:1000',
         'notes' => 'nullable|string',
@@ -920,6 +770,7 @@ public function historyList(Request $request)
             'status' => $request->status,
             'payment_method' => $request->payment_method,
             'payment_details' => $this->getPaymentDetails($request),
+            'payment_details2' => $this->getPaymentDetails2($request),
             'paid_amount' => $request->paid_amount ?? 0,
             'amount_to_collect' => $request->amount_to_collect ?? 0,
             'special_instructions' => $request->special_instructions,
@@ -1105,7 +956,16 @@ public function historyList(Request $request)
         if (!empty($changedFields['return_items_changes'])) {
             $statusMessage .= " Return items changed.";
         }
- 
+ \Log::info('Invoice update — payment fields received', [
+    'invoice_id'              => $id,
+    'payment_method'          => $request->input('payment_method'),
+    'bkash_transaction'       => $request->input('bkash_transaction'),
+    'bkash_personal_tx'       => $request->input('bkash_personal_transaction'),
+    'bank_transfer_details'   => $request->input('bank_transfer_details'),
+    'cash_amount'             => $request->input('cash_amount'),
+    'generic_payment_details' => $request->input('payment_details'),
+    'existing_payment_details'=> $invoice->payment_details,
+]);
         return redirect()->route('admin.invoices.show', $invoice->id)
             ->with('success', 'Invoice updated successfully!' . $statusMessage);
  

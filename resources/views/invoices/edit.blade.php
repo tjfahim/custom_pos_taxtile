@@ -256,7 +256,7 @@
                         <div class="card-header bg-light">
                             <div class="form-check">
                               <input class="form-check-input" type="checkbox" name="has_return_items" id="hasReturnItems" value="1"
-       {{ old('has_return_items', $invoice->has_return_items) ? 'checked' : '' }}>
+                                     {{ old('has_return_items', $invoice->has_return_items) ? 'checked' : '' }}>
                                 <label class="form-check-label" for="hasReturnItems">
                                     <i class="fa fa-undo"></i> Has Return Items
                                 </label>
@@ -312,42 +312,35 @@
                                                value="{{ old('paid_amount', $invoice->paid_amount) }}">
                                     </div>
                                 </div>
-                                {{-- <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Amount to Collect</label>
-                                        <input type="number" step="0.01" min="0" name="amount_to_collect" id="amountToCollect" class="form-control"
-                                               value="{{ old('amount_to_collect', $invoice->amount_to_collect) }}">
-                                    </div>
-                                </div> --}}
 
                                 <div class="col-md-6" id="bkashDetails" style="display:none;">
-    <div class="form-group">
-        <label>bKash Transaction ID</label>
-        <input type="text" name="payment_details" class="form-control"
-               value="{{ old('payment_details', $invoice->payment_method == 'bkash' ? $invoice->payment_details : '') }}">
-    </div>
-</div>
-<div class="col-md-6" id="bkashPersonalDetails" style="display:none;">
-    <div class="form-group">
-        <label>bKash Personal Transaction ID</label>
-        <input type="text" name="payment_details" class="form-control"
-               value="{{ old('payment_details', $invoice->payment_method == 'bkash_personal' ? $invoice->payment_details : '') }}">
-    </div>
-</div>
-<div class="col-md-6" id="bankDetails" style="display:none;">
-    <div class="form-group">
-        <label>Bank Transfer Details</label>
-        <input type="text" name="payment_details" class="form-control"
-               value="{{ old('payment_details', $invoice->payment_method == 'bank_transfer' ? $invoice->payment_details : '') }}">
-    </div>
-</div>
-<div class="col-md-6" id="cashDetails" style="display:none;">
-    <div class="form-group">
-        <label>Cash Details</label>
-        <input type="text" name="payment_details" class="form-control"
-               value="{{ old('payment_details', $invoice->payment_method == 'cash' ? $invoice->payment_details : '') }}">
-    </div>
-</div>
+                                    <div class="form-group">
+                                        <label>bKash Transaction ID</label>
+                                        <input type="text" name="bkash_transaction" id="bkashTransactionInput" class="form-control"
+                                               value="{{ old('bkash_transaction', $invoice->payment_method == 'bkash' ? $invoice->payment_details : '') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="bkashPersonalDetails" style="display:none;">
+                                    <div class="form-group">
+                                        <label>bKash Personal Transaction ID</label>
+                                        <input type="text" name="bkash_personal_transaction" id="bkashPersonalInput" class="form-control"
+                                               value="{{ old('bkash_personal_transaction', $invoice->payment_method == 'bkash_personal' ? $invoice->payment_details : '') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="bankDetails" style="display:none;">
+                                    <div class="form-group">
+                                        <label>Bank Transfer Details</label>
+                                        <input type="text" name="bank_transfer_details" id="bankTransferInput" class="form-control"
+                                               value="{{ old('bank_transfer_details', $invoice->payment_method == 'bank_transfer' ? $invoice->payment_details : '') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="cashDetails" style="display:none;">
+                                    <div class="form-group">
+                                        <label>Cash Details</label>
+                                        <input type="text" name="cash_amount" id="cashAmountInput" class="form-control"
+                                               value="{{ old('cash_amount', $invoice->payment_method == 'cash' ? $invoice->payment_details : '') }}">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -477,8 +470,24 @@
         'has_return_items' => (bool) $invoice->has_return_items,
     ];
 @endphp
+
 <script>
     window.__INVOICE_DATA__ = @json($invoiceData);
+
+    // Show/hide the payment detail block matching the selected method
+    function togglePaymentDetails() {
+        var method = document.getElementById('paymentMethod')?.value || '';
+
+        document.getElementById('bkashDetails').style.display = 'none';
+        document.getElementById('bkashPersonalDetails').style.display = 'none';
+        document.getElementById('bankDetails').style.display = 'none';
+        document.getElementById('cashDetails').style.display = 'none';
+
+        if (method === 'bkash')                 document.getElementById('bkashDetails').style.display = 'block';
+        else if (method === 'bkash_personal')   document.getElementById('bkashPersonalDetails').style.display = 'block';
+        else if (method === 'bank_transfer')    document.getElementById('bankDetails').style.display = 'block';
+        else if (method === 'cash')             document.getElementById('cashDetails').style.display = 'block';
+    }
 </script>
 
 <!-- Reused unchanged from POS -->
@@ -492,5 +501,51 @@
 <script src="{{ asset('js/invoice-edit-items.js') }}"></script>
 <script src="{{ asset('js/invoice-edit-return-items.js') }}"></script>
 <script src="{{ asset('js/invoice-edit-init.js') }}"></script>
+
+<!-- === FIX: restore payment details AFTER all POS scripts run === -->
+<script>
+    (function () {
+        function restorePaymentDetails() {
+            // 1. Show the correct detail block for the saved method
+            if (typeof togglePaymentDetails === 'function') {
+                togglePaymentDetails();
+            }
+
+            // 2. Re-apply the saved payment_details value into the correct input
+            var method  = @json($invoice->payment_method);
+            var details = @json($invoice->payment_details);
+
+            if (!method || details === null || details === undefined || details === '') return;
+
+            var selectorMap = {
+                'bkash':          'input[name="bkash_transaction"]',
+                'bkash_personal': 'input[name="bkash_personal_transaction"]',
+                'bank_transfer':  'input[name="bank_transfer_details"]',
+                'cash':           'input[name="cash_amount"]'
+            };
+
+            var sel = selectorMap[method];
+            if (!sel) return;
+
+            var input = document.querySelector(sel);
+            if (input) {
+                input.value = details;
+                console.log('[edit-invoice] restored payment_details for', method, '=>', details);
+            }
+        }
+
+        // Defer until after every DOMContentLoaded handler (including the POS
+        // scripts that clear the fields) has finished running.
+        function scheduleRestore() {
+            setTimeout(restorePaymentDetails, 0);
+        }
+
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            scheduleRestore();
+        } else {
+            document.addEventListener('DOMContentLoaded', scheduleRestore);
+        }
+    })();
+</script>
 
 @endsection

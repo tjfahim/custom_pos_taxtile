@@ -4,7 +4,7 @@
 <div class="content mt-3">
     <div class="col-lg-12">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
                 <h5 class="card-title mb-0">
                     <i class="fa fa-file-invoice"></i> Invoices
                 </h5>
@@ -12,65 +12,140 @@
                     <a href="#" class="btn btn-purple btn-sm mr-2" id="print-selected-btn" disabled>
                         <i class="fa fa-print"></i> Print Selected <span id="selected-count" style="display: none;"></span>
                     </a>
-                    <!-- Time Range Picker Button -->
+
                     <button type="button" class="btn btn-info btn-sm mr-2" data-toggle="modal" data-target="#timeRangeModal">
                         <i class="fa fa-clock-o"></i> Custom Time CSV
                     </button>
-   
-                   <div class="btn-group" role="group" aria-label="CSV Download Options">
+
+                    <div class="btn-group" role="group" aria-label="CSV Download Options">
                         <a href="{{ route('admin.invoices.download-today-csv-exchange') }}" class="btn btn-info btn-sm mr-2">
                             <i class="fa fa-download"></i> Today's CSV (Exchange)
                         </a>
                     </div>
-              
-                   
+
                     <div class="btn-group" role="group" aria-label="CSV Download Options">
                         <a href="{{ route('admin.invoices.download-today-csv') }}" class="btn btn-info btn-sm mr-2">
                             <i class="fa fa-download"></i> Today's CSV (Pathao)
                         </a>
                     </div>
-              
-                   
-                   
+
                     <a href="{{ route('admin.invoices.pos') }}" class="btn btn-primary btn-sm">
                         <i class="fa fa-plus"></i> Create Invoice
                     </a>
                 </div>
             </div>
-            
+
             <!-- Time Range Selection Modal -->
             @include('admin.invoices.partials.time-range-modal')
-            
-            <!-- Status Filter Buttons -->
-            <div class="card-header py-2">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-secondary status-filter active" data-status="">
-                        All <span class="badge badge-light" id="count-all">{{ $counts['all'] }}</span>
-                    </button>
-                    <button type="button" class="btn btn-outline-success status-filter" data-status="confirmed">
-                        <i class="fa fa-check-circle"></i> Confirmed 
-                        <span class="badge badge-light" id="count-confirmed">{{ $counts['confirmed'] }}</span>
-                    </button>
-                    <button type="button" class="btn btn-outline-warning status-filter" data-status="pending">
-                        <i class="fa fa-clock"></i> Pending 
-                        <span class="badge badge-light" id="count-pending">{{ $counts['pending'] }}</span>
-                    </button>
-                    <button type="button" class="btn btn-outline-danger status-filter" data-status="cancelled">
-                        <i class="fa fa-times-circle"></i> Cancelled 
-                        <span class="badge badge-light" id="count-cancelled">{{ $counts['cancelled'] }}</span>
-                    </button>
+
+            {{-- ======================== FILTER PANEL ======================== --}}
+            <div class="card-header py-3 bg-light">
+                <form id="invoice-filter-form" class="row g-2 align-items-end">
+
+                    {{-- From Date --}}
+                    <div class="col-md-2 col-sm-6">
+                        <label class="form-label mb-1 small text-muted">From Date</label>
+                        <input type="date" name="from_date" id="filter-from-date"
+                               class="form-control form-control-sm"
+                               value="{{ request('from_date') }}">
+                    </div>
+
+                    {{-- To Date --}}
+                    <div class="col-md-2 col-sm-6">
+                        <label class="form-label mb-1 small text-muted">To Date</label>
+                        <input type="date" name="to_date" id="filter-to-date"
+                               class="form-control form-control-sm"
+                               value="{{ request('to_date') }}">
+                    </div>
+
+                    {{-- Team Member --}}
+                    <div class="col-md-3 col-sm-6">
+                        <label class="form-label mb-1 small text-muted">Team Member</label>
+                        <select name="team_member_id" id="filter-team-member"
+                                class="form-control form-control-sm">
+                            <option value="">All Team Members</option>
+                            @foreach($teamMembers as $member)
+                                <option value="{{ $member->id }}"
+                                    {{ request('team_member_id') == $member->id ? 'selected' : '' }}>
+                                    {{ $member->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Courier --}}
+                    <div class="col-md-2 col-sm-6">
+                        <label class="form-label mb-1 small text-muted">Courier</label>
+                        <select name="courier_name" id="filter-courier"
+                                class="form-control form-control-sm">
+                            <option value="">All Couriers</option>
+                            @foreach($courierNames as $courier)
+                                <option value="{{ $courier }}"
+                                    {{ request('courier_name') == $courier ? 'selected' : '' }}>
+                                    {{ $courier }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Status --}}
+                    <div class="col-md-2 col-sm-6">
+                        <label class="form-label mb-1 small text-muted">Status</label>
+                        <select name="status" id="filter-status"
+                                class="form-control form-control-sm">
+                            <option value="">All Status</option>
+                            <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                            <option value="pending"   {{ request('status') == 'pending'   ? 'selected' : '' }}>Pending</option>
+                            <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                        </select>
+                    </div>
+
+                    {{-- Buttons --}}
+                    <div class="col-md-1 col-sm-6">
+                        <button type="submit" class="btn btn-primary btn-sm w-100" title="Apply filters">
+                            <i class="fa fa-filter"></i>
+                        </button>
+                    </div>
+                    <div class="col-md-1 col-sm-6">
+                        <button type="button" id="filter-reset" class="btn btn-outline-secondary btn-sm w-100"
+                                title="Reset filters">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                </form>
+
+                {{-- Status quick-filter badge buttons --}}
+                <div class="mt-2 d-flex align-items-center flex-wrap">
+                    <div class="btn-group btn-group-sm mr-2" role="group">
+                        <button type="button" class="btn btn-outline-secondary status-filter active" data-status="">
+                            All <span class="badge badge-light" id="count-all">{{ $counts['all'] }}</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-success status-filter" data-status="confirmed">
+                            <i class="fa fa-check-circle"></i> Confirmed
+                            <span class="badge badge-light" id="count-confirmed">{{ $counts['confirmed'] }}</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-warning status-filter" data-status="pending">
+                            <i class="fa fa-clock"></i> Pending
+                            <span class="badge badge-light" id="count-pending">{{ $counts['pending'] }}</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger status-filter" data-status="cancelled">
+                            <i class="fa fa-times-circle"></i> Cancelled
+                            <span class="badge badge-light" id="count-cancelled">{{ $counts['cancelled'] }}</span>
+                        </button>
+                    </div>
+                    <small class="text-muted" id="active-filters-summary"></small>
                 </div>
             </div>
+            {{-- ======================== /FILTER PANEL ======================== --}}
 
             <div class="card-body p-2">
                 <div class="table-responsive">
                     <table id="invoicesTable" class="table table-sm table-hover" style="width:100%">
                         <thead>
                             <tr>
-                                  <th style="width: 30px;">
-            <input type="checkbox" id="select-all-invoices" style="cursor: pointer;">
-        </th>
-                                <th>SL</th>
+                                <th style="width: 30px;">
+                                    <input type="checkbox" id="select-all-invoices" style="cursor: pointer;">
+                                </th>
                                 <th>Invoice #</th>
                                 <th>Customer</th>
                                 <th>Phone</th>
@@ -79,15 +154,16 @@
                                 <th>Total</th>
                                 <th>Status</th>
                                 <th>Payment</th>
+                                <th class="text-center">Courier</th>   {{-- 👈 NEW --}}
+
                                 @if(auth()->user()->hasRole('admin'))
                                     <th>Team Member</th>
-                                    <th></th>
                                 @endif
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Data will be loaded via AJAX -->
+                            <!-- Data loaded via AJAX -->
                         </tbody>
                     </table>
                 </div>
@@ -105,49 +181,64 @@
     </div>
 </div>
 
-<!-- Include CSRF Token -->
+<!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
-<!-- Include Modal Specific CSS -->
+<!-- Include Modal Specific CSS / JS -->
 <link rel="stylesheet" href="{{ asset('css/invoices.css') }}">
-
-<!-- Include Modal Specific JavaScript -->
 <script src="{{ asset('js/admin/invoices/time-range-modal.js') }}"></script>
 <script src="{{ asset('js/admin/invoices/multi-print.js') }}"></script>
 
 <script>
 $(document).ready(function() {
-    let currentStatus = '';
     let table;
     let loadingTimeout;
-    
-    // Show loading overlay
+
     function showLoading() {
         clearTimeout(loadingTimeout);
         $('#loading-overlay').fadeIn(200);
     }
-    
-    // Hide loading overlay
+
     function hideLoading() {
         $('#loading-overlay').fadeOut(200);
     }
-    
+
+    // Collect all current filter values
+    function currentFilters() {
+        return {
+            from_date:      $('#filter-from-date').val() || '',
+            to_date:        $('#filter-to-date').val() || '',
+            team_member_id: $('#filter-team-member').val() || '',
+            courier_name:   $('#filter-courier').val() || '',
+            status:         $('#filter-status').val() || '',
+        };
+    }
+
+    // Render "Active filters: ..." small text under the badge buttons
+    function renderActiveFilters() {
+        const f = currentFilters();
+        const bits = [];
+        if (f.from_date)      bits.push('From: ' + f.from_date);
+        if (f.to_date)        bits.push('To: ' + f.to_date);
+        if (f.team_member_id) bits.push('Member: ' + $('#filter-team-member option:selected').text().trim());
+        if (f.courier_name)   bits.push('Courier: ' + f.courier_name);
+        if (f.status)         bits.push('Status: ' + f.status);
+        $('#active-filters-summary').text(bits.length ? 'Active: ' + bits.join(' | ') : '');
+    }
+
     // Initialize DataTable
     table = $('#invoicesTable').DataTable({
         processing: false,
         serverSide: true,
+        order: [[5, 'desc']],
         ajax: {
             url: "{{ route('admin.invoices.index') }}",
             type: 'GET',
             data: function(d) {
-                d.status = currentStatus;
+                Object.assign(d, currentFilters());
             },
-            beforeSend: function() {
-                showLoading();
-            },
-            complete: function() {
-                setTimeout(hideLoading, 300);
-            },
+            beforeSend: showLoading,
+            complete: function() { setTimeout(hideLoading, 300); },
             error: function(xhr, error, thrown) {
                 console.error('DataTable error:', {xhr: xhr, error: error, thrown: thrown});
                 hideLoading();
@@ -155,47 +246,23 @@ $(document).ready(function() {
             }
         },
         columns: [
-                { 
-            data: 'id',  // We'll use id for checkbox
-            name: 'id',
-            orderable: false,
-            searchable: false,
-            render: function(data, type, row) {
-                return '<input type="checkbox" class="select-invoice" data-invoice-id="' + data + '">';
-            }
-        },
-            { 
-                data: 'DT_RowIndex', 
-                name: 'DT_RowIndex', 
-                orderable: false, 
-                searchable: false 
+            {
+                data: 'id',
+                name: 'id',
+                orderable: false,
+                searchable: false,
+                render: function(data) {
+                    return '<input type="checkbox" class="select-invoice" data-invoice-id="' + data + '">';
+                }
             },
-            { 
-                data: 'invoice_number', 
-                name: 'invoice_number' 
-            },
-            { 
-                data: 'customer_name', 
-                name: 'customer_name' 
-            },
-            { 
-                data: 'customer_phone', 
-                name: 'customer_phone' 
-            },
-            { 
-                data: 'merchant_order_id', 
-                name: 'merchant_order_id' 
-            },
-            { 
-                data: 'invoice_date', 
-                name: 'invoice_date' 
-            },
-            { 
-                data: 'total', 
-                name: 'total' 
-            },
-            { 
-                data: 'status', 
+            { data: 'invoice_number', name: 'invoice_number' },
+            { data: 'customer_name', name: 'customer_name' },
+            { data: 'customer_phone', name: 'customer_phone' },
+            { data: 'merchant_order_id', name: 'merchant_order_id' },
+            { data: 'invoice_date', name: 'invoice_date' },
+            { data: 'total', name: 'total' },
+            {
+                data: 'status',
                 name: 'status',
                 render: function(data) {
                     if (data && data.badge) {
@@ -204,8 +271,8 @@ $(document).ready(function() {
                     return '<span class="badge badge-secondary">Unknown</span>';
                 }
             },
-            { 
-                data: 'payment_status', 
+            {
+                data: 'payment_status',
                 name: 'payment_status',
                 render: function(data) {
                     if (data && data.badge) {
@@ -214,21 +281,44 @@ $(document).ready(function() {
                     return '<span class="badge badge-secondary">Unknown</span>';
                 }
             },
-          @if(auth()->user()->hasRole('admin'))
-    { 
-        data: 'team_member_name', 
-        name: 'team_member_name',
-        defaultContent: 'N/A'
-    },
-@endif
-            { 
-                data: 'actions', 
+            {
+    data: 'courier_label',
+    name: 'courier_label',
+    defaultContent: 'N/A',
+    className: 'text-center',
+    render: function(data) {
+        if (!data || data === 'N/A') {
+            return '<span class="text-muted">N/A</span>';
+        }
+        // Pick a colour per courier
+        var colours = {
+            'Pathao':    '#e74c3c',
+            'Steadfast': '#27ae60',
+            'SA':        '#16a085',
+            'SUNDORBAN': '#8e44ad',
+            'JANONI':    '#2c3e50',
+            'REDEX':     '#c0392b',
+            'Exchange':  '#f39c12',
+            'Inhouse':   '#6f42c1'
+        };
+        var bg = colours[data] || '#17a2b8';
+        return '<span class="badge" style="background:' + bg + ';color:#fff;font-size:11px;">' + data + '</span>';
+    }
+},
+            @if(auth()->user()->hasRole('admin'))
+            {
+                data: 'team_member_name',
+                name: 'team_member_name',
+                defaultContent: 'N/A'
+            },
+            @endif
+            {
+                data: 'actions',
                 name: 'actions',
                 orderable: false,
                 searchable: false
             }
         ],
-        order: [[5, 'desc']],
         pageLength: 20,
         lengthMenu: [[20, 50, 100, 200, 500], [20, 50, 100, 200, 500]],
         responsive: true,
@@ -248,37 +338,75 @@ $(document).ready(function() {
             }
         },
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>><"row"<"col-sm-12"tr>><"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        initComplete: function(settings, json) {
+        initComplete: function() {
             console.log('DataTable initialized successfully');
             hideLoading();
             $('[title]').tooltip();
+            renderActiveFilters();
         },
         drawCallback: function() {
             hideLoading();
             $('[title]').tooltip();
         }
     });
-    
-    // Status filter buttons
-    $('.status-filter').on('click', function() {
-        const status = $(this).data('status');
-        
-        $('.status-filter').removeClass('active');
-        $(this).addClass('active');
-        
-        currentStatus = status;
+
+    // ---- Form submit: apply all filters ----
+    $('#invoice-filter-form').on('submit', function(e) {
+        e.preventDefault();
+
+        // keep the badge buttons in sync with the dropdown
+        const status = $('#filter-status').val();
+        $('.status-filter').removeClass('active')
+            .filter('[data-status="' + status + '"]').addClass('active');
+
+        renderActiveFilters();
         showLoading();
         table.ajax.reload(function() {
             setTimeout(hideLoading, 300);
         }, false);
+
+        refreshCounts();
     });
-    
-    // Function to update status counts via AJAX
-    function updateStatusCounts() {
+
+    // ---- Reset button ----
+    $('#filter-reset').on('click', function() {
+        $('#invoice-filter-form')[0].reset();
+        $('#filter-status').val('');
+        $('.status-filter').removeClass('active')
+            .filter('[data-status=""]').addClass('active');
+
+        renderActiveFilters();
+        showLoading();
+        table.ajax.reload(function() {
+            setTimeout(hideLoading, 300);
+            refreshCounts();
+        }, false);
+    });
+
+    // ---- Status badge buttons (shortcut) ----
+    $('.status-filter').on('click', function() {
+        const status = $(this).data('status') || '';
+
+        $('.status-filter').removeClass('active');
+        $(this).addClass('active');
+
+        // sync the dropdown
+        $('#filter-status').val(status);
+
+        renderActiveFilters();
+        showLoading();
+        table.ajax.reload(function() {
+            setTimeout(hideLoading, 300);
+            refreshCounts();
+        }, false);
+    });
+
+    // ---- Refresh the badge counts using current filters (ignore status) ----
+    function refreshCounts() {
         $.ajax({
             url: "{{ route('admin.invoices.index') }}",
             type: 'GET',
-            data: { counts_only: true },
+            data: $.extend({ counts_only: true }, currentFilters(), { status: '' }),
             success: function(response) {
                 if (response.counts) {
                     $('#count-all').text(response.counts.all);
@@ -289,7 +417,7 @@ $(document).ready(function() {
             }
         });
     }
-    
+
     // Toast notification function
     function showToast(type, title, message) {
         let toastContainer = $('.toast-container');
@@ -297,15 +425,15 @@ $(document).ready(function() {
             $('body').append('<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>');
             toastContainer = $('.toast-container');
         }
-        
+
         const toastId = 'toast-' + Date.now();
-        
+
         let icon = 'info-circle';
         if (type === 'success') icon = 'check-circle';
         if (type === 'error') icon = 'exclamation-circle';
-        
+
         const bgColor = type === 'success' ? 'success' : (type === 'error' ? 'danger' : 'info');
-        
+
         const toastHtml = `
             <div id="${toastId}" class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="toast-header bg-${bgColor} text-white">
@@ -318,19 +446,20 @@ $(document).ready(function() {
                 </div>
             </div>
         `;
-        
+
         const toastElement = $(toastHtml).appendTo(toastContainer);
-        
+
         setTimeout(() => {
             toastElement.remove();
         }, 5000);
-        
+
         toastElement.find('.btn-close').on('click', function() {
             toastElement.remove();
         });
     }
+    window.showToast = showToast;
 
-    // Add custom search with debounce
+    // Custom search with debounce
     $('div.dataTables_filter input').unbind().bind('keyup', function(e) {
         if (e.keyCode == 13) {
             showLoading();
@@ -343,20 +472,19 @@ $(document).ready(function() {
             }, 500));
         }
     });
-    
-    // Event delegation for status update buttons - NO CONFIRMATION MODAL
+
+    // Status update buttons
     $(document).on('click', '.btn-status-update', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         const button = $(this);
         const invoiceId = button.data('invoice-id');
         const targetStatus = button.data('target-status');
-        
-        // Store original button content
+
         const originalHtml = button.html();
         button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
-        
+
         $.ajax({
             url: `/admin/invoices/${invoiceId}/status`,
             type: 'PATCH',
@@ -367,23 +495,17 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     showToast('success', 'Success', response.message);
-                    
-                    // Show loading
+
                     showLoading();
-                    
-                    // Reload the table to reflect changes
                     table.ajax.reload(function() {
                         setTimeout(hideLoading, 300);
-                        
-                        // Update counts after table reload
-                        updateStatusCounts();
-                        
-                      if (response.data && response.data.invoice_number) {
-                showToast('info', 'Invoice Number', `New invoice number: ${response.data.invoice_number}`);
-            }
-            
-            // TRIGGER THIS EVENT
-            $(document).trigger('status-update-complete');
+                        refreshCounts();
+
+                        if (response.data && response.data.invoice_number) {
+                            showToast('info', 'Invoice Number', `New invoice number: ${response.data.invoice_number}`);
+                        }
+
+                        $(document).trigger('status-update-complete');
                     }, false);
                 } else {
                     showToast('error', 'Error', response.message || 'Failed to update status');
@@ -402,25 +524,25 @@ $(document).ready(function() {
                 } else if (xhr.status === 422) {
                     errorMsg = 'Validation error: ' + (xhr.responseJSON?.message || 'Invalid status');
                 }
-                
+
                 showToast('error', 'Error', errorMsg);
                 button.prop('disabled', false).html(originalHtml);
                 hideLoading();
-                
+
                 console.error('Status update error:', xhr.responseJSON || xhr);
             }
         });
     });
-    
-    // Event delegation for delete forms (keeping confirmation for delete as it's destructive)
+
+    // Delete confirmation
     $(document).on('submit', 'form.d-inline', function(e) {
         if (!confirm('Delete this invoice?')) {
             e.preventDefault();
             return false;
         }
     });
-    
-    console.log('Document ready, status button events delegated - no confirmation modals');
+
+    console.log('Document ready — invoices filter panel ready');
 });
 </script>
 @endsection
