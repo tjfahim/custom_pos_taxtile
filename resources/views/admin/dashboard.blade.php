@@ -80,75 +80,85 @@
                     <!-- Icon -->
                    
 
-                    <div class="stat-content dib" style="width:calc(100% - 70px);">
+               <!-- Total Summary -->
+<div class="stat-sub"
+     style="font-size:17px; font-weight:700; line-height:1.9; color:#222;">
 
-                        <!-- Title -->
-                        <div class="stat-text"
-                             style="font-size:22px; font-weight:800; color:#222; margin-bottom:8px;">
-                            Today's Summary
-                        </div>
+    <span style="color:#000;">
+        Total Sell:
+        Qty:
+        <strong style="font-size:20px;">
+            {{ number_format(
+                array_sum(array_column($todayData, 'quantity'))
+                + $todayInhouse['quantity']
+                + $todayExchange['net_quantity']    {{-- CHANGED --}}
+            , 0) }}
+        </strong>
+    </span>
 
-                        <!-- Total Summary -->
-                        <div class="stat-sub"
-                             style="font-size:17px; font-weight:700; line-height:1.9; color:#222;">
+    <span style="margin-left:10px; color:#555;">|</span>
 
-                            <span style="color:#000;">
-                                Total Sell:
-                                   Qty:
-                             
-                                <strong style="font-size:20px;">
-                                    {{ number_format(array_sum(array_column($todayData, 'quantity')) + $todayInhouse['quantity'], 0) }}
-                                </strong>
-                                
-                            </span>
+    <span style="color:#8e44ad;">
+        Price:
+        <strong style="font-size:20px;">
+            ৳{{ number_format(
+                array_sum(array_column($todayData, 'subtotal'))
+                + $todayInhouse['subtotal']
+                + $todayExchange['subtotal']         {{-- unchanged: already net --}}
+            , 0) }}
+        </strong>
+    </span>
 
-                         
+    <span style="margin-left:10px; color:#555;">|</span>
 
-                            <span style="margin-left:10px; color:#555;">|</span>
+    <span style="color:#e67e22;">
+        Delivery:
+        <strong style="font-size:20px;">
+            ৳{{ number_format(
+                array_sum(array_column($todayData, 'delivery'))
+                + $todayInhouse['delivery']
+                + $todayExchange['delivery']
+            , 0) }}
+        </strong>
+    </span>
 
-                            <span style="color:#8e44ad;">
-                                Price:
-                                <strong style="font-size:20px;">
-                                    ৳{{ number_format(array_sum(array_column($todayData, 'subtotal')) + $todayInhouse['subtotal'], 0) }}
-                                </strong>
-                            </span>
+    <span style="margin-left:10px; color:#555;">|</span>
 
-                            <span style="margin-left:10px; color:#555;">|</span>
+    <span style="color:;">
+        Total:
+        <strong style="font-size:20px;">
+            {{ number_format(
+                array_sum(array_column($todayData, 'revenue'))
+                + $todayInhouse['revenue']
+                + $todayExchange['revenue']
+            , 0) }}
+        </strong>
+    </span>
 
-                            <span style="color:#e67e22;">
-                                Delivery:
-                                <strong style="font-size:20px;">
-                                    ৳{{ number_format(array_sum(array_column($todayData, 'delivery')) + $todayInhouse['delivery'], 0) }}
-                                </strong>
-                            </span>
-                                                        <span style="margin-left:10px; color:#555;">|</span>
+    <span style="margin-left:10px; color:#555;">|</span>
 
-                            <span style="color:;">
-                                Total:
-                                <strong style="font-size:20px;">
-                                     {{ number_format(array_sum(array_column($todayData, 'revenue')) + $todayInhouse['revenue'], 0) }}
-                                </strong>
-                                
-                            </span>
+    <span style="color:#27ae60;">
+        Paid:
+        <strong style="font-size:20px;">
+            ৳{{ number_format(
+                array_sum(array_column($todayData, 'paid'))
+                + $todayInhouse['paid']
+                + $todayExchange['paid']
+            , 0) }}
+        </strong>
+    </span>
 
-                            <span style="margin-left:10px; color:#555;">|</span>
+    <span style="margin-left:10px; color:#555;">|</span>
 
-                            <span style="color:#27ae60;">
-                                Paid:
-                                <strong style="font-size:20px;">
-                                    ৳{{ number_format(array_sum(array_column($todayData, 'paid')) + $todayInhouse['paid'], 0) }}
-                                </strong>
-                            </span>
-                               <span style="margin-left:10px; color:#555;">|</span>
-
-                            <span style="color:#34495e;">
-                                Parcel:
-                                <strong style="font-size:20px;">
-                                    {{ array_sum(array_column($todayData, 'invoices')) + $todayInhouse['invoices'] }}
-                                </strong>
-                            </span>
-                        </div>
-
+    <span style="color:#34495e;">
+        Parcel:
+        <strong style="font-size:20px;">
+            {{ array_sum(array_column($todayData, 'invoices'))
+                + $todayInhouse['invoices']
+                + $todayExchange['invoices'] }}
+        </strong>
+    </span>
+</div>
                         <hr style="margin:15px 0; border-top:2px solid #eee;">
 
                         <!-- Courier Details -->
@@ -326,7 +336,125 @@
                             </div>
 
                         @endif
+                                                @if($todayExchange['invoices'] > 0)
 
+<div class="stat-sub"
+     style="font-size:17px; font-weight:700; line-height:1.9; color:#222; margin-top:8px;">
+
+    <span style="color:#c0392b;">
+        🔄 Exchange ---
+        Qty:
+        <strong style="font-size:20px;">
+            {{ number_format($todayExchange['quantity'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#8e44ad;">
+        Price:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayExchange['subtotal'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#e67e22;">
+        Delivery:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayExchange['delivery'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#000;">
+        Total:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayExchange['revenue'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#27ae60;">
+        Paid:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayExchange['paid'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#34495e;">
+        Parcel:
+        <strong style="font-size:20px;">
+            {{ $todayExchange['invoices'] }}
+        </strong>
+    </span>
+</div>
+                        @endif
+ 
+@if($todayWholesale['invoices'] > 0)
+
+<div class="stat-sub"
+     style="font-size:17px; font-weight:700; line-height:1.9; color:#222; margin-top:8px;">
+
+    <span style="color:#8e44ad;">
+        🏷️ Wholesale ---
+        Qty:
+        <strong style="font-size:20px;">
+            {{ number_format($todayWholesale['quantity'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#8e44ad;">
+        Price:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayWholesale['subtotal'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#e67e22;">
+        Delivery:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayWholesale['delivery'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#000;">
+        Total:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayWholesale['revenue'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#27ae60;">
+        Paid:
+        <strong style="font-size:20px;">
+            ৳{{ number_format($todayWholesale['paid'], 0) }}
+        </strong>
+    </span>
+
+    <span style="margin-left:10px; color:#555;">|</span>
+
+    <span style="color:#34495e;">
+        Parcel:
+        <strong style="font-size:20px;">
+            {{ $todayWholesale['invoices'] }}
+        </strong>
+    </span>
+</div>
+@endif
                     </div>
                 </div>
             </div>
@@ -335,8 +463,7 @@
 </div>
 @endif
 
-  
-
+ 
     @if($adminhasFullAccess)
    <div class="row">
     <div class="col-xl-12 col-lg-12 col-md-12">
@@ -516,6 +643,7 @@
                                         <th>Email</th>
                                         <th class="text-center">Memo</th>
                                         <th class="text-center">Quantity</th>
+                                        <th class="text-center">Ex</th>
                                         <th class="text-end">Price</th>
                                         <th class="text-end">Delivery</th>
                                         <th class="text-end">Total</th>
@@ -541,6 +669,9 @@
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-info">{{ number_format($member->total_quantity) }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($member->total_exchange ) }}</span>
                                         </td>
                                         <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
                                         <td class="text-end">৳{{ number_format($member->total_delivery, 0) }}</td>
@@ -583,6 +714,7 @@
                                     <th>Email</th>
                                     <th class="text-center">Memo</th>
                                     <th class="text-center">Quantity</th>
+                                    <th class="text-center">Exchange</th>
                                     <th class="text-end">Price</th>
                                     <th class="text-end">Delivery</th>
                                     <th class="text-end">Total</th>
@@ -598,6 +730,7 @@
                                     <td>{{ $creator->email }}</td>
                                     <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
                                     <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_quantity) }}</span></td>
+                                    <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_exchange ) }}</span></td>
                                     <td class="text-end">৳{{ number_format($creator->total_subtotal, 0) }}</td>
                                     <td class="text-end">৳{{ number_format($creator->total_delivery, 0) }}</td>
                                     <td class="text-end">৳{{ number_format($creator->total_amount, 0) }}</td>
@@ -633,8 +766,8 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Team Member</th>
-                                        <th class="text-end">Memo</th>
-                                       
+                                        <th class="text-center">Exchange Invoices</th>
+                                        <th class="text-center">Memo</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -650,6 +783,9 @@
                                                     <i class="fa fa-trophy"></i> Top
                                                 </span>
                                             @endif
+                                        </td>
+                                         <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($member->total_exchange ) }}</span>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-primary">{{ $member->total_invoices }}</span>
@@ -690,6 +826,7 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Creator Name</th>
+                                    <th class="text-center">Exchange Invoices</th>
                                     <th class="text-center">Memo</th>
                                   
                                 </tr>
@@ -699,6 +836,9 @@
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td><strong>{{ $creator->name }}</strong></td>
+                                     <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($creator->total_exchange ) }}</span>
+                                        </td>
                                     <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
                                    </tr>
                                 @endforeach
@@ -729,6 +869,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Team Member</th>
+                                        <th class="text-center">Exchange Invoices</th>
                                         <th class="text-center">Memo</th>
                                     </tr>
                                 </thead>
@@ -743,6 +884,9 @@
                                                     <i class="fa fa-trophy"></i> Top
                                                 </span>
                                             @endif
+                                        </td>
+                                         <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($member->total_exchange ) }}</span>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-primary">{{ $member->total_invoices }}</span>
@@ -780,8 +924,8 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Creator Name</th>
+                                    <th class="text-center">Exchange Invoices</th>
                                     <th class="text-center">Memo</th>
-                                    
                                 </tr>
                             </thead>
                             <tbody>
@@ -789,6 +933,9 @@
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td><strong>{{ $creator->name }}</strong></td>
+                                        <td class="text-center">
+                                                <span class="badge bg-info">{{ number_format($creator->total_exchange ) }}</span>
+                                            </td>
                                     <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
                                     </tr>
                                 @endforeach
@@ -1096,10 +1243,6 @@
                             <small>Invoices</small>
                         </div>
                     </div>
-
-
-
-                  
                 </div>
             </div>
         </div>
@@ -1322,6 +1465,7 @@
                                     <th>Email</th>
                                     <th class="text-center">Memo</th>
                                     <th class="text-center">Quantity</th>
+                                    <th class="text-center">Ex</th>
                                     <th class="text-end">Price</th>
                                     <th class="text-end">Delivery</th>
                                     <th class="text-end">Total</th>
@@ -1337,6 +1481,8 @@
                                     <td>{{ $creator->email }}</td>
                                     <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
                                     <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_quantity) }}</span></td>
+                                                                        <td class="text-center"><span class="badge bg-info">{{ number_format($creator->total_exchange) }}</span></td>
+
                                     <td class="text-end">৳{{ number_format($creator->total_subtotal, 0) }}</td>
                                     <td class="text-end">৳{{ number_format($creator->total_delivery, 0) }}</td>
                                     <td class="text-end">৳{{ number_format($creator->total_amount, 0) }}</td>
@@ -1375,6 +1521,7 @@
                                         <th>Email</th>
                                         <th class="text-center">Memo</th>
                                         <th class="text-center">Quantity</th>
+                                        <th class="text-center">Ex</th>
                                         <th class="text-end">Price</th>
                                         <th class="text-end">Delivery</th>
                                         <th class="text-end">Total</th>
@@ -1400,6 +1547,9 @@
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-info">{{ number_format($member->total_quantity) }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">{{ number_format($member->total_exchange ) }}</span>
                                         </td>
                                         <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
                                         <td class="text-end">৳{{ number_format($member->total_delivery, 0) }}</td>

@@ -492,7 +492,7 @@ if ($orderColumn == 'invoice_date') {
         'text'  => ucfirst($invoice->payment_status),
     ],
     'created_by' => $invoice->creator->name ?? 'N/A',
-    'team_member_name' => $invoice->teamMember->name ?? 'N/A',
+    'team_member_name' => $invoice->teamMember->name ?? $invoice->creator->name,
     'actions' => $this->getActionButtons($invoice),
     'created_at' => $invoice->created_at ? $invoice->created_at->format('Y-m-d H:i:s') : null,
     'updated_at' => $invoice->updated_at ? $invoice->updated_at->format('Y-m-d H:i:s') : null,

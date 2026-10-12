@@ -306,12 +306,44 @@ class DashboardController extends Controller
  
         $todayInvoicesuser = $todayInvoices;
         $monthlyInvoicesuser = $monthlyInvoices;
- 
+ $exchangeBaseToday = fn () => Invoice::where('status', 'confirmed')
+    ->whereNull('deleted_at')
+    ->where('courier_name', 'Exchange')
+    ->whereDate('invoice_date', $today);
+
+$exchangeBaseMonth = fn () => Invoice::where('status', 'confirmed')
+    ->whereNull('deleted_at')
+    ->where('courier_name', 'Exchange')
+    ->where('invoice_date', '>=', $startOfMonth);
+
+$todayExchange  = $this->buildExchangeSummary($exchangeBaseToday());
+$monthlyExchange = $this->buildExchangeSummary($exchangeBaseMonth());
+
+$wholesaleBaseToday = fn () => Invoice::where('status', 'confirmed')
+    ->whereNull('deleted_at')
+    ->where(function ($q) {
+        $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
+    })
+    ->where('is_wholesale', 1)
+    ->whereDate('invoice_date', $today);
+
+$wholesaleBaseMonth = fn () => Invoice::where('status', 'confirmed')
+    ->whereNull('deleted_at')
+    ->where(function ($q) {
+        $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
+    })
+    ->where('is_wholesale', 1)
+    ->where('invoice_date', '>=', $startOfMonth);
+
+$todayWholesale   = $this->buildWholesaleSummary($wholesaleBaseToday());
+$monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
         return view('admin.dashboard', compact(
             'totalInvoices', 'daysInMonth', 'attendanceMatrix', 'monthName',
             'todayInvoicesuser', 'monthlyInvoicesuser', 'attYear', 'attMonth',
             'todayPerformance', 'monthPerformance',
+            'todayWholesale', 'monthlyWholesale',
             'todayPaymentMethods', 'monthlyPaymentMethods',
+            'todayExchange', 'monthlyExchange',
             'todayPaymentDetails', 'monthlyPaymentDetails',
             'monthlyCourierReport', 'monthlyInhouseReport',
             'todayPaidInvoices', 'creatorPaymentSummary',
@@ -326,7 +358,36 @@ class DashboardController extends Controller
             'todayPaidInvoice', 'topCreatorsMonth'
         ));
     }
- 
+    
+  private function buildExchangeSummary($query): array
+{
+    $exchangeQuery = (clone $query)->where('courier_name', 'Exchange');
+
+    // Load returnItems too, so we can compute net sell separately
+    $invoices = $exchangeQuery->with(['items', 'returnItems'])->get();
+
+    // Raw items (this is what the Exchange card shows)
+    $quantity = $invoices->sum(function ($invoice) {
+        return $invoice->items->sum('quantity');
+    });
+
+    // Net sell = items − returns (this is what goes into Total Sell Qty)
+    $netQuantity = $invoices->sum(function ($invoice) {
+        return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
+    });
+
+    return [
+        'invoices'     => $invoices->count(),
+        'quantity'     => $quantity,       // raw items → Exchange card
+        'net_quantity' => $netQuantity,    // items − returns → Total Sell
+        'subtotal'     => $invoices->sum('subtotal'),
+        'delivery'     => $invoices->sum('delivery_charge'),
+        'revenue'      => $invoices->sum('total'),
+        'paid'         => $invoices->sum('paid_amount'),
+        'due'          => $invoices->sum('due_amount'),
+        'paidInvoices' => $invoices->where('paid_amount', '>', 0)->count(),
+    ];
+}
     /**
      * Aggregate a confirmed-invoice query into the shared summary shape
      * used across every card/table on the dashboard. Quantity is always
@@ -351,7 +412,28 @@ class DashboardController extends Controller
             'paidInvoices' => $invoices->where('paid_amount', '>', 0)->count(),
         ];
     }
- 
+ private function buildWholesaleSummary($query): array
+{
+    $wholesaleQuery = (clone $query)->where('is_wholesale', 1);
+
+    $invoices = $wholesaleQuery->with(['items', 'returnItems'])->get();
+
+    // Net quantity = items − returns (matches buildSummary)
+    $quantity = $invoices->sum(function ($invoice) {
+        return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
+    });
+
+    return [
+        'invoices'     => $invoices->count(),
+        'quantity'     => $quantity,
+        'subtotal'     => $invoices->sum('subtotal'),
+        'delivery'     => $invoices->sum('delivery_charge'),
+        'revenue'      => $invoices->sum('total'),
+        'paid'         => $invoices->sum('paid_amount'),
+        'due'          => $invoices->sum('due_amount'),
+        'paidInvoices' => $invoices->where('paid_amount', '>', 0)->count(),
+    ];
+}
     /**
      * Split a confirmed-invoice query (already scoped to a date range)
      * into [courier => summary, ...] plus an in-house summary. Any
@@ -684,6 +766,15 @@ public function showDashboard2()
 {
     return view('admin.dashboard2', [
         'hasData'  => false,
+        'rangeExchange' => [
+            'invoices' => 0, 'quantity' => 0, 'net_quantity' => 0, 'subtotal' => 0,
+            'delivery' => 0, 'revenue' => 0, 'paid' => 0, 'due' => 0,
+            'paidInvoices' => 0,
+        ],
+        'rangeWholesale' => [     // ← ADD THIS
+            'invoices' => 0, 'quantity' => 0, 'subtotal' => 0,
+            'delivery' => 0, 'revenue' => 0, 'paid' => 0, 'due' => 0,
+        ],
         'fromDate' => null,
         'toDate'   => null,
     ]);
@@ -765,6 +856,7 @@ $baseQuery = function () use ($fromDateStr, $toDateStr) {
         'quantity' => $inhouseInvoices->sum(fn($inv) => $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')),
     ];
 
+    
     // ---------- Courier-wise report table (parcels/total/due) ----------
     $courierReport = [];
     foreach ($couriers as $courier) {
@@ -853,6 +945,50 @@ $baseQuery = function () use ($fromDateStr, $toDateStr) {
         ];
     }
 
+    
+$exchangeInvoices = Invoice::where('status', 'confirmed')
+    ->whereNull('deleted_at')
+    ->where('courier_name', 'Exchange')
+    ->whereDate('invoice_date', '>=', $fromDateStr)
+    ->whereDate('invoice_date', '<=', $toDateStr)
+    ->with(['items', 'returnItems'])
+    ->get();
+
+$rangeExchange = [
+    'invoices'     => $exchangeInvoices->count(),
+    'quantity'     => $exchangeInvoices->sum(fn ($inv) => $inv->items->sum('quantity')),  // raw items
+    'net_quantity' => $exchangeInvoices->sum(fn ($inv) =>
+        $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')
+    ),                                                                                    // net
+    'subtotal'     => $exchangeInvoices->sum('subtotal'),
+    'delivery'     => $exchangeInvoices->sum('delivery_charge'),
+    'revenue'      => $exchangeInvoices->sum('total'),
+    'paid'         => $exchangeInvoices->sum('paid_amount'),
+    'due'          => $exchangeInvoices->sum('due_amount'),
+    'paidInvoices' => $exchangeInvoices->where('paid_amount', '>', 0)->count(),
+];
+$wholesaleInvoices = Invoice::where('status', 'confirmed')
+    ->whereNull('deleted_at')
+    ->where(function ($q) {
+        $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
+    })
+    ->where('is_wholesale', 1)
+    ->whereDate('invoice_date', '>=', $fromDateStr)
+    ->whereDate('invoice_date', '<=', $toDateStr)
+    ->with(['items', 'returnItems'])
+    ->get();
+
+$rangeWholesale = [
+    'invoices' => $wholesaleInvoices->count(),
+    'quantity' => $wholesaleInvoices->sum(fn ($inv) =>
+        $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')
+    ),
+    'subtotal' => $wholesaleInvoices->sum('subtotal'),
+    'delivery' => $wholesaleInvoices->sum('delivery_charge'),
+    'revenue'  => $wholesaleInvoices->sum('total'),
+    'paid'     => $wholesaleInvoices->sum('paid_amount'),
+    'due'      => $wholesaleInvoices->sum('due_amount'),
+];
     return view('admin.dashboard2', [
         'hasData'               => true,
         'isSingleDay'           => $isSingleDay,
@@ -875,6 +1011,8 @@ $baseQuery = function () use ($fromDateStr, $toDateStr) {
         'teamPerformance'       => $teamPerformance,
         'topCreators'           => $topCreators,
         'rangePaymentMethods'   => $rangePaymentMethods,
+          'rangeExchange'         => $rangeExchange, 
+          'rangeWholesale'        => $rangeWholesale,
     ]);
 }
 }

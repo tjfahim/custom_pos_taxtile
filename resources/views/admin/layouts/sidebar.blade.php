@@ -20,7 +20,8 @@
                         <span>Dashboard</span>
                     </a>
                 </li>
-                
+                                @if(!auth()->user()->hasRole('Team'))
+
                 <!-- Customer -->
                 <li class="{{ request()->routeIs('admin.customers.*') ? 'active' : '' }}">
                     <a href="{{ route('admin.customers.index') }}">
@@ -28,6 +29,7 @@
                         <span>Customers</span>
                     </a>
                 </li>
+                @endif
                 @can('create invoices')
                 <!-- POS -->
                 <li class="{{ request()->routeIs('admin.invoices.pos') ? 'active' : '' }}">
@@ -37,7 +39,7 @@
                     </a>
                 </li>
                 @endcan
-                
+                @if(!auth()->user()->hasRole('Team'))
                 <!-- Invoices -->
                 <li class="{{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}">
                     <a href="{{ route('admin.invoices.index') }}">
@@ -45,6 +47,7 @@
                         <span>Invoices</span>
                     </a>
                 </li>
+                @endif
                 @can('attendance')
                 <li class="{{ request()->routeIs('admin.attendance.*') ? 'active' : '' }}">
                     <a href="{{ route('admin.attendance.index') }}">

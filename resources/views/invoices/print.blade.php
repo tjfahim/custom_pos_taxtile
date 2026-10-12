@@ -261,7 +261,13 @@
        <div class="invoice-header">
     <div style="flex: 0 0 auto;">
         <div class="shop-name">Faisal Textile</div>
-        <div class="shop-address">20, Balaka Vhaban, Chadni Chawk Market (Ground Floor)<br>Dhaka 1205 • Phone: 01923232543</div>
+        <div class="shop-address">20, Balaka Vhaban, Chadni Chawk Market (Ground Floor)<br>Dhaka 1205 • Phone: 
+                @if($invoice->courier_name == 'SUNDORBAN' || $invoice->courier_name == 'JANONI' || $invoice->courier_name == 'SA' )
+                    01883024878
+                @else
+                    01923232543
+                @endif
+        </div>
     </div>
     
     <!-- Sale Type - Center -->
