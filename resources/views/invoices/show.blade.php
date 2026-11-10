@@ -184,6 +184,12 @@
                                     <td class="text-right">-৳{{ number_format($invoice->returnItems->sum('total_price'), 0) }}</td>
                                 </tr>
                             @endif
+                            @if(($invoice->discount_amount ?? 0) > 0)
+                                <tr class="text-danger">
+                                    <td><strong>Less Wholesale Discount{{ $invoice->discount_type === 'percent' ? ' (' . rtrim(rtrim(number_format($invoice->discount_value, 2), '0'), '.') . '%)' : '' }}:</strong></td>
+                                    <td class="text-right">-৳{{ number_format($invoice->discount_amount, 0) }}</td>
+                                </tr>
+                            @endif
                             <tr>
                                 <td><strong>Net Subtotal:</strong></td>
                                 <td class="text-right">৳{{ number_format($invoice->subtotal, 0) }}</td>

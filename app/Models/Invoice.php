@@ -27,6 +27,9 @@ class Invoice extends Model
         'delivery_area',
         'delivery_type',
         'delivery_charge',
+        'discount_type',
+        'discount_value',
+        'discount_amount',
         'total_weight',
         'special_instructions',
         'invoice_date',
@@ -58,6 +61,8 @@ class Invoice extends Model
         'subtotal' => 'decimal:2',
         'total' => 'decimal:2',
         'delivery_charge' => 'decimal:2',
+        'discount_value' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
         'total_weight' => 'decimal:2',
         'amount_to_collect' => 'decimal:2',
         'paid_amount' => 'decimal:2',
@@ -200,7 +205,32 @@ public function getReturnItemsWithHistory()
     }
     
     /**
-     * Calculate totals including return items deduction
+     * Work out the wholesale discount in taka for a given base amount
+     * (items total minus returns). Only wholesale invoices can carry a
+     * discount; the result never exceeds the base amount.
+     */
+    public static function computeDiscountAmount($isWholesale, $type, $value, $baseAmount)
+    {
+        $baseAmount = max(0, (float) $baseAmount);
+        $value = max(0, (float) $value);
+
+        if (!$isWholesale || !$type || $value <= 0 || $baseAmount <= 0) {
+            return 0.0;
+        }
+
+        if ($type === 'percent') {
+            $discount = $baseAmount * min($value, 100) / 100;
+        } elseif ($type === 'fixed') {
+            $discount = $value;
+        } else {
+            return 0.0;
+        }
+
+        return round(min($discount, $baseAmount), 2);
+    }
+
+    /**
+     * Calculate totals including return items deduction and wholesale discount
      */
     public function calculateTotals()
     {
@@ -212,12 +242,25 @@ public function getReturnItemsWithHistory()
         
         // Subtract return items from subtotal
         $subtotalAfterReturn = $subtotal - $returnTotal;
+
+        // Wholesale discount (0 when not wholesale / no discount chosen)
+        $discountAmount = self::computeDiscountAmount(
+            $this->is_wholesale,
+            $this->discount_type,
+            $this->discount_value,
+            $subtotalAfterReturn
+        );
+        $this->discount_amount = $discountAmount;
+        if ($discountAmount <= 0 && !$this->is_wholesale) {
+            $this->discount_type = null;
+            $this->discount_value = 0;
+        }
         
-        // Set subtotal (after returns)
-        $this->subtotal = $subtotalAfterReturn;
+        // Set subtotal (after returns and discount)
+        $this->subtotal = $subtotalAfterReturn - $discountAmount;
         
         // Calculate total (subtotal + delivery)
-        $this->total = $subtotalAfterReturn + $this->delivery_charge;
+        $this->total = $this->subtotal + $this->delivery_charge;
         
         // Calculate total weight from items only (returns don't affect weight)
         $this->total_weight = $this->items->sum('weight');
@@ -229,7 +272,7 @@ public function getReturnItemsWithHistory()
         // Update payment status
         if ($this->due_amount <= 0) {
             $this->payment_status = 'paid';
-        } elseif ($this->paid_amount > 0) {
+        } elseif ($totalPaid > 0) {
             $this->payment_status = 'partial';
         } else {
             $this->payment_status = 'unpaid';

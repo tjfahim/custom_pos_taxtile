@@ -220,6 +220,9 @@ const selectedTeamMemberId = $('#teamMemberSelect').val();
 
         // Reset the form
         $('#posForm')[0].reset();
+        if (typeof WholesaleDiscount !== 'undefined') {
+            WholesaleDiscount.apply();
+        }
 if (selectedTeamMemberId) {
     $('#teamMemberSelect').val(selectedTeamMemberId);
 }
@@ -433,17 +436,19 @@ if (selectedTeamMemberId) {
 
     const courier = $('#courierName').val();
     if (courier !== 'Exchange') {
+        // 0 is a valid price (free item) — only blank or negative values are rejected
         let validPrices = true;
         $('.unit-price').each(function () {
-            const price = parseFloat($(this).val()) || 0;
-            if (price <= 0) {
+            const raw = ($(this).val() || '').toString().trim();
+            const price = parseFloat(raw);
+            if (raw === '' || isNaN(price) || price < 0) {
                 validPrices = false;
                 $(this).focus();
                 return false;
             }
         });
         if (!validPrices) {
-            alert('Please enter valid unit price (greater than 0) for all items');
+            alert('Please enter a unit price (0 or more) for all items');
             return false;
         }
     }

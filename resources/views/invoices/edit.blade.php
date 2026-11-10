@@ -345,6 +345,9 @@
                         </div>
                     </div>
 
+                    <!-- Second advance payment — only shown for In-house Sale (toggled by inhouse-sale-toggle.js) -->
+                    @include('invoices.partials.second-payment-section')
+
                     <!-- Notes / Special Instructions -->
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -369,10 +372,13 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
+                                    @include('invoices.partials.wholesale-discount')
+
                                     <div class="form-group">
                                         <label>Delivery Charge <span class="text-danger">*</span></label>
                                         <input type="number" step="0.01" min="0" name="delivery_charge" id="deliveryCharge"
                                                class="form-control" value="{{ old('delivery_charge', $invoice->delivery_charge) }}" required>
+                                        <small class="text-muted">The charge shown in Special Instructions updates automatically.</small>
                                     </div>
                                     <table class="table table-sm mb-0">
                                         <tr>
@@ -386,6 +392,10 @@
                                         <tr id="returnSubtotalRow" style="display:none;">
                                             <td>Return Items (<span id="returnItemsCount">0</span>)</td>
                                             <td class="text-right">- <span id="returnSubtotal">৳0</span></td>
+                                        </tr>
+                                        <tr id="discountRow" class="text-danger" style="display:none;">
+                                            <td>Wholesale Discount</td>
+                                            <td class="text-right">- <span id="discountDisplay">৳0</span></td>
                                         </tr>
                                         <tr>
                                             <td>Delivery Charge</td>
@@ -444,7 +454,13 @@
         'pathao_area_id' => $invoice->pathao_area_id,
         'delivery_charge' => $invoice->delivery_charge,
         'is_inhouse_sale' => (bool) $invoice->is_inhouse_sale,
+        'is_wholesale' => (bool) $invoice->is_wholesale,
+        'discount_type' => $invoice->discount_type,
+        'discount_value' => $invoice->discount_value,
         'payment_method' => $invoice->payment_method,
+        'paid_amount2' => $invoice->paid_amount2,
+        'payment_method2' => $invoice->payment_method2,
+        'payment_details2' => $invoice->payment_details2,
         'items' => $invoice->items->map(function ($item) {
             return [
                 'id' => $item->id,
@@ -495,6 +511,7 @@
 <script src="{{ asset('js/invoice-pos-payments.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-delivery.js') }}"></script>
 <script src="{{ asset('js/inhouse-sale-toggle.js') }}"></script>
+<script src="{{ asset('js/wholesale-discount.js') }}"></script>
 <script src="{{ asset('js/delivery-charge-calculator.js') }}"></script>
 
 <!-- Edit-specific versions (track DB ids for update/delete) -->

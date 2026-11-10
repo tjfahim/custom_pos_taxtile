@@ -48,6 +48,32 @@
             InhouseSaleToggle.apply();
         }
 
+        // ---- Second advance payment (in-house sales only) ----
+        if (invoice.is_inhouse_sale && typeof InvoicePayments !== 'undefined') {
+            $('#paidAmount2').val(invoice.paid_amount2 || 0);
+            if (invoice.payment_method2) {
+                $('#paymentMethod2').val(invoice.payment_method2);
+                // togglePaymentDetails2() clears the detail inputs, so refill afterwards
+                InvoicePayments.togglePaymentDetails2();
+
+                const detailSelectors2 = {
+                    'bkash':          '[name="bkash_transaction2"]',
+                    'bkash_personal': '[name="bkash_personal_transaction2"]',
+                    'bank_transfer':  '[name="bank_transfer_details2"]',
+                    'cash':           '[name="cash_amount2"]'
+                };
+                const sel2 = detailSelectors2[invoice.payment_method2];
+                if (sel2 && invoice.payment_details2) {
+                    $(sel2).val(invoice.payment_details2);
+                }
+            }
+        }
+
+        // ---- Wholesale discount ----
+        if (typeof WholesaleDiscount !== 'undefined') {
+            WholesaleDiscount.load(invoice.discount_type, invoice.discount_value);
+        }
+
         // ---- Payment method detail fields ----
         if (typeof InvoicePayments !== 'undefined' && invoice.payment_method) {
             InvoicePayments.togglePaymentDetails();
@@ -94,7 +120,8 @@
         // overwrite a manually-set amount just by opening the edit page.
         function finalizeDeliveryCharge() {
             setTimeout(() => {
-                $('#deliveryCharge').val(invoice.delivery_charge);
+                // trigger('input') also refreshes the charge number inside Special Instructions
+                $('#deliveryCharge').val(invoice.delivery_charge).trigger('input');
                 if (typeof InvoiceCalculations !== 'undefined') {
                     InvoiceCalculations.calculateTotals();
                 }

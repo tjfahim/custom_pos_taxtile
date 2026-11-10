@@ -44,8 +44,12 @@ const InvoiceCalculations = {
         // Get delivery charge
         const deliveryCharge = parseFloat($('#deliveryCharge').val()) || 0;
 
-        // Calculate total (subtotal - returnSubtotal + delivery)
-        const total = (subtotal - returnSubtotal) + deliveryCharge;
+        // Wholesale discount (0 unless Wholesale is ticked and a discount chosen)
+        const netSubtotal = subtotal - returnSubtotal;
+        const discountAmount = this.getDiscountAmount(netSubtotal);
+
+        // Calculate total (subtotal - returnSubtotal - discount + delivery)
+        const total = (netSubtotal - discountAmount) + deliveryCharge;
 
         // Get advance payment(s). paidAmount2 only exists/matters for
         // in-house sales — it's 0/hidden otherwise, so this is safe to
@@ -74,6 +78,15 @@ const InvoiceCalculations = {
             $('#returnSubtotalRow').hide();
         }
 
+        // 3b. Wholesale discount
+        if (discountAmount > 0) {
+            $('#discountRow').show();
+            $('#discountDisplay').text('৳' + discountAmount.toFixed(0));
+        } else {
+            $('#discountRow').hide();
+        }
+        $('#discountPreview').text('৳' + discountAmount.toFixed(0));
+
         // 4. Delivery Amount
         $('#deliveryAmount').text('৳' + deliveryCharge.toFixed(0));
 
@@ -98,6 +111,24 @@ const InvoiceCalculations = {
         if ($('#dueInput').length) $('#dueInput').val(dueAmount.toFixed(0));
 
         this.updateExchangeInstructions();
+    },
+
+    // Discount in taka for the given base amount (items minus returns).
+    // Mirrors Invoice::computeDiscountAmount() on the server.
+    getDiscountAmount: function(baseAmount) {
+        if (!$('#isWholesale').is(':checked')) return 0;
+
+        const type = $('#discountType').val();
+        const value = parseFloat($('#discountValue').val()) || 0;
+        if (!type || value <= 0 || baseAmount <= 0) return 0;
+
+        let discount = 0;
+        if (type === 'percent') {
+            discount = baseAmount * Math.min(value, 100) / 100;
+        } else if (type === 'fixed') {
+            discount = value;
+        }
+        return Math.min(Math.round(discount * 100) / 100, baseAmount);
     },
 
     updateExchangeInstructions: function() {
@@ -182,9 +213,48 @@ function updateSpecialInstructions() {
     }
 }
 
+// Whenever the delivery charge changes, update ONLY the charge number inside the
+// special instructions (e.g. "delivery charge 150 tk" -> "delivery charge 100 tk").
+// Any other text the user typed is left untouched.
+function syncSpecialInstructionsCharge() {
+    const chargeInput = document.getElementById('deliveryCharge');
+    const specialInstructions = document.querySelector('textarea[name="special_instructions"]');
+    if (!chargeInput || !specialInstructions) return;
+
+    const parsed = parseFloat(chargeInput.value);
+    const charge = isNaN(parsed) ? 0 : parsed;
+    const pattern = /(delivery charge\s*)\d+(?:\.\d+)?(\s*tk)/i;
+
+    if (pattern.test(specialInstructions.value)) {
+        specialInstructions.value = specialInstructions.value.replace(pattern, (m, before, after) => before + charge + after);
+    } else if (!specialInstructions.value.trim() && !window.__INVOICE_DATA__) {
+        // Empty box on the create page → put the default note back
+        updateSpecialInstructions();
+    }
+}
+
+$(document).on('input change', '#deliveryCharge', function() {
+    syncSpecialInstructionsCharge();
+    // The edit page has no other listener for this, so keep Total/Due live here too
+    if (typeof InvoiceCalculations !== 'undefined') {
+        InvoiceCalculations.calculateTotals();
+    }
+});
+
+// Keep Due live while the (first) advance amount is typed — the create page binds this
+// in invoice-pos-core.js, the edit page does not load that file.
+$(document).on('input', '#paidAmount', function() {
+    if (typeof InvoiceCalculations !== 'undefined') {
+        InvoiceCalculations.updateDueAmount();
+    }
+});
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    updateSpecialInstructions();
+    // On the edit page the saved special instructions must not be replaced by the default text
+    if (!window.__INVOICE_DATA__) {
+        updateSpecialInstructions();
+    }
     // Calculate initial totals
     if (typeof InvoiceCalculations !== 'undefined') {
         InvoiceCalculations.calculateTotals();

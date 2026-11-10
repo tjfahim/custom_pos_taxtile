@@ -403,10 +403,14 @@
                         </tr>
                         @endif
                   
+                        @if(($invoice->discount_amount ?? 0) > 0)
+                        <tr><td class="label">Discount:</td><td class="value">-৳{{ number_format($invoice->discount_amount, 0) }}</td></tr>
+                        @endif
                         <tr><td class="label">Net Subtotal:</td><td class="value">৳{{ number_format($invoice->subtotal, 0) }}</td></tr>
                         <tr><td class="label">Delivery:</td><td class="value">৳{{ number_format($invoice->delivery_charge, 0) }}</td></tr>
-                        @if($invoice->paid_amount && $invoice->paid_amount > 0)
-                           <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($invoice->paid_amount, 0) }}</td></tr>
+                        @php $totalAdvance = (float) $invoice->paid_amount + (float) ($invoice->paid_amount2 ?? 0); @endphp
+                        @if($totalAdvance > 0)
+                           <tr><td class="label">Advance:</td><td class="value">৳{{ number_format($totalAdvance, 0) }}</td></tr>
                         @endif
                      
                         <tr class="due-row"><td class="label">DUE:</td><td class="value">৳{{ number_format($invoice->due_amount, 0) }}</td></tr>

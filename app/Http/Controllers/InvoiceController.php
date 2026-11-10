@@ -43,6 +43,8 @@ public function storePos(Request $request)
         'payment_method2' => 'nullable|string|in:bkash,bkash_personal,bank_transfer,cash',
         'is_wholesale' => 'nullable|boolean',
         'is_inhouse_sale' => 'nullable|boolean',
+        'discount_type' => 'nullable|string|in:percent,fixed',
+        'discount_value' => 'nullable|numeric|min:0',
         'courier_name' => 'nullable|string|in:Pathao,Steadfast,SA,SUNDORBAN,JANONI,REDEX,Exchange',
         'team_id' => 'nullable|exists:users,id',
         'items' => 'required|array|min:1',
@@ -104,7 +106,13 @@ public function storePos(Request $request)
             'delivery_area' => $isInhouseSale ? null : $request->delivery_area,
             'delivery_type' => $request->delivery_type,
             'store_location' => $request->store_location,
-            'delivery_charge' => $isInhouseSale ? 0 : ($request->delivery_charge ?? 60),
+            // In-house sales may now carry a delivery charge too (0 or any amount).
+            'delivery_charge' => $request->filled('delivery_charge')
+                ? (float) $request->delivery_charge
+                : ($isInhouseSale ? 0 : 60),
+            // Wholesale discount (amount itself is computed in calculateTotals())
+            'discount_type' => $isWholesale ? $request->input('discount_type') : null,
+            'discount_value' => $isWholesale ? (float) $request->input('discount_value', 0) : 0,
             'special_instructions' => $request->special_instructions,
             'product_type' => $request->product_type,
             'amount_to_collect' => $request->amount_to_collect ?? 0,
@@ -689,6 +697,12 @@ public function historyList(Request $request)
         'amount_to_collect' => 'nullable|numeric|min:0',
      'payment_details2' => 'nullable|string',
         'payment_details' => 'nullable|string',
+        // Second (in-house sale only) advance payment
+        'paid_amount2' => 'nullable|numeric|min:0',
+        'payment_method2' => 'nullable|string|in:bkash,bkash_personal,bank_transfer,cash',
+        // Wholesale discount
+        'discount_type' => 'nullable|string|in:percent,fixed',
+        'discount_value' => 'nullable|numeric|min:0',
         // Notes
         'special_instructions' => 'nullable|string|max:1000',
         'notes' => 'nullable|string',
@@ -759,7 +773,10 @@ public function historyList(Request $request)
             'delivery_area' => $isInhouseSale ? null : $request->delivery_area,
             'delivery_type' => $request->delivery_type,
             'store_location' => $request->store_location,
-            'delivery_charge' => $isInhouseSale ? 0 : $request->delivery_charge,
+            // In-house sales keep whatever delivery charge was entered (0 or any amount).
+            'delivery_charge' => $request->delivery_charge,
+            'discount_type' => $isWholesale ? $request->input('discount_type') : null,
+            'discount_value' => $isWholesale ? (float) $request->input('discount_value', 0) : 0,
             'pathao_city_id' => $isInhouseSale ? null : $request->delivery_city,
             'pathao_zone_id' => $isInhouseSale ? null : $request->delivery_zone,
             'pathao_area_id' => $isInhouseSale ? null : $request->delivery_area_id,
@@ -770,8 +787,12 @@ public function historyList(Request $request)
             'status' => $request->status,
             'payment_method' => $request->payment_method,
             'payment_details' => $this->getPaymentDetails($request),
-            'payment_details2' => $this->getPaymentDetails2($request),
             'paid_amount' => $request->paid_amount ?? 0,
+            // Second advance payment exists for in-house sales only; cleared otherwise
+            // so stale values never linger on a normal sale.
+            'paid_amount2' => $isInhouseSale ? ($request->paid_amount2 ?? 0) : 0,
+            'payment_method2' => $isInhouseSale ? $request->payment_method2 : null,
+            'payment_details2' => $isInhouseSale ? $this->getPaymentDetails2($request) : null,
             'amount_to_collect' => $request->amount_to_collect ?? 0,
             'special_instructions' => $request->special_instructions,
             'notes' => $request->notes,
@@ -905,21 +926,32 @@ public function historyList(Request $request)
         }
  
         // 7. Recalculate totals, payment status
-        $finalSubtotal = $subtotal - $returnSubtotal;
-        $deliveryCharge = $isInhouseSale ? 0 : $request->delivery_charge;
+        $grossSubtotal = $subtotal - $returnSubtotal;
+        $discountAmount = Invoice::computeDiscountAmount(
+            $isWholesale,
+            $request->input('discount_type'),
+            $request->input('discount_value', 0),
+            $grossSubtotal
+        );
+        // subtotal is stored net of returns AND discount (total = subtotal + delivery)
+        $finalSubtotal = $grossSubtotal - $discountAmount;
+        $deliveryCharge = (float) $request->delivery_charge;
         $total = $finalSubtotal + $deliveryCharge;
-        $paidAmount = $request->paid_amount ?? 0;
-        $dueAmount = max(0, $total - $paidAmount);
+        $paidAmount = (float) ($request->paid_amount ?? 0);
+        $paidAmount2 = $isInhouseSale ? (float) ($request->paid_amount2 ?? 0) : 0;
+        $totalPaid = $paidAmount + $paidAmount2;
+        $dueAmount = max(0, $total - $totalPaid);
  
         $paymentStatus = 'unpaid';
         if ($dueAmount <= 0) {
             $paymentStatus = 'paid';
-        } elseif ($paidAmount > 0) {
+        } elseif ($totalPaid > 0) {
             $paymentStatus = 'partial';
         }
  
         $invoice->update([
             'subtotal' => $finalSubtotal,
+            'discount_amount' => $discountAmount,
             'total' => $total,
             'due_amount' => $dueAmount,
             'payment_status' => $paymentStatus,

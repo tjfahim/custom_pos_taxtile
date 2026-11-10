@@ -1,10 +1,11 @@
 const InhouseSaleToggle = {
     init: function() {
-        $(document).on('change', '#isInhouseSale', () => this.apply());
-        this.apply();
+        // userToggled = true only when the person actually clicks the checkbox
+        $(document).on('change', '#isInhouseSale', () => this.apply(true));
+        this.apply(false);
     },
 
-    apply: function() {
+    apply: function(userToggled) {
         const isInhouse = $('#isInhouseSale').is(':checked');
 
         if (isInhouse) {
@@ -19,7 +20,12 @@ const InhouseSaleToggle = {
             }
             $('#deliveryArea').val('');
             $('#deliveryZoneSelect').val('');
-            $('#deliveryCharge').val(0).trigger('input');
+            // In-house sales start at 0 delivery charge, but the amount stays editable
+            // (0 or any amount). Only reset it when the checkbox is actually clicked, so
+            // opening the edit page keeps the saved charge.
+            if (userToggled) {
+                $('#deliveryCharge').val(0).trigger('input');
+            }
             $('#courierName').val('Pathao').prop('disabled', true);
 
             if (typeof DeliveryChargeManager !== 'undefined') {
@@ -49,6 +55,17 @@ const InhouseSaleToggle = {
             // address required, payment method optional
             $('#recipientAddress').prop('required', true);
             $('#paymentMethod').prop('required', false);
+
+            // Un-ticking in-house → go back to the normal delivery charge
+            if (userToggled) {
+                const zoneId = $('#deliveryZoneSelect').val();
+                if (zoneId && typeof DeliveryChargeManager !== 'undefined') {
+                    DeliveryChargeManager.reset();
+                    DeliveryChargeManager.refresh(zoneId);
+                } else {
+                    $('#deliveryCharge').val(150).trigger('input');
+                }
+            }
 
             // NEW: hide + clear the second payment block whenever we're
             // not in an in-house sale, so stale values never get submitted.

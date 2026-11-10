@@ -266,6 +266,7 @@
 <script src="{{ asset('js/invoice-pos-payments.js') }}"></script>
 <script src="{{ asset('js/invoice-pos-delivery.js') }}"></script>
 <script src="{{ asset('js/inhouse-sale-toggle.js') }}"></script>
+<script src="{{ asset('js/wholesale-discount.js') }}"></script>
 
 <script src="{{ asset('js/address-city-zone-autofill.js') }}"></script>
 <script src="{{ asset('js/delivery-charge-calculator.js') }}"></script>

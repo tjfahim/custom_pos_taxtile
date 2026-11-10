@@ -11,11 +11,13 @@
                     <label>Delivery Charge (৳)</label>
                     <input type="number" name="delivery_charge" class="form-control" 
                            value="150" min="0" step="0.01" id="deliveryCharge" 
-                           onchange="updateSpecialInstructions(); InvoiceCalculations.calculateTotals()"
-                           oninput="updateSpecialInstructions()">
+                           onchange="InvoiceCalculations.calculateTotals()">
+                    <small class="text-muted">The charge shown in Special Instructions updates automatically.</small>
                 </div>
             </div>
         </div>
+
+        @include('invoices.partials.wholesale-discount')
             
         <div class="form-group">
             <label>Special Instructions</label>
@@ -58,6 +60,12 @@
                     </tr>
                    
                     
+                    <!-- Wholesale Discount Row -->
+                    <tr id="discountRow" class="text-danger" style="display: none;">
+                        <td>Wholesale Discount:</td>
+                        <td class="text-right">- <span id="discountDisplay">৳0</span></td>
+                    </tr>
+
                     <!-- Delivery Row -->
                     <tr>
                         <td>Delivery:</td>
