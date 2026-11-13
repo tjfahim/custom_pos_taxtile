@@ -611,9 +611,15 @@ $monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
     // ---------------------------------------------------------------
     $todayPerformance = User::getTopTeamMembersToday();
     $monthPerformance = User::getTopTeamMembersMonth();
+    // Non-admin view: per-user exchange sell / return quantities
+    $startOfMonthEx = Carbon::now()->startOfMonth();
+    User::attachExchangeQty($todayPerformance, Carbon::today(), Carbon::today(), 'team');
+    User::attachExchangeQty($monthPerformance, $startOfMonthEx, Carbon::now(), 'team');
 
     $topCreators = $this->topCreatorsQuery($today, $today, true)->get();
     $topCreatorsMonth = $this->topCreatorsQuery($startOfMonth, Carbon::now(), false)->get();
+    User::attachExchangeQty($topCreators, Carbon::today(), Carbon::today(), 'creator');
+    User::attachExchangeQty($topCreatorsMonth, $startOfMonthEx, Carbon::now(), 'creator');
 
     // Defaults so the view doesn't break if any admin-only block is ever
     // referenced. (The view guards most admin blocks with $adminhasFullAccess,

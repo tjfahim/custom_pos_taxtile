@@ -269,6 +269,47 @@ class User extends Authenticatable
     }
 
     /**
+     * Attach exchange_sell_qty (what customers took) and exchange_return_qty
+     * (what customers gave back) to each performance row, per user.
+     * $bucket: 'team' => team_id based, 'creator' => created_by based.
+     */
+    public static function attachExchangeQty($rows, $startDate, $endDate, string $bucket = 'creator')
+    {
+        $start = $startDate instanceof \Carbon\Carbon ? $startDate->toDateString() : $startDate;
+        $end   = $endDate   instanceof \Carbon\Carbon ? $endDate->toDateString()   : $endDate;
+
+        $exchanges = Invoice::where('status', 'confirmed')
+            ->whereNull('deleted_at')
+            ->where('courier_name', 'Exchange')
+            ->whereDate('invoice_date', '>=', $start)
+            ->whereDate('invoice_date', '<=', $end)
+            ->with(['items', 'returnItems'])
+            ->get();
+
+        $sum = function ($col, $field) use ($exchanges) {
+            $out = [];
+            foreach ($exchanges as $inv) {
+                $uid = $inv->{$col};
+                if (!$uid) continue;
+                $out[$uid]['sell']   = ($out[$uid]['sell']   ?? 0) + (int) $inv->items->sum('quantity');
+                $out[$uid]['return'] = ($out[$uid]['return'] ?? 0) + (int) $inv->returnItems->sum('quantity');
+            }
+            return $out;
+        };
+        $byCreator = $sum('created_by', null);
+        $byTeam    = $sum('team_id', null);
+
+        foreach ($rows as $row) {
+            $id = $row->id;
+            $useTeam = $bucket === 'team' && (($row->as_team_member ?? 0) > 0);
+            $src = $useTeam ? $byTeam : $byCreator;
+            $row->exchange_sell_qty   = $id ? ($src[$id]['sell']   ?? 0) : 0;
+            $row->exchange_return_qty = $id ? ($src[$id]['return'] ?? 0) : 0;
+        }
+        return $rows;
+    }
+
+    /**
      * Get top team members performance for today
      * Uses invoice_date (matches Today's Summary card logic)
      */

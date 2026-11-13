@@ -772,7 +772,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Team Member</th>
-                                        <th class="text-center">Exchange Invoices</th>
+                                        <th class="text-center">Exchange (ফেরত / বিক্রি)</th>
                                         <th class="text-center">Memo</th>
                                     </tr>
                                 </thead>
@@ -791,7 +791,7 @@
                                             @endif
                                         </td>
                                          <td class="text-center">
-                                            <span class="badge bg-info">{{ number_format($member->total_exchange ) }}</span>
+                                            <span class="badge bg-danger" title="Returned">↩ {{ number_format($member->exchange_return_qty ?? 0) }}</span> <span class="badge bg-success" title="Sold (taken)">🛒 {{ number_format($member->exchange_sell_qty ?? 0) }}</span>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-primary">{{ $member->total_invoices }}</span>
@@ -832,7 +832,7 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Creator Name</th>
-                                    <th class="text-center">Exchange Invoices</th>
+                                    <th class="text-center">Exchange (ফেরত / বিক্রি)</th>
                                     <th class="text-center">Memo</th>
                                   
                                 </tr>
@@ -843,7 +843,7 @@
                                     <td>{{ $index + 1 }}</td>
                                     <td><strong>{{ $creator->name }}</strong></td>
                                      <td class="text-center">
-                                            <span class="badge bg-info">{{ number_format($creator->total_exchange ) }}</span>
+                                            <span class="badge bg-danger" title="Returned">↩ {{ number_format($creator->exchange_return_qty ?? 0) }}</span> <span class="badge bg-success" title="Sold (taken)">🛒 {{ number_format($creator->exchange_sell_qty ?? 0) }}</span>
                                         </td>
                                     <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
                                    </tr>
@@ -875,7 +875,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Team Member</th>
-                                        <th class="text-center">Exchange Invoices</th>
+                                        <th class="text-center">Exchange (ফেরত / বিক্রি)</th>
                                         <th class="text-center">Memo</th>
                                     </tr>
                                 </thead>
@@ -892,7 +892,7 @@
                                             @endif
                                         </td>
                                          <td class="text-center">
-                                            <span class="badge bg-info">{{ number_format($member->total_exchange ) }}</span>
+                                            <span class="badge bg-danger" title="Returned">↩ {{ number_format($member->exchange_return_qty ?? 0) }}</span> <span class="badge bg-success" title="Sold (taken)">🛒 {{ number_format($member->exchange_sell_qty ?? 0) }}</span>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-primary">{{ $member->total_invoices }}</span>
@@ -930,7 +930,7 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Creator Name</th>
-                                    <th class="text-center">Exchange Invoices</th>
+                                    <th class="text-center">Exchange (ফেরত / বিক্রি)</th>
                                     <th class="text-center">Memo</th>
                                 </tr>
                             </thead>
@@ -940,7 +940,7 @@
                                     <td>{{ $index + 1 }}</td>
                                     <td><strong>{{ $creator->name }}</strong></td>
                                         <td class="text-center">
-                                                <span class="badge bg-info">{{ number_format($creator->total_exchange ) }}</span>
+                                                <span class="badge bg-danger" title="Returned">↩ {{ number_format($creator->exchange_return_qty ?? 0) }}</span> <span class="badge bg-success" title="Sold (taken)">🛒 {{ number_format($creator->exchange_sell_qty ?? 0) }}</span>
                                             </td>
                                     <td class="text-center"><span class="badge bg-primary">{{ $creator->total_invoices }}</span></td>
                                     </tr>
@@ -1555,7 +1555,7 @@
                                             <span class="badge bg-info">{{ number_format($member->total_quantity) }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <span class="badge bg-info">{{ number_format($member->total_exchange ) }}</span>
+                                            <span class="badge bg-danger" title="Returned">↩ {{ number_format($member->exchange_return_qty ?? 0) }}</span> <span class="badge bg-success" title="Sold (taken)">🛒 {{ number_format($member->exchange_sell_qty ?? 0) }}</span>
                                         </td>
                                         <td class="text-end">৳{{ number_format($member->total_subtotal, 0) }}</td>
                                         <td class="text-end">৳{{ number_format($member->total_delivery, 0) }}</td>
