@@ -28,15 +28,18 @@ class DashboardController extends Controller
     private array $couriers = ['Pathao', 'Steadfast', 'SA', 'SUNDORBAN', 'JANONI', 'REDEX'];
  
     /**
-     * Courier names that represent exchanges rather than real sales.
-     * Invoices with these courier names are excluded from the today/
-     * month revenue totals, the courier breakdown, and the Last 10 Days
-     * table (an exchange isn't a sale, and often carries a negative or
-     * net subtotal that would distort those numbers). They are
-     * deliberately NOT excluded from Creators/Team Performance — a
-     * creator still gets credit for having processed the order.
+     * Courier names left out of the sales numbers. Empty now: Exchange
+     * invoices ARE counted everywhere (today, month, range, last 10 days),
+     * and they are counted inside the Pathao bucket because every exchange
+     * is shipped through Pathao. Their quantity/price are already NET
+     * (new items taken minus items given back), so a 10-back / 15-taken
+     * exchange adds +5 qty, and a pure refund comes out negative.
      */
-    private array $excludedCouriers = ['Exchange'];
+    private array $excludedCouriers = [];
+
+    /** Courier names whose invoices are reported under the Pathao bucket. */
+    private const PATHAO_BUCKET = ['Pathao', 'Exchange'];
+
  
     /**
      * Single source of truth for payment method values. The old code
@@ -113,7 +116,7 @@ class DashboardController extends Controller
                 DB::raw('MONTH(invoices.invoice_date) as month'),
                 DB::raw('COUNT(DISTINCT invoices.id) as total_invoices'),
                 DB::raw('SUM(invoices.total) as total_revenue'),
-                DB::raw('SUM(invoices.paid_amount) as total_paid'),
+                DB::raw('SUM(invoices.paid_amount + COALESCE(invoices.paid_amount2, 0)) as total_paid'),
                 DB::raw('SUM(invoices.due_amount) as total_due'),
                 DB::raw('SUM(invoices.subtotal) as total_subtotal'),
                 DB::raw('SUM(invoices.delivery_charge) as total_delivery'),
@@ -146,7 +149,7 @@ class DashboardController extends Controller
         }
  
         // ---------------- All-time totals --------------------------------
-        $totalPaidAmount = Invoice::where('status', 'confirmed')->sum('paid_amount');
+        $totalPaidAmount = Invoice::where('status', 'confirmed')->sum(DB::raw(Invoice::PAID_SQL));
         $totalDueAmount = Invoice::where('status', 'confirmed')->sum('due_amount');
         $totalSubtotal = Invoice::where('status', 'confirmed')->sum('subtotal');
         $totalDelivery = Invoice::where('status', 'confirmed')->sum('delivery_charge');
@@ -217,10 +220,11 @@ class DashboardController extends Controller
         $topCreatorsMonth = $this->topCreatorsQuery($startOfMonth, Carbon::now(), false)->get();
  
         // ---------------- Today's paid invoices / creator summary ---------
+        // Any payment (first or second advance), regardless of method — same as before.
         $todayPaidInvoices = ($todayBase())
-            ->where('paid_amount', '>', 0)
+            ->whereRaw('(' . Invoice::PAID_SQL . ') > 0')
             ->with(['creator', 'items', 'returnItems'])
-            ->orderBy('paid_amount', 'desc')
+            ->orderByRaw('(' . Invoice::PAID_SQL . ') desc')
             ->get();
  
         $creatorPaymentSummary = $todayPaidInvoices->groupBy('created_by')->map(function ($invoices) {
@@ -228,7 +232,7 @@ class DashboardController extends Controller
             return [
                 'creator_name' => $creator ? $creator->name : 'Unknown',
                 'invoice_count' => $invoices->count(),
-                'total_paid' => $invoices->sum('paid_amount'),
+                'total_paid' => $invoices->sum('total_paid_amount'),
                 'invoices' => $invoices,
             ];
         })->sortByDesc('total_paid');
@@ -257,39 +261,18 @@ class DashboardController extends Controller
         ];
  
         // ---------------- Payment method breakdown --------------------------
-        $todayPaymentMethods = [];
-        foreach ($this->paymentMethods as $method) {
-            $query = ($todayBase())->where('payment_method', $method)->where('paid_amount', '>', 0);
-            $todayPaymentMethods[$method] = [
-                'transactions' => $query->count(),
-                'total_paid' => $query->sum('paid_amount'),
-            ];
-        }
- 
-        $monthlyPaymentMethods = [];
-        foreach ($this->paymentMethods as $method) {
-            $query = ($monthBase())->where('payment_method', $method)->where('paid_amount', '>', 0);
-            $monthlyPaymentMethods[$method] = [
-                'transactions' => $query->count(),
-                'total_paid' => $query->sum('paid_amount'),
-            ];
-        }
+        $todayPaymentMethods = $this->buildPaymentMethodBreakdown($todayBase);
+        $monthlyPaymentMethods = $this->buildPaymentMethodBreakdown($monthBase);
  
         // Uses the SAME $this->paymentMethods array as the breakdown above
         // (previously this whereIn used a different, mismatched array of
         // capitalized values).
-        $todayPaymentDetails = ($todayBase())
-            ->where('paid_amount', '>', 0)
-            ->whereIn('payment_method', $this->paymentMethods)
+        $todayPaymentDetails = $this->scopePaidInvoices($todayBase())
             ->with(['creator', 'items', 'returnItems'])
-            ->orderBy('paid_amount', 'desc')
             ->get();
  
-        $monthlyPaymentDetails = ($monthBase())
-            ->where('paid_amount', '>', 0)
-            ->whereIn('payment_method', $this->paymentMethods)
+        $monthlyPaymentDetails = $this->scopePaidInvoices($monthBase())
             ->with(['creator', 'items', 'returnItems'])
-            ->orderBy('paid_amount', 'desc')
             ->get();
  
         // ---------------- Team performance ------------------------------------
@@ -359,35 +342,71 @@ $monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
         ));
     }
     
+  /**
+     * Exchange summary. In an exchange invoice:
+     *   items        = what the customer TAKES  (new items)
+     *   returnItems  = what the customer GIVES BACK
+     * quantity / subtotal are therefore NET: 10 given back + 15 taken = +5 qty,
+     * and the price is (value taken - value given back), which can be negative
+     * (money goes back to the customer). 'new_quantity' / 'return_quantity'
+     * are kept so the card can show the breakdown.
+     */
   private function buildExchangeSummary($query): array
 {
-    $exchangeQuery = (clone $query)->where('courier_name', 'Exchange');
+    $invoices = (clone $query)->where('courier_name', 'Exchange')
+        ->with(['items', 'returnItems'])->get();
 
-    // Load returnItems too, so we can compute net sell separately
-    $invoices = $exchangeQuery->with(['items', 'returnItems'])->get();
-
-    // Raw items (this is what the Exchange card shows)
-    $quantity = $invoices->sum(function ($invoice) {
-        return $invoice->items->sum('quantity');
-    });
-
-    // Net sell = items − returns (this is what goes into Total Sell Qty)
-    $netQuantity = $invoices->sum(function ($invoice) {
-        return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
-    });
+    $newQty = $invoices->sum(fn ($inv) => $inv->items->sum('quantity'));
+    $returnQty = $invoices->sum(fn ($inv) => $inv->returnItems->sum('quantity'));
+    $netQty = $newQty - $returnQty;
 
     return [
-        'invoices'     => $invoices->count(),
-        'quantity'     => $quantity,       // raw items → Exchange card
-        'net_quantity' => $netQuantity,    // items − returns → Total Sell
-        'subtotal'     => $invoices->sum('subtotal'),
-        'delivery'     => $invoices->sum('delivery_charge'),
-        'revenue'      => $invoices->sum('total'),
-        'paid'         => $invoices->sum('paid_amount'),
-        'due'          => $invoices->sum('due_amount'),
-        'paidInvoices' => $invoices->where('paid_amount', '>', 0)->count(),
+        'invoices'        => $invoices->count(),
+        'quantity'        => $netQty,       // NET → shown on the Exchange card
+        'net_quantity'    => $netQty,       // kept for older callers
+        'new_quantity'    => $newQty,       // taken by customer
+        'return_quantity' => $returnQty,    // given back by customer
+        'subtotal'        => $invoices->sum('subtotal'),   // already net (taken - given back)
+        'delivery'        => $invoices->sum('delivery_charge'),
+        'revenue'         => $invoices->sum('total'),
+        'paid'            => $invoices->sum('total_paid_amount'),
+        'due'             => $invoices->sum('due_amount'),
+        'paidInvoices'    => $invoices->filter(fn ($i) => $i->total_paid_amount > 0)->count(),
     ];
 }
+    /**
+     * Payments per method for a date scope. Counts the first advance under
+     * payment_method AND the second advance (in-house) under payment_method2.
+     *
+     * @param  callable $base  returns a fresh scoped Invoice query
+     */
+    private function buildPaymentMethodBreakdown(callable $base): array
+    {
+        $result = [];
+        foreach ($this->paymentMethods as $method) {
+            $first = ($base())->where('payment_method', $method)->where('paid_amount', '>', 0);
+            $second = ($base())->where('payment_method2', $method)->where('paid_amount2', '>', 0);
+
+            $result[$method] = [
+                'transactions' => (clone $first)->count() + (clone $second)->count(),
+                'total_paid'   => (clone $first)->sum('paid_amount') + (clone $second)->sum('paid_amount2'),
+            ];
+        }
+        return $result;
+    }
+
+    /** Scope: invoices with any payment, in either payment method list. */
+    private function scopePaidInvoices($query)
+    {
+        return $query
+            ->whereRaw('(' . Invoice::PAID_SQL . ') > 0')
+            ->where(function ($q) {
+                $q->whereIn('payment_method', $this->paymentMethods)
+                  ->orWhereIn('payment_method2', $this->paymentMethods);
+            })
+            ->orderByRaw('(' . Invoice::PAID_SQL . ') desc');
+    }
+
     /**
      * Aggregate a confirmed-invoice query into the shared summary shape
      * used across every card/table on the dashboard. Quantity is always
@@ -407,9 +426,9 @@ $monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
             'subtotal' => $invoices->sum('subtotal'),
             'delivery' => $invoices->sum('delivery_charge'),
             'revenue' => $invoices->sum('total'),
-            'paid' => $invoices->sum('paid_amount'),
+            'paid' => $invoices->sum('total_paid_amount'),
             'due' => $invoices->sum('due_amount'),
-            'paidInvoices' => $invoices->where('paid_amount', '>', 0)->count(),
+            'paidInvoices' => $invoices->filter(fn ($i) => $i->total_paid_amount > 0)->count(),
         ];
     }
  private function buildWholesaleSummary($query): array
@@ -429,9 +448,9 @@ $monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
         'subtotal'     => $invoices->sum('subtotal'),
         'delivery'     => $invoices->sum('delivery_charge'),
         'revenue'      => $invoices->sum('total'),
-        'paid'         => $invoices->sum('paid_amount'),
+        'paid'         => $invoices->sum('total_paid_amount'),
         'due'          => $invoices->sum('due_amount'),
-        'paidInvoices' => $invoices->where('paid_amount', '>', 0)->count(),
+        'paidInvoices' => $invoices->filter(fn ($i) => $i->total_paid_amount > 0)->count(),
     ];
 }
     /**
@@ -448,8 +467,9 @@ $monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
         $courierData = [];
  
         foreach ($this->couriers as $courier) {
+            $names = $courier === 'Pathao' ? self::PATHAO_BUCKET : [$courier];
             $summary = $this->buildSummary(
-                (clone $query)->where('is_inhouse_sale', 0)->where('courier_name', $courier)
+                (clone $query)->where('is_inhouse_sale', 0)->whereIn('courier_name', $names)
             );
             if ($summary['invoices'] > 0) {
                 $courierData[$courier] = $summary;
@@ -458,7 +478,8 @@ $monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
  
         $othersSummary = $this->buildSummary(
             (clone $query)->where('is_inhouse_sale', 0)->where(function ($q) {
-                $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->couriers);
+                $q->whereNull('courier_name')
+                  ->orWhereNotIn('courier_name', array_merge($this->couriers, ['Exchange']));
             })
         );
         if ($othersSummary['invoices'] > 0) {
@@ -503,7 +524,7 @@ $monthlyWholesale = $this->buildWholesaleSummary($wholesaleBaseMonth());
             AND {$courierCondition}
             AND invoices.deleted_at IS NULL) as total_amount"),
 
-        DB::raw("(SELECT COALESCE(SUM(paid_amount), 0) FROM invoices
+        DB::raw("(SELECT COALESCE(SUM(paid_amount + COALESCE(paid_amount2, 0)), 0) FROM invoices
             WHERE invoices.created_by = users.id
             AND {$dateCondition}
             AND invoices.status = 'confirmed'
@@ -808,91 +829,48 @@ $baseQuery = function () use ($fromDateStr, $toDateStr) {
 };
 
     // ---------- Range totals ----------
-    $rangeCount    = (clone $baseQuery())->count();
-    $rangeRevenue  = (clone $baseQuery())->sum('total');
-    $rangePaid     = (clone $baseQuery())->sum('paid_amount');
-    $rangeDue      = (clone $baseQuery())->sum('due_amount');
-    $rangeSubtotal = (clone $baseQuery())->sum('subtotal');
-    $rangeDelivery = (clone $baseQuery())->sum('delivery_charge');
+    // Built with the SAME helpers as the daily dashboard (buildSummary /
+    // buildCourierBreakdown), so a one-day range always equals "Today".
+    // Exchange invoices are included (inside the Pathao bucket) with NET
+    // quantity and net price, exactly like the daily view.
+    $rangeSummary  = $this->buildSummary($baseQuery());
+    $rangeCount    = $rangeSummary['invoices'];
+    $rangeRevenue  = $rangeSummary['revenue'];
+    $rangePaid     = $rangeSummary['paid'];
+    $rangeDue      = $rangeSummary['due'];
+    $rangeSubtotal = $rangeSummary['subtotal'];
+    $rangeDelivery = $rangeSummary['delivery'];
+    $rangeQuantity = $rangeSummary['quantity'];
 
-    $rangeQuantity = (clone $baseQuery())
-        ->with(['items', 'returnItems'])
-        ->get()
-        ->sum(fn($inv) => $inv->items->sum('quantity') - $inv->returnItems->sum('quantity'));
+    // ---------- Courier-wise + In-house (same shape as Today's Summary) ----------
+    [$rangeData, $rangeInhouse] = $this->buildCourierBreakdown($baseQuery());
 
-    // ---------- Courier-wise (colored card, like Today's Summary) ----------
-    $rangeData = [];
-    foreach ($couriers as $courier) {
-        $invoices = (clone $baseQuery())
-            ->where('courier_name', $courier)
-            ->where('is_inhouse_sale', 0)
-            ->with(['items', 'returnItems'])
-            ->get();
-
-        if ($invoices->count() > 0) {
-            $rangeData[$courier] = [
-                'invoices' => $invoices->count(),
-                'revenue'  => $invoices->sum('total'),
-                'paid'     => $invoices->sum('paid_amount'),
-                'subtotal' => $invoices->sum('subtotal'),
-                'delivery' => $invoices->sum('delivery_charge'),
-                'quantity' => $invoices->sum(fn($inv) => $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')),
-            ];
-        }
-    }
-
-    // ---------- In-house ----------
-    $inhouseInvoices = (clone $baseQuery())
-        ->where('is_inhouse_sale', true)
-        ->with(['items', 'returnItems'])
-        ->get();
-
-    $rangeInhouse = [
-        'invoices' => $inhouseInvoices->count(),
-        'revenue'  => $inhouseInvoices->sum('total'),
-        'paid'     => $inhouseInvoices->sum('paid_amount'),
-        'subtotal' => $inhouseInvoices->sum('subtotal'),
-        'delivery' => $inhouseInvoices->sum('delivery_charge'),
-        'quantity' => $inhouseInvoices->sum(fn($inv) => $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')),
-    ];
-
-    
     // ---------- Courier-wise report table (parcels/total/due) ----------
-    $courierReport = [];
-    foreach ($couriers as $courier) {
-        $invoices = (clone $baseQuery())
-            ->where('courier_name', $courier)
-            ->with(['items', 'returnItems'])
-            ->get();
-
-        if ($invoices->count() > 0) {
-            $courierReport[$courier] = [
-                'parcels'  => $invoices->count(),
-                'quantity' => $invoices->sum(fn($inv) => $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')),
-                'subtotal' => $invoices->sum('subtotal'),
-                'delivery' => $invoices->sum('delivery_charge'),
-                'total'    => $invoices->sum('total'),
-                'paid'     => $invoices->sum('paid_amount'),
-                'due'      => $invoices->sum('due_amount'),
-            ];
-        }
-    }
+    $courierReport = collect($rangeData)->map(fn ($data) => [
+        'parcels'  => $data['invoices'],
+        'quantity' => $data['quantity'],
+        'subtotal' => $data['subtotal'],
+        'delivery' => $data['delivery'],
+        'total'    => $data['revenue'],
+        'paid'     => $data['paid'],
+        'due'      => $data['due'],
+    ])->toArray();
 
     $inhouseReport = [
-        'parcels'  => $inhouseInvoices->count(),
-        'quantity' => $inhouseInvoices->sum(fn($inv) => $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')),
-        'subtotal' => $inhouseInvoices->sum('subtotal'),
-        'delivery' => $inhouseInvoices->sum('delivery_charge'),
-        'total'    => $inhouseInvoices->sum('total'),
-        'paid'     => $inhouseInvoices->sum('paid_amount'),
-        'due'      => $inhouseInvoices->sum('due_amount'),
+        'parcels'  => $rangeInhouse['invoices'],
+        'quantity' => $rangeInhouse['quantity'],
+        'subtotal' => $rangeInhouse['subtotal'],
+        'delivery' => $rangeInhouse['delivery'],
+        'total'    => $rangeInhouse['revenue'],
+        'paid'     => $rangeInhouse['paid'],
+        'due'      => $rangeInhouse['due'],
     ];
 
     // ---------- Payments Transaction Details (invoice-wise, like Today's Payments) ----------
     $rangePaidInvoices = (clone $baseQuery())
-        ->where('paid_amount', '>', 0)
+        ->whereRaw('(' . Invoice::PAID_SQL . ') > 0')
         ->with(['creator', 'items', 'returnItems'])
-        ->orderBy('paid_amount', 'desc')
+        ->orderByRaw('(' . Invoice::PAID_SQL . ') desc')
         ->get();
 
     $creatorPaymentSummary = $rangePaidInvoices->groupBy('created_by')->map(function ($invoices) {
@@ -900,7 +878,7 @@ $baseQuery = function () use ($fromDateStr, $toDateStr) {
         return [
             'creator_name'  => $creator ? $creator->name : 'Unknown',
             'invoice_count' => $invoices->count(),
-            'total_paid'    => $invoices->sum('paid_amount'),
+            'total_paid'    => $invoices->sum('total_paid_amount'),
         ];
     })->sortByDesc('total_paid');
 
@@ -920,7 +898,7 @@ $baseQuery = function () use ($fromDateStr, $toDateStr) {
             'subtotal' => $dayInvoices->sum('subtotal'),
             'delivery' => $dayInvoices->sum('delivery_charge'),
             'revenue'  => $dayInvoices->sum('total'),
-            'paid'     => $dayInvoices->sum('paid_amount'),
+            'paid'     => $dayInvoices->sum('total_paid_amount'),
             'due'      => $dayInvoices->sum('due_amount'),
         ]);
 
@@ -931,64 +909,20 @@ $baseQuery = function () use ($fromDateStr, $toDateStr) {
     $teamPerformance = User::getTopTeamMembersForRange($fromDateStr, $toDateStr);
     $topCreators     = User::getTopCreatorsForRange($fromDateStr, $toDateStr);
 
-    // ---------- Payment methods ----------
-    $paymentMethodKeys = ['bkash', 'bkash_personal', 'bank_transfer', 'cash'];
-    $rangePaymentMethods = [];
-    foreach ($paymentMethodKeys as $method) {
-        $q = (clone $baseQuery())
-            ->where('payment_method', $method)
-            ->where('paid_amount', '>', 0);
+    // ---------- Payment methods (first + second payment method) ----------
+    $rangePaymentMethods = $this->buildPaymentMethodBreakdown($baseQuery);
 
-        $rangePaymentMethods[$method] = [
-            'transactions' => $q->count(),
-            'total_paid'   => $q->sum('paid_amount'),
-        ];
-    }
+    // ---------- Exchange (net qty/price, same helper as the daily card) ----------
+    $rangeExchange = $this->buildExchangeSummary(
+        Invoice::where('status', 'confirmed')
+            ->whereNull('deleted_at')
+            ->whereDate('invoice_date', '>=', $fromDateStr)
+            ->whereDate('invoice_date', '<=', $toDateStr)
+    );
 
-    
-$exchangeInvoices = Invoice::where('status', 'confirmed')
-    ->whereNull('deleted_at')
-    ->where('courier_name', 'Exchange')
-    ->whereDate('invoice_date', '>=', $fromDateStr)
-    ->whereDate('invoice_date', '<=', $toDateStr)
-    ->with(['items', 'returnItems'])
-    ->get();
+    // ---------- Wholesale ----------
+    $rangeWholesale = $this->buildWholesaleSummary($baseQuery());
 
-$rangeExchange = [
-    'invoices'     => $exchangeInvoices->count(),
-    'quantity'     => $exchangeInvoices->sum(fn ($inv) => $inv->items->sum('quantity')),  // raw items
-    'net_quantity' => $exchangeInvoices->sum(fn ($inv) =>
-        $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')
-    ),                                                                                    // net
-    'subtotal'     => $exchangeInvoices->sum('subtotal'),
-    'delivery'     => $exchangeInvoices->sum('delivery_charge'),
-    'revenue'      => $exchangeInvoices->sum('total'),
-    'paid'         => $exchangeInvoices->sum('paid_amount'),
-    'due'          => $exchangeInvoices->sum('due_amount'),
-    'paidInvoices' => $exchangeInvoices->where('paid_amount', '>', 0)->count(),
-];
-$wholesaleInvoices = Invoice::where('status', 'confirmed')
-    ->whereNull('deleted_at')
-    ->where(function ($q) {
-        $q->whereNull('courier_name')->orWhereNotIn('courier_name', $this->excludedCouriers);
-    })
-    ->where('is_wholesale', 1)
-    ->whereDate('invoice_date', '>=', $fromDateStr)
-    ->whereDate('invoice_date', '<=', $toDateStr)
-    ->with(['items', 'returnItems'])
-    ->get();
-
-$rangeWholesale = [
-    'invoices' => $wholesaleInvoices->count(),
-    'quantity' => $wholesaleInvoices->sum(fn ($inv) =>
-        $inv->items->sum('quantity') - $inv->returnItems->sum('quantity')
-    ),
-    'subtotal' => $wholesaleInvoices->sum('subtotal'),
-    'delivery' => $wholesaleInvoices->sum('delivery_charge'),
-    'revenue'  => $wholesaleInvoices->sum('total'),
-    'paid'     => $wholesaleInvoices->sum('paid_amount'),
-    'due'      => $wholesaleInvoices->sum('due_amount'),
-];
     return view('admin.dashboard2', [
         'hasData'               => true,
         'isSingleDay'           => $isSingleDay,

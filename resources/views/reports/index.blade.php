@@ -587,7 +587,7 @@
                                     <td class="text-end">৳{{ number_format($invoice->subtotal, 0) }}</td>
                                     <td class="text-end">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
                                     <td class="text-end">৳{{ number_format($invoice->total, 0) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($invoice->paid_amount, 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($invoice->total_paid_amount, 0) }}</td>
                                     <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
                                     <td>
                                         <span class="badge bg-{{ 

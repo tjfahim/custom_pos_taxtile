@@ -91,7 +91,6 @@
             {{ number_format(
                 array_sum(array_column($todayData, 'quantity'))
                 + $todayInhouse['quantity']
-                + $todayExchange['net_quantity']    {{-- CHANGED --}}
             , 0) }}
         </strong>
     </span>
@@ -104,7 +103,6 @@
             ৳{{ number_format(
                 array_sum(array_column($todayData, 'subtotal'))
                 + $todayInhouse['subtotal']
-                + $todayExchange['subtotal']         {{-- unchanged: already net --}}
             , 0) }}
         </strong>
     </span>
@@ -117,7 +115,6 @@
             ৳{{ number_format(
                 array_sum(array_column($todayData, 'delivery'))
                 + $todayInhouse['delivery']
-                + $todayExchange['delivery']
             , 0) }}
         </strong>
     </span>
@@ -130,7 +127,6 @@
             {{ number_format(
                 array_sum(array_column($todayData, 'revenue'))
                 + $todayInhouse['revenue']
-                + $todayExchange['revenue']
             , 0) }}
         </strong>
     </span>
@@ -143,7 +139,6 @@
             ৳{{ number_format(
                 array_sum(array_column($todayData, 'paid'))
                 + $todayInhouse['paid']
-                + $todayExchange['paid']
             , 0) }}
         </strong>
     </span>
@@ -154,8 +149,7 @@
         Parcel:
         <strong style="font-size:20px;">
             {{ array_sum(array_column($todayData, 'invoices'))
-                + $todayInhouse['invoices']
-                + $todayExchange['invoices'] }}
+                + $todayInhouse['invoices'] }}
         </strong>
     </span>
 </div>
@@ -342,11 +336,14 @@
      style="font-size:17px; font-weight:700; line-height:1.9; color:#222; margin-top:8px;">
 
     <span style="color:#c0392b;">
-        🔄 Exchange ---
+        🔄 Exchange <small style="font-weight:600; color:#999;">(Pathao-র ভেতরে ধরা আছে)</small> ---
         Qty:
         <strong style="font-size:20px;">
             {{ number_format($todayExchange['quantity'], 0) }}
         </strong>
+        <small style="font-weight:600; color:#777;">
+            (নিয়েছে {{ number_format($todayExchange['new_quantity'], 0) }} − ফেরত {{ number_format($todayExchange['return_quantity'], 0) }})
+        </small>
     </span>
 
     <span style="margin-left:10px; color:#555;">|</span>
@@ -552,7 +549,7 @@
                                 <td class="text-end">৳{{ number_format($invoice->subtotal, 0) }}</td>
                                 <td class="text-end">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
                                 <td class="text-end fw-bold">৳{{ number_format($invoice->total, 0) }}</td>
-                                <td class="text-end text-success fw-bold">৳{{ number_format($invoice->paid_amount, 0) }}</td>
+                                <td class="text-end text-success fw-bold">৳{{ number_format($invoice->total_paid_amount, 0) }}</td>
                                 <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
                                 <td class="text-end">
                                     @if($invoice->payment_date)
@@ -579,12 +576,21 @@
                                     @else
                                         <span class="text-muted">-</span>
                                     @endif
+                                    @if(($invoice->paid_amount2 ?? 0) > 0 && $invoice->payment_method2)
+                                        <br><span class="badge" style="background:#8e44ad; color:#fff; font-size:10px;">
+                                            {{ $methodLabels[$invoice->payment_method2] ?? ucfirst(str_replace('_', ' ', $invoice->payment_method2)) }}
+                                            · ৳{{ number_format($invoice->paid_amount2, 0) }}
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="text-center">
                                     @if($invoice->payment_details)
                                         <span style="font-size: 11px; color: #666;">{{ $invoice->payment_details }}</span>
                                     @else
                                         <span class="text-muted">-</span>
+                                    @endif
+                                    @if(($invoice->paid_amount2 ?? 0) > 0 && $invoice->payment_details2)
+                                        <br><span style="font-size: 11px; color: #8e44ad;">{{ $invoice->payment_details2 }}</span>
                                     @endif
                                 </td>
                             </tr>
@@ -603,7 +609,7 @@
                                 <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('subtotal'), 0) }}</td>
                                 <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('delivery_charge'), 0) }}</td>
                                 <td class="text-end">৳{{ number_format($todayPaidInvoices->sum('total'), 0) }}</td>
-                                <td class="text-end text-success">৳{{ number_format($todayPaidInvoices->sum('paid_amount'), 0) }}</td>
+                                <td class="text-end text-success">৳{{ number_format($todayPaidInvoices->sum('total_paid_amount'), 0) }}</td>
                                 <td class="text-end text-danger">৳{{ number_format($todayPaidInvoices->sum('due_amount'), 0) }}</td>
                                 <td colspan="2"></td>
                             </tr>

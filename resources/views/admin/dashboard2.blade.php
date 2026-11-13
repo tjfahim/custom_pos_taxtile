@@ -146,11 +146,15 @@
      style="font-size:17px; font-weight:700; line-height:1.9; color:#222; margin-top:8px;">
 
     <span style="color:#c0392b;">
-        🔄 Exchange ({{ \Carbon\Carbon::parse($fromDate)->format('d M') }} – {{ \Carbon\Carbon::parse($toDate)->format('d M') }}):
+        🔄 Exchange ({{ \Carbon\Carbon::parse($fromDate)->format('d M') }} – {{ \Carbon\Carbon::parse($toDate)->format('d M') }})
+        <small style="font-weight:600; color:#999;">(Pathao-র ভেতরে ধরা আছে)</small>:
         Qty:
         <strong style="font-size:20px;">
             {{ number_format($rangeExchange['quantity'], 0) }}
         </strong>
+        <small style="font-weight:600; color:#777;">
+            (নিয়েছে {{ number_format($rangeExchange['new_quantity'], 0) }} − ফেরত {{ number_format($rangeExchange['return_quantity'], 0) }})
+        </small>
     </span>
 
     <span style="margin-left:10px; color:#555;">|</span>
@@ -316,17 +320,23 @@
                                     <td class="text-end">৳{{ number_format($invoice->subtotal, 0) }}</td>
                                     <td class="text-end">৳{{ number_format($invoice->delivery_charge, 0) }}</td>
                                     <td class="text-end fw-bold">৳{{ number_format($invoice->total, 0) }}</td>
-                                    <td class="text-end text-success fw-bold">৳{{ number_format($invoice->paid_amount, 0) }}</td>
+                                    <td class="text-end text-success fw-bold">৳{{ number_format($invoice->total_paid_amount, 0) }}</td>
                                     <td class="text-end text-danger">৳{{ number_format($invoice->due_amount, 0) }}</td>
                                     <td class="text-center">
                                         @if($invoice->payment_method)
                                             <span class="badge" style="background:#3498db;color:#fff;font-size:10px;">{{ $invoice->payment_method }}</span>
                                         @else <span class="text-muted">-</span> @endif
+                                        @if(($invoice->paid_amount2 ?? 0) > 0 && $invoice->payment_method2)
+                                            <br><span class="badge" style="background:#8e44ad;color:#fff;font-size:10px;">{{ $invoice->payment_method2 }} · ৳{{ number_format($invoice->paid_amount2, 0) }}</span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         @if($invoice->payment_details)
                                             <span style="font-size:11px; color:#666;">{{ $invoice->payment_details }}</span>
                                         @else <span class="text-muted">-</span> @endif
+                                        @if(($invoice->paid_amount2 ?? 0) > 0 && $invoice->payment_details2)
+                                            <br><span style="font-size:11px; color:#8e44ad;">{{ $invoice->payment_details2 }}</span>
+                                        @endif
                                     </td>
                                 </tr>
                                 @empty
@@ -342,7 +352,7 @@
                                     <td class="text-end">৳{{ number_format($rangePaidInvoices->sum('subtotal'), 0) }}</td>
                                     <td class="text-end">৳{{ number_format($rangePaidInvoices->sum('delivery_charge'), 0) }}</td>
                                     <td class="text-end">৳{{ number_format($rangePaidInvoices->sum('total'), 0) }}</td>
-                                    <td class="text-end text-success">৳{{ number_format($rangePaidInvoices->sum('paid_amount'), 0) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($rangePaidInvoices->sum('total_paid_amount'), 0) }}</td>
                                     <td class="text-end text-danger">৳{{ number_format($rangePaidInvoices->sum('due_amount'), 0) }}</td>
                                     <td colspan="2"></td>
                                 </tr>

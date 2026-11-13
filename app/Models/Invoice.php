@@ -209,6 +209,22 @@ public function getReturnItemsWithHistory()
      * (items total minus returns). Only wholesale invoices can carry a
      * discount; the result never exceeds the base amount.
      */
+    /**
+     * SQL snippet for "everything paid so far" (first + second advance).
+     * Use it in raw sums / where / order clauses so dashboard and report
+     * totals always agree with due_amount.
+     */
+    public const PAID_SQL = 'COALESCE(invoices.paid_amount, 0) + COALESCE(invoices.paid_amount2, 0)';
+
+    /**
+     * Total paid = first advance + second advance (in-house sales).
+     * Works with Collection::sum('total_paid_amount').
+     */
+    public function getTotalPaidAmountAttribute(): float
+    {
+        return (float) $this->paid_amount + (float) ($this->paid_amount2 ?? 0);
+    }
+
     public static function computeDiscountAmount($isWholesale, $type, $value, $baseAmount)
     {
         $baseAmount = max(0, (float) $baseAmount);

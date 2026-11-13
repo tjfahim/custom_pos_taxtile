@@ -133,7 +133,7 @@ class User extends Authenticatable
                     'total_subtotal' => $userInvoices->sum('subtotal'),
                     'total_delivery' => $userInvoices->sum('delivery_charge'),
                     'total_amount'   => $userInvoices->sum('total'),
-                    'total_paid'     => $userInvoices->sum('paid_amount'),
+                    'total_paid'     => $userInvoices->sum('total_paid_amount'),
                     'total_due'      => $userInvoices->sum('due_amount'),
                 ]);
             } else {
@@ -147,7 +147,7 @@ class User extends Authenticatable
                     'total_subtotal' => $userInvoices->sum('subtotal'),
                     'total_delivery' => $userInvoices->sum('delivery_charge'),
                     'total_amount'   => $userInvoices->sum('total'),
-                    'total_paid'     => $userInvoices->sum('paid_amount'),
+                    'total_paid'     => $userInvoices->sum('total_paid_amount'),
                     'total_due'      => $userInvoices->sum('due_amount'),
                 ]);
             }
@@ -204,7 +204,7 @@ class User extends Authenticatable
                     'total_subtotal' => $userInvoices->sum('subtotal'),
                     'total_delivery' => $userInvoices->sum('delivery_charge'),
                     'total_amount'   => $userInvoices->sum('total'),
-                    'total_paid'     => $userInvoices->sum('paid_amount'),
+                    'total_paid'     => $userInvoices->sum('total_paid_amount'),
                     'total_due'      => $userInvoices->sum('due_amount'),
                 ]);
             } else {
@@ -218,7 +218,7 @@ class User extends Authenticatable
                     'total_subtotal' => $userInvoices->sum('subtotal'),
                     'total_delivery' => $userInvoices->sum('delivery_charge'),
                     'total_amount'   => $userInvoices->sum('total'),
-                    'total_paid'     => $userInvoices->sum('paid_amount'),
+                    'total_paid'     => $userInvoices->sum('total_paid_amount'),
                     'total_due'      => $userInvoices->sum('due_amount'),
                 ]);
             }
@@ -326,7 +326,7 @@ class User extends Authenticatable
                     'total_subtotal' => $invoices->sum('subtotal'),
                     'total_delivery' => $invoices->sum('delivery_charge'),
                     'total_amount'   => $invoices->sum('total'),
-                    'total_paid'     => $invoices->sum('paid_amount'),
+                    'total_paid'     => $invoices->sum('total_paid_amount'),
                     'total_due'      => $invoices->sum('due_amount'),
                     'as_creator'     => $invoices->where('created_by', $user->id)->count(),
                     'as_team_member' => $invoices->where('team_id', $user->id)->count(),
@@ -343,7 +343,7 @@ class User extends Authenticatable
                     'total_subtotal' => $invoices->sum('subtotal'),
                     'total_delivery' => $invoices->sum('delivery_charge'),
                     'total_amount'   => $invoices->sum('total'),
-                    'total_paid'     => $invoices->sum('paid_amount'),
+                    'total_paid'     => $invoices->sum('total_paid_amount'),
                     'total_due'      => $invoices->sum('due_amount'),
                     'as_creator'     => 0,
                     'as_team_member' => 0,
@@ -411,7 +411,7 @@ class User extends Authenticatable
                     'total_subtotal' => $invoices->sum('subtotal'),
                     'total_delivery' => $invoices->sum('delivery_charge'),
                     'total_amount'   => $invoices->sum('total'),
-                    'total_paid'     => $invoices->sum('paid_amount'),
+                    'total_paid'     => $invoices->sum('total_paid_amount'),
                     'total_due'      => $invoices->sum('due_amount'),
                     'as_creator'     => $invoices->where('created_by', $user->id)->count(),
                     'as_team_member' => $invoices->where('team_id', $user->id)->count(),
@@ -427,7 +427,7 @@ class User extends Authenticatable
                     'total_subtotal' => $invoices->sum('subtotal'),
                     'total_delivery' => $invoices->sum('delivery_charge'),
                     'total_amount'   => $invoices->sum('total'),
-                    'total_paid'     => $invoices->sum('paid_amount'),
+                    'total_paid'     => $invoices->sum('total_paid_amount'),
                     'total_due'      => $invoices->sum('due_amount'),
                     'as_creator'     => 0,
                     'as_team_member' => 0,

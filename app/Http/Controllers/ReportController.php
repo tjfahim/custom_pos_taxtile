@@ -32,7 +32,7 @@ class ReportController extends Controller
     $toDate = Carbon::parse($request->to_date)->endOfDay();
 
     // Get filtered invoices with relationships - ONLY CONFIRMED and NOT DELETED
-    $invoices = Invoice::with(['customer', 'creator', 'items'])
+    $invoices = Invoice::with(['customer', 'creator', 'items', 'returnItems'])
         ->whereBetween('created_at', [$fromDate, $toDate])
         ->where('status', 'confirmed') // Only confirmed invoices
         ->whereNull('deleted_at') // Exclude soft-deleted records
@@ -45,11 +45,11 @@ class ReportController extends Controller
         'total_subtotal' => $invoices->sum('subtotal'),
         'total_delivery_charge' => $invoices->sum('delivery_charge'),
         'total_amount' => $invoices->sum('total'),
-        'total_paid' => $invoices->sum('paid_amount'),
+        'total_paid' => $invoices->sum('total_paid_amount'),
         'total_due' => $invoices->sum('due_amount'),
         'total_weight' => $invoices->sum('total_weight'),
         'total_quantity' => $invoices->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
+            return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
         }),
     ];
 
@@ -65,28 +65,28 @@ class ReportController extends Controller
         'paid' => [
             'count' => $paidInvoices->count(),
             'total' => $paidInvoices->sum('total'),
-            'paid' => $paidInvoices->sum('paid_amount'),
+            'paid' => $paidInvoices->sum('total_paid_amount'),
             'due' => $paidInvoices->sum('due_amount'),
             'quantity' => $paidInvoices->sum(function($invoice) {
-                return $invoice->items->sum('quantity');
+                return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
             }),
         ],
         'partial' => [
             'count' => $partialInvoices->count(),
             'total' => $partialInvoices->sum('total'),
-            'paid' => $partialInvoices->sum('paid_amount'),
+            'paid' => $partialInvoices->sum('total_paid_amount'),
             'due' => $partialInvoices->sum('due_amount'),
             'quantity' => $partialInvoices->sum(function($invoice) {
-                return $invoice->items->sum('quantity');
+                return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
             }),
         ],
         'unpaid' => [
             'count' => $unpaidInvoices->count(),
             'total' => $unpaidInvoices->sum('total'),
-            'paid' => $unpaidInvoices->sum('paid_amount'),
+            'paid' => $unpaidInvoices->sum('total_paid_amount'),
             'due' => $unpaidInvoices->sum('due_amount'),
             'quantity' => $unpaidInvoices->sum(function($invoice) {
-                return $invoice->items->sum('quantity');
+                return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
             }),
         ],
     ];
@@ -97,10 +97,10 @@ class ReportController extends Controller
             return [
                 'count' => $group->count(),
                 'total' => $group->sum('total'),
-                'paid' => $group->sum('paid_amount'),
+                'paid' => $group->sum('total_paid_amount'),
                 'due' => $group->sum('due_amount'),
                 'quantity' => $group->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
+                    return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                 }),
             ];
         });
@@ -113,10 +113,10 @@ class ReportController extends Controller
             'date' => $dayInvoices->first()->created_at->format('M d, Y'),
             'count' => $dayInvoices->count(),
             'total' => $dayInvoices->sum('total'),
-            'paid' => $dayInvoices->sum('paid_amount'),
+            'paid' => $dayInvoices->sum('total_paid_amount'),
             'due' => $dayInvoices->sum('due_amount'),
             'quantity' => $dayInvoices->sum(function($invoice) {
-                return $invoice->items->sum('quantity');
+                return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
             }),
         ];
     })->values();
@@ -130,10 +130,10 @@ class ReportController extends Controller
                 'phone' => $customer ? $customer->phone_number_1 : 'N/A',
                 'invoice_count' => $customerInvoices->count(),
                 'total_spent' => $customerInvoices->sum('total'),
-                'total_paid' => $customerInvoices->sum('paid_amount'),
+                'total_paid' => $customerInvoices->sum('total_paid_amount'),
                 'total_due' => $customerInvoices->sum('due_amount'),
                 'quantity' => $customerInvoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
+                    return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                 }),
             ];
         })
@@ -148,10 +148,10 @@ class ReportController extends Controller
                 'count' => $areaInvoices->count(),
                 'total' => $areaInvoices->sum('total'),
                 'delivery_charge' => $areaInvoices->sum('delivery_charge'),
-                'paid' => $areaInvoices->sum('paid_amount'),
+                'paid' => $areaInvoices->sum('total_paid_amount'),
                 'due' => $areaInvoices->sum('due_amount'),
                 'quantity' => $areaInvoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
+                    return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                 }),
             ];
         })
@@ -163,10 +163,10 @@ class ReportController extends Controller
             return [
                 'count' => $typeInvoices->count(),
                 'total' => $typeInvoices->sum('total'),
-                'paid' => $typeInvoices->sum('paid_amount'),
+                'paid' => $typeInvoices->sum('total_paid_amount'),
                 'due' => $typeInvoices->sum('due_amount'),
                 'quantity' => $typeInvoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
+                    return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                 }),
             ];
         });
@@ -180,16 +180,16 @@ class ReportController extends Controller
                 'email' => $user ? $user->email : 'N/A',
                 'count' => $userInvoices->count(),
                 'quantity' => $userInvoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
+                    return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                 }),
                 'subtotal' => $userInvoices->sum('subtotal'),
                 'delivery_charge' => $userInvoices->sum('delivery_charge'),
                 'total' => $userInvoices->sum('total'),
-                'paid' => $userInvoices->sum('paid_amount'),
+                'paid' => $userInvoices->sum('total_paid_amount'),
                 'due' => $userInvoices->sum('due_amount'),
                 'avg_order_value' => $userInvoices->avg('total'),
                 'avg_quantity_per_order' => $userInvoices->average(function($invoice) {
-                    return $invoice->items->sum('quantity');
+                    return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                 }),
             ];
         })
@@ -214,7 +214,7 @@ class ReportController extends Controller
         $user = $creatorInvoices->first()->creator;
         
         $totalQuantity = $creatorInvoices->sum(function($invoice) {
-            return $invoice->items->sum('quantity');
+            return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
         });
         
         return [
@@ -228,7 +228,7 @@ class ReportController extends Controller
             'total_subtotal' => $creatorInvoices->sum('subtotal'),
             'total_delivery' => $creatorInvoices->sum('delivery_charge'),
             'total_amount' => $creatorInvoices->sum('total'),
-            'total_paid' => $creatorInvoices->sum('paid_amount'),
+            'total_paid' => $creatorInvoices->sum('total_paid_amount'),
             'total_due' => $creatorInvoices->sum('due_amount'),
             'avg_order_value' => $creatorInvoices->avg('total'),
             
@@ -239,7 +239,7 @@ class ReportController extends Controller
             
             // Collection rate for this creator in this date range
             'collection_rate' => $creatorInvoices->sum('total') > 0 
-                ? round(($creatorInvoices->sum('paid_amount') / $creatorInvoices->sum('total')) * 100, 2) 
+                ? round(($creatorInvoices->sum('total_paid_amount') / $creatorInvoices->sum('total')) * 100, 2) 
                 : 0,
             
             // Additional useful metrics
@@ -302,7 +302,7 @@ $creatorSummary = [
         $fromDate = Carbon::parse($request->from_date)->startOfDay();
         $toDate = Carbon::parse($request->to_date)->endOfDay();
 
-        $invoices = Invoice::with(['customer', 'creator', 'items'])
+        $invoices = Invoice::with(['customer', 'creator', 'items', 'returnItems'])
             ->whereBetween('created_at', [$fromDate, $toDate])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -356,7 +356,7 @@ $creatorSummary = [
                     return $item->item_name . ' (Qty: ' . $item->quantity . ', Price: ' . $item->unit_price . ')';
                 })->implode('; ');
 
-                $totalQuantity = $invoice->items->sum('quantity');
+                $totalQuantity = $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
 
                 fputcsv($file, [
                     $invoice->invoice_number,
@@ -374,7 +374,7 @@ $creatorSummary = [
                     number_format($invoice->subtotal, 0),
                     number_format($invoice->delivery_charge, 0),
                     number_format($invoice->total, 0),
-                    number_format($invoice->paid_amount, 0),
+                    number_format($invoice->total_paid_amount, 0),
                     number_format($invoice->due_amount, 0),
                     ucfirst($invoice->payment_status),
                     ucfirst($invoice->status),
@@ -400,12 +400,12 @@ $creatorSummary = [
             fputcsv($file, [
                 $invoices->count(),
                 $invoices->sum(function($invoice) {
-                    return $invoice->items->sum('quantity');
+                    return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                 }),
                 number_format($invoices->sum('subtotal'), 2),
                 number_format($invoices->sum('delivery_charge'), 2),
                 number_format($invoices->sum('total'), 2),
-                number_format($invoices->sum('paid_amount'), 2),
+                number_format($invoices->sum('total_paid_amount'), 2),
                 number_format($invoices->sum('due_amount'), 2)
             ]);
 
@@ -425,7 +425,7 @@ $creatorSummary = [
         $fromDate = Carbon::parse($request->from_date)->startOfDay();
         $toDate = Carbon::parse($request->to_date)->endOfDay();
 
-        $invoices = Invoice::with(['customer', 'creator', 'items'])
+        $invoices = Invoice::with(['customer', 'creator', 'items', 'returnItems'])
             ->whereBetween('created_at', [$fromDate, $toDate])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -435,10 +435,10 @@ $creatorSummary = [
             'total_subtotal' => $invoices->sum('subtotal'),
             'total_delivery_charge' => $invoices->sum('delivery_charge'),
             'total_amount' => $invoices->sum('total'),
-            'total_paid' => $invoices->sum('paid_amount'),
+            'total_paid' => $invoices->sum('total_paid_amount'),
             'total_due' => $invoices->sum('due_amount'),
             'total_quantity' => $invoices->sum(function($invoice) {
-                return $invoice->items->sum('quantity');
+                return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
             }),
         ];
 
@@ -450,10 +450,10 @@ $creatorSummary = [
                     'name' => $user ? $user->name : 'N/A',
                     'count' => $userInvoices->count(),
                     'quantity' => $userInvoices->sum(function($invoice) {
-                        return $invoice->items->sum('quantity');
+                        return $invoice->items->sum('quantity') - $invoice->returnItems->sum('quantity');
                     }),
                     'total' => $userInvoices->sum('total'),
-                    'paid' => $userInvoices->sum('paid_amount'),
+                    'paid' => $userInvoices->sum('total_paid_amount'),
                     'due' => $userInvoices->sum('due_amount'),
                 ];
             })
